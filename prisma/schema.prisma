@@ -312,7 +312,14 @@ model HexReleaseNotify {
   release   String
   createdAt DateTime @default(now())
   /** Once-only ledger for the "next release is out" send, same shape as
-   *  WaitlistSignup.notifiedAt: null = owed, set = sent. */
+   *  WaitlistSignup.notifiedAt: null = owed, set = sent.
+   *
+   *  Backed by a PARTIAL index, `HexReleaseNotify_notifiedAt_idx ... WHERE
+   *  "notifiedAt" IS NULL` (20260803120000_hex_release_notify), which keeps the
+   *  cron's "who is still owed a send" scan proportional to the backlog rather
+   *  than the table. Partial indexes are not expressible in Prisma schema, so it
+   *  lives only in that migration -- named here so grepping the index name finds
+   *  something. (WaitlistSignup deliberately has no equivalent index.) */
   notifiedAt DateTime?
 }
 
@@ -389,6 +396,10 @@ model Purchase {
 
   @@index([userId])
   @@index([entitlementId])
+  // The refund path looks Purchase up by payment_intent on BOTH charge.refunded
+  // and refund.created. Without this it was a sequential scan of the whole table,
+  // inside a transaction Stripe retries on timeout.
+  @@index([stripePaymentIntentId])
 }
 
 // Mirror of a Stripe Subscription (recurring all-access / platform access).
@@ -1028,6 +1039,13 @@ model PartAsset {
 // install), powering the create-form symbol/footprint pickers. pg_trgm GIN
 // search indexes on a name‖keywords‖description (resp. name‖description‖tags)
 // expression are added in the raw migration (not expressible in Prisma schema).
+//
+// They are named `KicadLibSymbol_search_trgm` and `KicadLibFootprint_search_trgm`
+// (20260604235528_add_kicad_lib_refs). Named here so that grepping either index
+// name reaches this schema -- previously the concept was described but the names
+// appeared nowhere outside the migration, and they are load-bearing: without
+// them the ILIKE search in src/lib/actions/kicad-search.ts degrades to a
+// sequential scan with no error to notice.
 model KicadLibSymbol {
   libId       String  @id // "Device:R"
   lib         String

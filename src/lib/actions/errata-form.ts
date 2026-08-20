@@ -45,44 +45,6 @@ function zodErrors(err: ZodError): Record<string, string[]> {
   return errors;
 }
 
-export async function createErratumFormAction(
-  _prev: ErratumFormState,
-  formData: FormData,
-): Promise<ErratumFormState> {
-  const revisionId = pickString(formData, "revisionId");
-  const title = pickString(formData, "title");
-  // Description allows whitespace-sensitive multi-line markdown — don't trim.
-  const description = pickRaw(formData, "description");
-  const severityRaw = pickString(formData, "severity");
-  const statusRaw = pickString(formData, "status");
-  const addressedByRevisionId = pickString(formData, "addressedByRevisionId");
-
-  if (!revisionId) return { message: "Missing revisionId." };
-  if (severityRaw && !(severityRaw in ErratumSeverity)) {
-    return { message: "Invalid severity." };
-  }
-  if (statusRaw && !(statusRaw in ErratumStatus)) {
-    return { message: "Invalid status." };
-  }
-
-  try {
-    const e = await createErratum({
-      revisionId,
-      title,
-      description,
-      severity: severityRaw,
-      status: statusRaw,
-      addressedByRevisionId,
-    });
-    return { createdId: e.id, ok: true };
-  } catch (err) {
-    if (err instanceof ZodError) {
-      return { errors: zodErrors(err) };
-    }
-    return { message: err instanceof Error ? err.message : "Unknown error" };
-  }
-}
-
 export async function editErratumFormAction(
   _prev: ErratumFormState,
   formData: FormData,

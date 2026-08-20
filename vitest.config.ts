@@ -1,5 +1,5 @@
 import { defineConfig, configDefaults } from "vitest/config";
-import { readdirSync, readFileSync, rmSync, mkdirSync } from "node:fs";
+import { readdirSync, readFileSync, mkdirSync } from "node:fs";
 import { loadBaseEnv, testPoolSize, LOCK_DIR } from "./vitest.env";
 
 // Load .env.local (+ test DB env) so this config sees the same env the tests do.
@@ -7,10 +7,19 @@ import { loadBaseEnv, testPoolSize, LOCK_DIR } from "./vitest.env";
 // no R2_BUCKET / PARTS_MCP_DATABASE_URL, and TEST_DATABASE_URL/TEST_DATABASE_POOL).
 loadBaseEnv();
 
-// Clear the branch-lease lock dir once, here on the main thread before any worker
-// spawns (doing it in a globalSetup would race across the two projects). Removes
-// any locks left by a previously crashed run; stale ones would self-heal anyway.
-rmSync(LOCK_DIR, { recursive: true, force: true });
+// Ensure the branch-lease lock dir exists, here on the main thread before any
+// worker spawns (doing it in a globalSetup would race across the two projects).
+//
+// This used to rmSync the directory first, to clear locks left by a crashed run.
+// That wipe was unnecessary AND harmful. Unnecessary because leaseTestBranch()
+// already reclaims any lock whose mtime is older than STALE_MS (20s, against a
+// 2s heartbeat) -- the old comment conceded as much with "stale ones would
+// self-heal anyway". Harmful because it ran unconditionally at config load, so a
+// SECOND vitest process (a `test:watch` already running, another terminal, an
+// agent worktree) deleted the FIRST run's live locks. The victim never noticed:
+// its heartbeat swallows a vanished lock and its release swallows "already
+// gone". Both runs then hand the same branch URL to different files -- exactly
+// the concurrent-writer collision the lease mechanism exists to prevent.
 mkdirSync(LOCK_DIR, { recursive: true });
 
 // Gate live-integration tests on their service env. These exercise REAL R2 or the

@@ -112,37 +112,7 @@ export async function createChecklistFormAction(
 
 // ─── editChecklist form action ─────────────────────────
 
-export async function editChecklistFormAction(
-  _prev: ChecklistFormState,
-  formData: FormData,
-): Promise<ChecklistFormState> {
-  const id = pickString(formData, "id");
-  if (!id) return { message: "Missing checklist id." };
-  const title = pickString(formData, "title");
-  try {
-    await editChecklist({ id, title });
-    return { ok: true };
-  } catch (err) {
-    if (err instanceof ZodError) return { errors: zodErrors(err) };
-    return { message: err instanceof Error ? err.message : "Unknown error" };
-  }
-}
-
 // ─── deleteChecklist form action ───────────────────────
-
-export async function deleteChecklistFormAction(
-  _prev: ChecklistFormState,
-  formData: FormData,
-): Promise<ChecklistFormState> {
-  const id = pickString(formData, "id");
-  if (!id) return { message: "Missing checklist id." };
-  try {
-    await deleteChecklist({ id });
-    return { ok: true };
-  } catch (err) {
-    return { message: err instanceof Error ? err.message : "Unknown error" };
-  }
-}
 
 // ─── addChecklistItem form action ──────────────────────
 
