@@ -13,32 +13,30 @@
 
 import type { HexSolid, Pt } from "@/lib/hex-perspective";
 
-/** flat-top regular hex: height / width. */
-export const FLAT_RATIO = Math.sqrt(3) / 2;
-/** pointy-top regular hex: height / width. Same constant the spine uses. */
-export const POINTY_RATIO = 1.1547;
+// IMPORTED, not restated. This round shipped as `lib/comb-ribbon.ts`, and that
+// module's own header records why: "the first cut of the sandbox round restated
+// 1.1547 and the six pointy corners locally, and the two combs then sat on the
+// same page one rounding apart, which reads as a wobble rather than as a
+// decision." This file was that first cut, and it kept its copies -- so the
+// sandbox has been auditioning rounds against constants the shipped comb no
+// longer necessarily shares.
+//
+// Verified identical at the time of the swap: FLAT_RATIO both sqrt(3)/2,
+// POINTY_RATIO both 1.1547 (the lib aliases SPINE_RATIO), and both corner sets
+// byte-for-byte the same six points. So this changes no pixel today; it removes
+// the chance that it changes one tomorrow without anybody editing this file.
+//
+// Re-exported so this module's own consumers keep the same surface.
+import {
+  FLAT_RATIO,
+  POINTY_RATIO,
+  FLAT_CORNERS,
+  POINTY_CORNERS,
+} from "@/lib/comb-ribbon";
+
+export { FLAT_RATIO, POINTY_RATIO, FLAT_CORNERS, POINTY_CORNERS };
 
 export type RibbonBox = { left: number; top: number; w: number; h: number };
-
-/** Flat-top corners in a unit cell, clockwise from the left point. */
-export const FLAT_CORNERS: Pt[] = [
-  [0, 0.5],
-  [0.25, 0],
-  [0.75, 0],
-  [1, 0.5],
-  [0.75, 1],
-  [0.25, 1],
-];
-
-/** Pointy-top corners in a unit cell. */
-export const POINTY_CORNERS: Pt[] = [
-  [0.5, 0],
-  [1, 0.25],
-  [1, 0.75],
-  [0.5, 1],
-  [0, 0.75],
-  [0, 0.25],
-];
 
 export type RibbonShape =
   /** flat-top, laced edge to edge, alternating down and up. The lesson ribbon. */
