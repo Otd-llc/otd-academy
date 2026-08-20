@@ -1,3 +1,16 @@
+# NOTE: there is no `packages:` key, so this repo is a single package and
+# `capture-app/` is NOT a workspace member. That is currently an accident of
+# omission rather than a decision, and it has consequences worth knowing: the
+# OTD Capture Electron app carries its own npm `package-lock.json`, so its
+# dependencies (electron, ffmpeg-static, mp4-muxer) are never installed,
+# audited, or updated by anything that runs here, and `eslint.config.mjs` does
+# not cover its JS either. It is 16 files of plain JavaScript, so there is no
+# TypeScript for `tsc` to miss.
+#
+# Adopting it would mean converting that lockfile and pulling Electron into every
+# install; extracting it to its own repo would mean a release process for a
+# desktop binary. Both are real choices with real cost -- this comment exists so
+# the next person makes one deliberately instead of rediscovering the gap.
 allowBuilds:
   '@prisma/engines': true
   core-js: false
