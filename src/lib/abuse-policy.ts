@@ -104,7 +104,7 @@ export function clientIp(h: Headers): string | null {
 
 /** Env-namespaced key prefix so Preview cannot drain Prod's counters (N1). */
 export function nsPrefix(rule: RuleName): string {
-  return `otd:${process.env.VERCEL_ENV ?? "local"}:${rule}`;
+  return `otd:${env.VERCEL_ENV ?? "local"}:${rule}`;
 }
 
 // ── The check sets ───────────────────────────────────────────────────────────

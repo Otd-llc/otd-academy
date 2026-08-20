@@ -17,7 +17,17 @@
 
 /** Environment-scoped prefix. Evaluated HERE, never in the configurator, which
  *  runs on Cloudflare and has no VERCEL_ENV — that is also why the return link
- *  carries `d=` as a formatted display string rather than an integer. */
+ *  carries `d=` as a formatted display string rather than an integer.
+ *
+ *  Reads `process.env` directly rather than `@/env`, unlike its sibling in
+ *  abuse-policy.ts. THIS MODULE IS IN THE CLIENT GRAPH: EmbeddedSavePanel,
+ *  HexClusterRow and SaveHexClusterForm all import `MAX_NAME_CHARS` from here.
+ *  Importing `@/env` would pull the whole server schema toward the browser
+ *  bundle, and t3-env throws on a server key accessed from the client — so a
+ *  tree-shake that failed to drop this function would turn into a runtime error
+ *  instead of the harmless `undefined` it resolves to today. Those components
+ *  import only the constant and the type, never `formatDrawingLabel`, so this is
+ *  never actually evaluated in a browser. */
 function drawingPrefix(): string {
   return process.env.VERCEL_ENV === "production" ? "OTD-HEX" : "DEV-HEX";
 }
