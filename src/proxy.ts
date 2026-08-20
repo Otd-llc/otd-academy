@@ -87,6 +87,18 @@ export const config = {
     // symptom would be downloads 307ing to /sign-in for signed-out visitors --
     // which is exactly nobody who is logged in, so it would look fine in
     // testing.
-    "/((?!api/auth|api/avatar|api/part-model|api/printable|api/stripe/webhook|api/capture|api/cron|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico|.*\\..*).*)",
+    // The last alternative exempts static assets by EXTENSION, anchored to the
+    // end of the path. It used to be `.*\\..*` -- any path containing a dot
+    // anywhere -- which was far wider than "an asset request". Revision labels
+    // are `[A-Za-z0-9 .-]+` and the schema names `v1.1` as canonical vocabulary
+    // (src/lib/schemas/revision.ts), so a single revision created through the
+    // normal admin UI took `/projects/<slug>/v1.1` and everything beneath it out
+    // of the gate's reach entirely -- the whole operator subtree, served to
+    // anonymous requests, with no error anywhere to notice.
+    //
+    // Anchoring to `$` and naming the extensions makes an unrecognised dotted
+    // path fail CLOSED: it stays gated (working, slightly more work per request)
+    // rather than silently public. Add to the list when a new asset type ships.
+    "/((?!api/auth|api/avatar|api/part-model|api/printable|api/stripe/webhook|api/capture|api/cron|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico|.*\\.(?:ico|png|jpe?g|gif|svg|webp|avif|txt|xml|json|map|css|js|mjs|woff2?|ttf|otf|mp4|webm|pdf|3mf|stl|zip)$).*)",
   ],
 };

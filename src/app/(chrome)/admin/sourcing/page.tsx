@@ -4,9 +4,8 @@
 // Re-check button. Admin-only; noindex.
 
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/auth";
+import { requireAdmin } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
 import { ExternalLinkIcon } from "@/components/icons";
@@ -17,8 +16,11 @@ import { availabilityBadge } from "@/lib/part-availability";
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default async function SourcingDashboardPage() {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") notFound();
+  // Was `notFound()` on a non-admin, unlike every sibling under /admin. Under
+  // PPR the status belongs to the prerendered shell, so that denial served the
+  // 404 BODY with status 200 -- no leak, but the wrong answer to the wrong
+  // question. `requireAdmin()` is the gate the other nine admin pages use.
+  await requireAdmin();
 
   const issues = await activeBomUnorderable(db, new Date());
   const partCount = issues.reduce((n, b) => n + b.lines.length, 0);
