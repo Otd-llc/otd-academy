@@ -98,6 +98,45 @@ export function leaseTestBranch(): () => void {
   const pool = poolUrls();
   if (pool.length === 0) {
     if (process.env.TEST_DATABASE_URL) setDbUrls(process.env.TEST_DATABASE_URL);
+    // No pool and no explicit single test DB. In CI that is CORRECT and
+    // deliberate: the workflow passes DATABASE_URL/DIRECT_URL for the shared
+    // ci-test branch directly, and tests run serially against it.
+    //
+    // Anywhere else it means `.env.test.local` is missing -- the default state
+    // of a fresh clone, since it is gitignored. dotenv does not override an
+    // already-set variable, so DATABASE_URL keeps whatever `.env.local` gave it:
+    // the developer's own dev database. Every DB test file would then run its
+    // INSERT/UPDATE/DELETE against it, destroying the local seed, and this
+    // function would return a no-op release having leased nothing -- silently.
+    // Fail loudly instead; a wrong database is not something to discover from
+    // confusing test failures an hour later.
+    else if (!process.env.CI) {
+      const current = process.env.DATABASE_URL;
+      let where = "(DATABASE_URL unset)";
+      try {
+        if (current) {
+          const u = new URL(current);
+          where = `${u.hostname}${u.pathname}`;
+        }
+      } catch {
+        where = "(DATABASE_URL unparseable)";
+      }
+      throw new Error(
+        [
+          "[vitest.env] Refusing to run DB tests without an isolated test database.",
+          "",
+          `  DB tests would run against: ${where}`,
+          "",
+          "  Neither TEST_DATABASE_POOL nor TEST_DATABASE_URL is set, which means",
+          "  .env.test.local is missing (it is gitignored, so a fresh clone has none).",
+          "  Without it these tests mutate whatever .env.local points at -- normally",
+          "  your local dev database -- and lease no branch.",
+          "",
+          "  Fix: create .env.test.local with TEST_DATABASE_POOL (see CLAUDE.md).",
+          "  To run the tests that need no database instead: pnpm vitest run --project unit",
+        ].join("\n"),
+      );
+    }
     return () => {};
   }
 
