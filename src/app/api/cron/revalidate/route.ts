@@ -31,8 +31,31 @@
 // against which deployment, and whether a seed run should fail when the call
 // fails are decisions with real consequences; this lands the endpoint they can
 // call. `scripts/lib/revalidate.ts` is the client.
+// `revalidateTag`, NOT `updateTag`. The first cut used updateTag, to match
+// src/lib/cache-invalidate.ts, and it 500'd in production the first time it was
+// called:
+//
+//   updateTag can only be called from within a Server Action. To invalidate
+//   cache tags in Route Handlers or other contexts, use revalidateTag instead.
+//
+// cache-invalidate.ts is correct to use updateTag: every one of its callers IS a
+// server action. This is a Route Handler, which is a different context, and the
+// distinction is invisible until the code actually runs.
+//
+// The unit tests below could not have caught it either — they mock `next/cache`,
+// so they can assert WHICH tag was asked for but never whether the function is
+// legal where it was called. That is the limit of mocking a boundary.
+//
+// THE SECOND ARGUMENT IS LOAD-BEARING. `revalidateTag(tag, profile)` reads ONLY
+// `expire` off the profile, and only `expire: 0` marks the entry revalidated
+// immediately — anything else is a stale-while-revalidate grace window. Passing
+// a READ profile here is a documented trap in this repo: src/lib/cache-profile.ts
+// says of ONE_HOUR, "READ SIDE ONLY ... Do NOT pass it to revalidateTag()",
+// because its 86_400 expire would silently ask for a 24-hour grace period. A
+// caller invalidating after a content write wants the change visible now, so the
+// profile here is `{ expire: 0 }` and nothing else.
 import { NextResponse } from "next/server";
-import { updateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
 import { env } from "@/env";
 import { cronAuthorized } from "@/lib/cron-auth";
 import {
@@ -48,11 +71,14 @@ import {
 // default and a route-segment config is rejected outright.
 export const maxDuration = 30;
 
+/** Immediate expiry. See the note above — NOT a read profile. */
+const NOW = { expire: 0 } as const;
+
 /** The tags a caller may ask for, and how each maps onto the cache. */
 const TARGETS = {
-  "mini-lessons": () => updateTag(TAG_MINI_LESSONS),
-  projects: () => updateTag(TAG_PROJECTS),
-  parts: () => updateTag(TAG_PARTS),
+  "mini-lessons": () => revalidateTag(TAG_MINI_LESSONS, NOW),
+  projects: () => revalidateTag(TAG_PROJECTS, NOW),
+  parts: () => revalidateTag(TAG_PARTS, NOW),
 } as const;
 
 type Target = keyof typeof TARGETS;
@@ -119,8 +145,8 @@ export async function POST(req: Request) {
 
   // Fixed allowlist above, so a caller cannot ask for an arbitrary tag string.
   for (const t of tagList) TARGETS[t as Target]();
-  for (const slug of lessonList) updateTag(miniLessonTag(slug));
-  for (const slug of guideList) updateTag(guideContentTag(slug));
+  for (const slug of lessonList) revalidateTag(miniLessonTag(slug), NOW);
+  for (const slug of guideList) revalidateTag(guideContentTag(slug), NOW);
 
   return NextResponse.json({
     ok: true,
