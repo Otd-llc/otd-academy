@@ -40,21 +40,16 @@ export function IconButton({
       ? "text-muted hover:text-alert-red hover:bg-command-gold/10"
       : "text-muted hover:text-command-gold hover:bg-command-gold/10";
   return (
-    <Tooltip content={hint}>
-      <span
-        tabIndex={0}
-        className="inline-flex rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold"
+    <Tooltip content={hint} wrapDisabled>
+      <button
+        type={type}
+        aria-label={ariaLabel}
+        onClick={onClick}
+        disabled={disabled}
+        className={`inline-flex shrink-0 items-center justify-center rounded p-2.5 transition-colors disabled:opacity-40 disabled:hover:bg-transparent ${toneClasses} disabled:hover:text-muted`}
       >
-        <button
-          type={type}
-          aria-label={ariaLabel}
-          onClick={onClick}
-          disabled={disabled}
-          className={`inline-flex shrink-0 items-center justify-center rounded p-2.5 transition-colors disabled:opacity-40 disabled:hover:bg-transparent ${toneClasses} disabled:hover:text-muted`}
-        >
-          {children}
-        </button>
-      </span>
+        {children}
+      </button>
     </Tooltip>
   );
 }
