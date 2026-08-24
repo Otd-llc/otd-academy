@@ -118,46 +118,50 @@ jobs:
           R2_ENABLED: "false"
           DIAGRAM_EXPORT: "1"
           DIAGRAM_BASE_URL: http://localhost:3000
-      # AN S3 SERVER, SO THE LIVE-INTEGRATION SUITES CAN ACTUALLY RUN.
+      - run: pnpm vitest run
+        env:
+          # DB-backed tests need a REAL seeded Postgres — these repo secrets point
+          # at the seeded `ci-test` Neon branch (it inherits the schema + seed data).
+          DATABASE_URL: ${{ secrets.NEON_TEST_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.NEON_TEST_DIRECT_URL }}
+          # Non-DB env so `@/env` validation passes (mirrors the build step).
+          AUTH_SECRET: "stub-secret-32-chars-long-padding-x"
+          AUTH_GOOGLE_ID: stub
+          AUTH_GOOGLE_SECRET: stub
+          AUTH_GITHUB_ID: stub
+          AUTH_GITHUB_SECRET: stub
+          AUTH_RESEND_KEY: stub
+          ALLOWED_EMAILS: "seed@example.com"
+          R2_ENABLED: "false"
+
+      # ======================================================================
+      # THE R2-GATED SUITES, IN THEIR OWN RUN.
+      # ======================================================================
+      # A SEPARATE INVOCATION, NOT R2_ENABLED ON THE RUN ABOVE. The first cut set
+      # the R2 env on the main step and 63 tests in printable-pack-route.test.ts
+      # went red: it does its own `vi.stubEnv("R2_BUCKET", "test-bucket")` on the
+      # assumption that the process has no real R2 config, and a real R2_BUCKET +
+      # R2_ENDPOINT underneath it broke that. Roughly 180 files run in that step
+      # and none of them asked for object storage; handing all of them a live S3
+      # endpoint to reach seven is the wrong lever.
       #
-      # Seven test files (56 test declarations) were EXCLUDED from every CI run --
-      # not skipped, excluded: vitest.config.ts drops them from the file list when
-      # `R2_ENABLED != "true"`, so they contributed nothing to any summary and the
-      # run reported a clean sweep of what remained.
+      # Running second also keeps seven more DB-writing files out of the main
+      # run's parallel set. They share ONE ci-test branch here (per-file branch
+      # leasing needs TEST_DATABASE_POOL, which CI does not set), and the first
+      # cut pushed it into `40001 could not serialize access` on files that had
+      # nothing to do with this change.
       #
-      # The obvious fix -- a real R2 test bucket -- is the wrong one HERE. This
-      # repository is PUBLIC. An R2 credential in its Actions secrets is reachable
-      # from any merged workflow edit, and a fork PR gets no secrets at all, so the
-      # suites would stay green-by-absence for exactly the contributors worth
-      # guarding against. Cost was never the blocker either: measured at ~371 CI
-      # runs/30d the whole thing sits inside R2's free tier, about $0.30/month at
-      # list price. The blocker is the credential, so the fix removes it.
-      #
-      # A `docker run` STEP, not a `services:` container, and both halves of that
-      # are load-bearing:
-      #   * `services:` cannot override a command, and minio's entrypoint needs
-      #     `server /data`. The first cut used bitnami/minio:latest to dodge that
-      #     and the run died on `manifest unknown` -- Bitnami retired those tags.
-      #     The official image is the maintained one, and it needs the command.
-      #   * the bucket is created with the SDK the app already depends on, rather
-      #     than `mc` (not guaranteed in the image) or the AWS CLI (a runner-image
-      #     assumption). Same client the code under test uses.
-      #
-      # WHAT THIS DOES NOT BUY. MinIO is not R2. It exercises OUR code against the
-      # S3 contract; it cannot reproduce R2-specific behaviour, and this repo has
-      # at least one place that depends on exactly that -- src/lib/actions/
-      # enrollment.ts HEAD-verifies uploads because "R2 has been inconsistent about
-      # enforcing presigned Content-Length". Green here means our code did not
-      # regress. It does not mean R2 behaved.
-      - name: Start an S3-compatible server for the live-integration suites
+      # The file list must match `gatedBasenames` in vitest.config.ts. If they
+      # drift, the banner in the step above names the file as excluded and it
+      # simply does not run here -- visible, but nothing enforces it.
+      - name: Start an S3-compatible server
         run: |
           set -euo pipefail
           docker run -d --name s3 -p 9000:9000 \
             -e MINIO_ROOT_USER=ciminio \
             -e MINIO_ROOT_PASSWORD=ciminio-secret \
             minio/minio:latest server /data
-          # Wait for readiness rather than sleeping: a fixed sleep is either a
-          # wasted 10s or a flake, depending on the runner.
+          # Poll rather than sleep: a fixed sleep is either wasted time or a flake.
           for i in $(seq 1 60); do
             if curl -sf http://localhost:9000/minio/health/live >/dev/null; then
               echo "minio ready after ${i}s"; break
@@ -167,6 +171,8 @@ jobs:
             fi
             sleep 1
           done
+          # Created with the SDK the app already depends on, rather than `mc` (not
+          # guaranteed in the image) or the AWS CLI (a runner-image assumption).
           node -e '
             const { S3Client, CreateBucketCommand } = require("@aws-sdk/client-s3");
             const s3 = new S3Client({
@@ -179,13 +185,19 @@ jobs:
               .then(() => console.log("bucket otd-ci created"))
               .catch((e) => { console.error("::error::could not create bucket:", e.message); process.exit(1); });
           '
-      - run: pnpm vitest run
+      - name: R2-gated suites (against the container)
+        run: |
+          pnpm vitest run \
+            src/lib/__tests__/artifact-render.test.ts \
+            src/lib/__tests__/kicad-export.test.ts \
+            src/lib/__tests__/m8b-checkpoint.test.ts \
+            src/lib/__tests__/part-assets-actions.test.ts \
+            src/lib/__tests__/part-assets-r2.test.ts \
+            src/lib/__tests__/uploads-actions.test.ts \
+            src/lib/__tests__/uploads-download.test.ts
         env:
-          # DB-backed tests need a REAL seeded Postgres — these repo secrets point
-          # at the seeded `ci-test` Neon branch (it inherits the schema + seed data).
           DATABASE_URL: ${{ secrets.NEON_TEST_DATABASE_URL }}
           DIRECT_URL: ${{ secrets.NEON_TEST_DIRECT_URL }}
-          # Non-DB env so `@/env` validation passes (mirrors the build step).
           AUTH_SECRET: "stub-secret-32-chars-long-padding-x"
           AUTH_GOOGLE_ID: stub
           AUTH_GOOGLE_SECRET: stub
