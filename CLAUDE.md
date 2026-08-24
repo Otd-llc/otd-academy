@@ -144,8 +144,21 @@ lines, or revisions before then. New boards start from `docs/boards/_template/`
   - A **daily workflow in the private `Otd-llc/otd-content-archive`** refreshes the prod
     mirror. It lives there, not here, so the prod URL is never an Actions secret on a public
     repo. It checks this repo out at the **`content-export-v1` tag**, so **if you change
-    `scripts/export-content.ts` you must bump that tag or the schedule silently keeps
-    running the old code.** Nothing warns you.
+    any file that workflow runs, you must bump that tag or the schedule silently keeps
+    running the old code.** Nothing warns you. That is now **four** files, not one:
+    `scripts/export-content.ts`, `src/lib/__tests__/content-archive-guards.test.ts`, and
+    its two dependencies `src/lib/gate-quiz.ts` + `src/lib/quiz-spread.ts`.
+  - **The content guards are green-by-absence HERE and only mean something THERE.**
+    `content-archive-guards.test.ts` is `test.runIf(HAVE_ARCHIVE)` against the private
+    archive, which this public repo's CI has no copy of — so all three tests SKIP and the
+    run is green having checked nothing (measured: `success: true, numPassedTests: 0,
+    numPendingTests: 3`). Three L1.01 gate quizzes were passable with one letter until
+    2026-08-20 while this file sat green. The run that counts is the archive's own daily
+    workflow, which exports prod, commits the mirror, runs this file against it, and then
+    **fails the job if any test skipped**. Do not read a green run here as evidence about
+    answer keys. Do not "fix" it by checking the archive out here either: this repo is
+    PUBLIC, so that would put every exam answer key one workflow edit from exfiltration
+    and would still skip on fork PRs, which get no secrets.
   - The archive carries **two** trees: `content/` mirrors prod, `local-snapshot/` mirrors
     the dev DB. Neither is a superset — L2.01's authored guide and its 18-question exam
     exist only on local, held back pending a safety review. `local-snapshot/` retires when
