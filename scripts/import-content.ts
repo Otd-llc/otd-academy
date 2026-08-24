@@ -38,6 +38,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import { serializeContentFile } from "@/lib/content-export";
+import { revalidate } from "./lib/revalidate";
 
 /**
  * Compare two JSON values the way the ARCHIVE sees them.
@@ -456,6 +457,12 @@ async function main() {
     );
   } else {
     console.log(`  applied ${plan.creates.length} create(s), ${plan.updates.length} update(s).`);
+    // A restore rewrites guide cards AND mini-lessons, so both families of tag
+    // are stale. Only on --write: a dry run changed nothing and must not evict a
+    // live cache. No-ops on a local target.
+    if (plan.creates.length + plan.updates.length > 0) {
+      await revalidate({ tags: ["mini-lessons", "projects"] });
+    }
   }
   console.log("");
 

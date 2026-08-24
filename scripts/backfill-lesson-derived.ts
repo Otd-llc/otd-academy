@@ -8,6 +8,7 @@
 //   pnpm exec tsx scripts/backfill-lesson-derived.ts     -> local foundry_dev
 //   pnpm db:prod scripts/backfill-lesson-derived.ts      -> PROD (prompts)
 import { config as loadEnv } from "dotenv";
+import { revalidate } from "./lib/revalidate";
 loadEnv({ path: ".env.local", quiet: true });
 
 async function main() {
@@ -39,6 +40,15 @@ async function main() {
   }
 
   console.log(`\n  done: ${changed} rows`);
+
+  // THE CASE THIS WHOLE MECHANISM EXISTS FOR. Migration
+  // 20260715200000_minilesson_derived_columns tells you to run this script
+  // afterwards; before the revalidate route existed, following that instruction
+  // exactly left /library serving the placeholder defaults (readingMinutes = 1,
+  // questionCount = 0) for up to a day, with nothing to grep for. Broad tag
+  // because this rewrites every lesson. No-ops on a local run.
+  if (changed > 0) await revalidate({ tags: ["mini-lessons"] });
+
   await db.$disconnect();
 }
 

@@ -28,6 +28,7 @@ import { guideContentBlocksSchema, type ContentBlock } from "@/lib/schemas/guide
 import { LIBRARY_BLOCK_TYPES } from "@/lib/library/block-allowlist";
 import { PDF_SAIRA_FALLBACK } from "@/lib/pdf/pdf-fallback-set";
 import { pdfGlyphIssues } from "@/lib/pdf/pdf-glyph-coverage";
+import { revalidate } from "./lib/revalidate";
 
 const BYLINE = "One Thousand Drones engineering team · verified 2026-07";
 const VERIFIED_AT = new Date("2026-07-09T00:00:00.000Z");
@@ -517,4 +518,18 @@ if (process.argv.includes("--check")) {
   process.exit(0);
 }
 validate();
-seed().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
+seed()
+  .then(async () => {
+    // A whole-cluster seed rewrites every lesson in the cluster, so the broad tag
+    // is the honest scope -- listing the slugs would be a longer way of saying
+    // the same thing. No-ops on a local write.
+    //
+    // AWAITED before process.exit: an unawaited fetch would be killed by the exit
+    // before the request left, and the call would silently never happen.
+    await revalidate({ tags: ["mini-lessons"] });
+    process.exit(0);
+  })
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
