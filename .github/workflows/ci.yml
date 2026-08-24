@@ -187,14 +187,37 @@ jobs:
           '
       - name: R2-gated suites (against the container)
         run: |
-          pnpm vitest run \
-            src/lib/__tests__/artifact-render.test.ts \
-            src/lib/__tests__/kicad-export.test.ts \
-            src/lib/__tests__/m8b-checkpoint.test.ts \
-            src/lib/__tests__/part-assets-actions.test.ts \
-            src/lib/__tests__/part-assets-r2.test.ts \
-            src/lib/__tests__/uploads-actions.test.ts \
-            src/lib/__tests__/uploads-download.test.ts
+          FILES="src/lib/__tests__/artifact-render.test.ts
+          src/lib/__tests__/kicad-export.test.ts
+          src/lib/__tests__/m8b-checkpoint.test.ts
+          src/lib/__tests__/part-assets-actions.test.ts
+          src/lib/__tests__/part-assets-r2.test.ts
+          src/lib/__tests__/uploads-actions.test.ts
+          src/lib/__tests__/uploads-download.test.ts"
+
+          # THE MCP FILE IS BOTH OPT-IN AND SELF-EXCLUDING, so it has to be added
+          # here rather than listed above. Two separate mechanisms key off the same
+          # variable and they disagree about the empty string:
+          #
+          #   * `@/env` types it `z.url().optional()`. Optional admits `undefined`,
+          #     NOT "" -- and an unset GitHub secret interpolates to "". Passing it
+          #     through as a plain `env:` key failed all seven files at import with
+          #     `invalid_format ... PARTS_MCP_DATABASE_URL: Invalid URL`, before a
+          #     single test ran. That is what this `if` prevents.
+          #   * `MCP_OFF` in vitest.config.ts treats "" as absent and DROPS
+          #     parts-mcp-readonly.test.ts from the file list. So naming it above
+          #     unconditionally would fail with "No test files found" whenever the
+          #     secret is missing -- and omitting it entirely would mean it never
+          #     runs even once the role exists.
+          #
+          # Appending it only when the secret is real satisfies both.
+          if [ -n "${PARTS_MCP_TEST_DATABASE_URL:-}" ]; then
+            export PARTS_MCP_DATABASE_URL="$PARTS_MCP_TEST_DATABASE_URL"
+            FILES="$FILES src/lib/__tests__/parts-mcp-readonly.test.ts"
+          fi
+
+          # Unquoted on purpose: the list must word-split into separate arguments.
+          pnpm vitest run $FILES
         env:
           DATABASE_URL: ${{ secrets.NEON_TEST_DATABASE_URL }}
           DIRECT_URL: ${{ secrets.NEON_TEST_DIRECT_URL }}
@@ -239,4 +262,4 @@ jobs:
           #   GRANT SELECT ON ALL TABLES IN SCHEMA public TO foundry_ro;
           #   ALTER ROLE foundry_ro SET default_transaction_read_only = on;
           # then set the PARTS_MCP_TEST_DATABASE_URL repo secret to its URL.
-          PARTS_MCP_DATABASE_URL: ${{ secrets.PARTS_MCP_TEST_DATABASE_URL }}
+          PARTS_MCP_TEST_DATABASE_URL: ${{ secrets.PARTS_MCP_TEST_DATABASE_URL }}
