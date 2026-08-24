@@ -4,10 +4,28 @@
 // deterministic export in the sibling content archive (see scripts/export-content.ts)
 // rather than any file in this repo.
 //
-// The archive is a separate PRIVATE repo and is absent in CI, which leaves this
-// suite unable to run there. `test.runIf` skips rather than fails in that case: a
+// The archive is a separate PRIVATE repo and is absent in THIS repo's CI, which
+// leaves this suite unable to run here. `test.runIf` skips rather than fails: a
 // missing archive is not a content defect, and reddening CI over it would train
 // everyone to ignore the check. Set CONTENT_ARCHIVE_DIR to point it elsewhere.
+//
+// WHERE THESE ACTUALLY GATE SOMETHING. Skipping is green, and green here means
+// nothing was checked -- measured with CONTENT_ARCHIVE_DIR pointed at a path that
+// does not exist: `success: true, numPassedTests: 0, numPendingTests: 3`. Three
+// L1.01 gate quizzes were passable with one letter until 2026-08-20 while this
+// file sat green, so treat a green run in THIS repo as no evidence at all.
+//
+// The run that counts is the daily `export` workflow in the PRIVATE
+// Otd-llc/otd-content-archive. It exports production, commits the mirror, then
+// runs this exact file against it with CONTENT_ARCHIVE_DIR set, and a following
+// step fails the job if any test SKIPPED. That workflow checks this repo out at
+// the `content-export-v1` tag, so **editing this file changes nothing until that
+// tag moves** -- and nothing warns you. Same for @/lib/gate-quiz and
+// @/lib/quiz-spread below, whose behaviour these assertions are made of.
+//
+// Not moved into this repo's CI on purpose: this repo is PUBLIC, and pointing it
+// at the archive would put every exam answer key one workflow edit from
+// exfiltration while still skipping on fork PRs, which get no secrets.
 //
 // Two rules, both scanning the same tree in one walk:
 //   1. A card with more than one quiz block MUST pin which one is the stage gate,
