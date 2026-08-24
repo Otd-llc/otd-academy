@@ -133,3 +133,133 @@ jobs:
           AUTH_RESEND_KEY: stub
           ALLOWED_EMAILS: "seed@example.com"
           R2_ENABLED: "false"
+
+      # ======================================================================
+      # THE R2-GATED SUITES, IN THEIR OWN RUN.
+      # ======================================================================
+      # A SEPARATE INVOCATION, NOT R2_ENABLED ON THE RUN ABOVE. The first cut set
+      # the R2 env on the main step and 63 tests in printable-pack-route.test.ts
+      # went red: it does its own `vi.stubEnv("R2_BUCKET", "test-bucket")` on the
+      # assumption that the process has no real R2 config, and a real R2_BUCKET +
+      # R2_ENDPOINT underneath it broke that. Roughly 180 files run in that step
+      # and none of them asked for object storage; handing all of them a live S3
+      # endpoint to reach seven is the wrong lever.
+      #
+      # Running second also keeps seven more DB-writing files out of the main
+      # run's parallel set. They share ONE ci-test branch here (per-file branch
+      # leasing needs TEST_DATABASE_POOL, which CI does not set), and the first
+      # cut pushed it into `40001 could not serialize access` on files that had
+      # nothing to do with this change.
+      #
+      # The file list must match `gatedBasenames` in vitest.config.ts. If they
+      # drift, the banner in the step above names the file as excluded and it
+      # simply does not run here -- visible, but nothing enforces it.
+      - name: Start an S3-compatible server
+        run: |
+          set -euo pipefail
+          docker run -d --name s3 -p 9000:9000 \
+            -e MINIO_ROOT_USER=ciminio \
+            -e MINIO_ROOT_PASSWORD=ciminio-secret \
+            minio/minio:latest server /data
+          # Poll rather than sleep: a fixed sleep is either wasted time or a flake.
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:9000/minio/health/live >/dev/null; then
+              echo "minio ready after ${i}s"; break
+            fi
+            if [ "$i" = "60" ]; then
+              echo "::error::minio never became ready"; docker logs s3; exit 1
+            fi
+            sleep 1
+          done
+          # Created with the SDK the app already depends on, rather than `mc` (not
+          # guaranteed in the image) or the AWS CLI (a runner-image assumption).
+          node -e '
+            const { S3Client, CreateBucketCommand } = require("@aws-sdk/client-s3");
+            const s3 = new S3Client({
+              region: "auto",
+              endpoint: "http://localhost:9000",
+              forcePathStyle: true,
+              credentials: { accessKeyId: "ciminio", secretAccessKey: "ciminio-secret" },
+            });
+            s3.send(new CreateBucketCommand({ Bucket: "otd-ci" }))
+              .then(() => console.log("bucket otd-ci created"))
+              .catch((e) => { console.error("::error::could not create bucket:", e.message); process.exit(1); });
+          '
+      - name: R2-gated suites (against the container)
+        run: |
+          FILES="src/lib/__tests__/artifact-render.test.ts
+          src/lib/__tests__/kicad-export.test.ts
+          src/lib/__tests__/m8b-checkpoint.test.ts
+          src/lib/__tests__/part-assets-actions.test.ts
+          src/lib/__tests__/part-assets-r2.test.ts
+          src/lib/__tests__/uploads-actions.test.ts
+          src/lib/__tests__/uploads-download.test.ts"
+
+          # THE MCP FILE IS BOTH OPT-IN AND SELF-EXCLUDING, so it has to be added
+          # here rather than listed above. Two separate mechanisms key off the same
+          # variable and they disagree about the empty string:
+          #
+          #   * `@/env` types it `z.url().optional()`. Optional admits `undefined`,
+          #     NOT "" -- and an unset GitHub secret interpolates to "". Passing it
+          #     through as a plain `env:` key failed all seven files at import with
+          #     `invalid_format ... PARTS_MCP_DATABASE_URL: Invalid URL`, before a
+          #     single test ran. That is what this `if` prevents.
+          #   * `MCP_OFF` in vitest.config.ts treats "" as absent and DROPS
+          #     parts-mcp-readonly.test.ts from the file list. So naming it above
+          #     unconditionally would fail with "No test files found" whenever the
+          #     secret is missing -- and omitting it entirely would mean it never
+          #     runs even once the role exists.
+          #
+          # Appending it only when the secret is real satisfies both.
+          if [ -n "${PARTS_MCP_TEST_DATABASE_URL:-}" ]; then
+            export PARTS_MCP_DATABASE_URL="$PARTS_MCP_TEST_DATABASE_URL"
+            FILES="$FILES src/lib/__tests__/parts-mcp-readonly.test.ts"
+          fi
+
+          # Unquoted on purpose: the list must word-split into separate arguments.
+          pnpm vitest run $FILES
+        env:
+          DATABASE_URL: ${{ secrets.NEON_TEST_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.NEON_TEST_DIRECT_URL }}
+          AUTH_SECRET: "stub-secret-32-chars-long-padding-x"
+          AUTH_GOOGLE_ID: stub
+          AUTH_GOOGLE_SECRET: stub
+          AUTH_GITHUB_ID: stub
+          AUTH_GITHUB_SECRET: stub
+          AUTH_RESEND_KEY: stub
+          ALLOWED_EMAILS: "seed@example.com"
+          # ON for this step ONLY. The build, seed and diagram steps above keep it
+          # "false": they have no business reaching object storage, and flipping it
+          # there would put the S3 container in the prerender path.
+          #
+          # These four values are LITERALS, not secrets. That is the entire point --
+          # they name a container on this runner, so a fork PR gets exactly the same
+          # coverage as a branch PR.
+          R2_ENABLED: "true"
+          R2_ENDPOINT: http://localhost:9000
+          R2_BUCKET: otd-ci
+          R2_ACCESS_KEY_ID: ciminio
+          R2_SECRET_ACCESS_KEY: ciminio-secret
+          # Unused once R2_ENDPOINT is set (s3Target ignores it), but @/env is
+          # happier with it present and it documents that nothing here is real.
+          R2_ACCOUNT_ID: ci-not-a-real-account
+          # The eighth gated file, parts-mcp-readonly.test.ts, arms itself the
+          # moment this secret exists and stays excluded until then (an unset
+          # secret interpolates to "", which is falsy, which is exactly the
+          # MCP_OFF condition in vitest.config.ts -- so this cannot fail a run).
+          #
+          # It needs a read-only role on the SEEDED ci-test branch, not a bare
+          # container, and the reason is a trap worth naming: the test asserts an
+          # `UPDATE "Part" ...` REJECTS. Against an empty database it rejects with
+          # `relation "Part" does not exist` and the test passes for entirely the
+          # wrong reason -- a read-only guarantee that has silently vanished would
+          # still look green. The schema has to be real.
+          #
+          # One-time provisioning, on the ci-test branch:
+          #   CREATE ROLE foundry_ro LOGIN PASSWORD '<pw>';
+          #   GRANT CONNECT ON DATABASE <db> TO foundry_ro;
+          #   GRANT USAGE ON SCHEMA public TO foundry_ro;
+          #   GRANT SELECT ON ALL TABLES IN SCHEMA public TO foundry_ro;
+          #   ALTER ROLE foundry_ro SET default_transaction_read_only = on;
+          # then set the PARTS_MCP_TEST_DATABASE_URL repo secret to its URL.
+          PARTS_MCP_TEST_DATABASE_URL: ${{ secrets.PARTS_MCP_TEST_DATABASE_URL }}

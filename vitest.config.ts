@@ -43,15 +43,33 @@ const gatedBasenames = [
 
 // SAY SO. These files are EXCLUDED, not skipped -- vitest never sees them, so
 // they contribute nothing to the run summary: no skip count, no "todo", nothing.
-// In CI, where ci.yml sets R2_ENABLED: "false" on every step and never sets
-// PARTS_MCP_DATABASE_URL, that silently removes 59 test declarations from every
-// run -- part-assets-actions.test.ts alone is 31 -- and the summary reports a
-// clean sweep of what remains. The only way to notice was to read this file.
+// This used to remove 59 test declarations from EVERY CI run -- ci.yml set
+// R2_ENABLED: "false" on every step and never set PARTS_MCP_DATABASE_URL -- while
+// the summary reported a clean sweep of what remained. The only way to notice was
+// to read this file.
 //
-// A banner is not the same as running them (that needs an R2 test bucket and an
-// MCP role, which is an infrastructure decision, not a config one). It does mean
-// the number is on screen, so a 9th file joining the list is visible instead of
-// arriving unannounced.
+// SEVEN OF THE EIGHT NOW RUN. ci.yml starts an S3-compatible server just before
+// `pnpm vitest run` and points the client at it with R2_ENDPOINT
+// (src/lib/r2-target.ts), so R2_ENABLED is "true" there and the R2-gated files
+// are no longer dropped. The credential problem is what forced the old
+// exclusion: this repo is PUBLIC, so a real Cloudflare key in its Actions secrets
+// is reachable from any merged workflow edit, and a fork PR gets no secrets at
+// all. A container needs no key, so a fork PR gets identical coverage.
+//
+// Cost was never the reason, incidentally -- measured at ~371 CI runs/30d the
+// whole thing fits inside R2's free tier, about $0.30/month at list price.
+//
+// THE EIGHTH still waits on infrastructure. parts-mcp-readonly.test.ts needs a
+// read-only role on the SEEDED ci-test branch, and it cannot be faked with an
+// empty container: it asserts that an `UPDATE "Part"` REJECTS, and against a
+// database with no schema that rejects with `relation "Part" does not exist` --
+// passing for the wrong reason, with the read-only guarantee unverified. ci.yml
+// carries the passthrough and the provisioning SQL; it arms itself when the
+// secret exists.
+//
+// The banner stays either way. A banner is not the same as running them, but it
+// does mean the number is on screen, so a 9th file joining the list is visible
+// instead of arriving unannounced.
 // Printed once, not once per project: this config is evaluated for each of the
 // two projects, and again in each worker. `VITEST_POOL_ID` is set only in
 // workers; the globalThis flag covers the repeat evaluations inside the main

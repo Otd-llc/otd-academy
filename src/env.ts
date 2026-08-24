@@ -52,6 +52,15 @@ export const env = createEnv({
     ALLOWED_EMAILS: z.string().min(1),
     R2_ENABLED: z.coerce.boolean().default(false),
     R2_ACCOUNT_ID: z.string().optional(),
+    // S3 endpoint override. UNSET in every real environment -- production and
+    // dev both derive the endpoint from R2_ACCOUNT_ID below. It exists so CI can
+    // point the same client at an S3-compatible server running as a service
+    // container, which is what lets the live-integration suites run with no
+    // Cloudflare credential anywhere near this PUBLIC repo's Actions secrets.
+    // Setting it also switches the client to path-style addressing (see
+    // src/lib/r2.ts): virtual-host style needs wildcard DNS, which a container
+    // on localhost does not have.
+    R2_ENDPOINT: z.string().url().optional(),
     R2_BUCKET: z.string().optional(),
     R2_ACCESS_KEY_ID: z.string().optional(),
     R2_SECRET_ACCESS_KEY: z.string().optional(),
@@ -206,6 +215,7 @@ export const env = createEnv({
     ALLOWED_EMAILS: process.env.ALLOWED_EMAILS,
     R2_ENABLED: process.env.R2_ENABLED,
     R2_ACCOUNT_ID: process.env.R2_ACCOUNT_ID,
+    R2_ENDPOINT: process.env.R2_ENDPOINT,
     R2_BUCKET: process.env.R2_BUCKET,
     R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
     R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
