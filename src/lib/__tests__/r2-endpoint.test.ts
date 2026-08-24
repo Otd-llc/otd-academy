@@ -1,12 +1,13 @@
 // The endpoint choice, tested where it can be tested.
 //
 // `r2` is constructed once at module scope from the real `env`, so which host it
-// dials is not observable from a test that imports it. `s3Target` exists to make
-// that choice a pure function; these assert the two things that would break
-// silently: production must keep deriving the Cloudflare host, and the CI
-// override must switch on path-style addressing at the same time.
+// dials is not observable from a test that imports it. `s3Target` lives in its own
+// import-free module so this file does not pull the AWS SDK graph in behind it;
+// these assert the two things that would break silently: production must keep
+// deriving the Cloudflare host, and the CI override must switch on path-style
+// addressing at the same time.
 import { describe, expect, test } from "vitest";
-import { s3Target } from "@/lib/r2";
+import { s3Target } from "@/lib/r2-target";
 
 describe("s3Target", () => {
   test("with no override, derives the Cloudflare host from the account id", () => {

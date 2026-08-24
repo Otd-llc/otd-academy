@@ -48,10 +48,10 @@ const gatedBasenames = [
 // the summary reported a clean sweep of what remained. The only way to notice was
 // to read this file.
 //
-// SEVEN OF THE EIGHT NOW RUN. ci.yml's `pnpm vitest run` step brings up an
-// S3-compatible server as a service container and points the client at it with
-// R2_ENDPOINT (src/lib/r2.ts), so R2_ENABLED is "true" there and the R2-gated
-// files are no longer dropped. The credential problem is what forced the old
+// SEVEN OF THE EIGHT NOW RUN. ci.yml starts an S3-compatible server just before
+// `pnpm vitest run` and points the client at it with R2_ENDPOINT
+// (src/lib/r2-target.ts), so R2_ENABLED is "true" there and the R2-gated files
+// are no longer dropped. The credential problem is what forced the old
 // exclusion: this repo is PUBLIC, so a real Cloudflare key in its Actions secrets
 // is reachable from any merged workflow edit, and a fork PR gets no secrets at
 // all. A container needs no key, so a fork PR gets identical coverage.
