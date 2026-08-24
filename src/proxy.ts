@@ -3,6 +3,17 @@ import { auth } from "@/auth";
 import { legacySlugRedirect } from "@/lib/legacy-slug-redirect";
 import { resolveRouteGate } from "@/lib/route-gate";
 import { isDevOnlyBlocked } from "@/lib/dev-only-routes";
+import { isUnknownStaticParam } from "@/lib/static-param-404";
+import { TOOLS } from "@/lib/tools/registry";
+import { BRIEF_KEYS } from "@/lib/brief-pages";
+
+// Built once at module scope, not per request. Both sources are pure data — the
+// TOOLS registry says so in its own header ("PURE DATA — no React, no client
+// imports") because the sitemap already imports it the same way.
+const KNOWN_STATIC_PARAMS = {
+  tools: TOOLS.map((t) => t.slug),
+  briefs: BRIEF_KEYS,
+} as const;
 
 // Auth.js v5's bare `auth` export only attaches `req.auth` to the request — it
 // does not redirect unauthenticated users on its own. Wrap it so unauth requests
@@ -51,6 +62,27 @@ export default auth((req) => {
   const legacyPath = legacySlugRedirect(pathname);
   if (legacyPath) {
     return NextResponse.redirect(new URL(legacyPath, req.nextUrl.origin), 308);
+  }
+
+  // Unknown param on a statically-enumerated route (/tools, /embed, /briefs) —
+  // answered here for the same reason the dev-only block above is: a prerendered
+  // route's status is committed before its `notFound()` runs, so those paths
+  // served the 404 BODY under a 200 and a crawler indexed them as real pages.
+  // Measured, not assumed — see @/lib/static-param-404 for the numbers.
+  //
+  // AFTER the legacy redirect deliberately: a legacy URL that would resolve to a
+  // real page must get its 308 rather than being refused on the way.
+  if (isUnknownStaticParam(pathname, KNOWN_STATIC_PARAMS)) {
+    // A REWRITE carrying the status, not `new NextResponse(null, {status:404})`.
+    // The bare response is what the dev-only block above returns, and it is right
+    // there: a dev-only surface should look like it does not exist. These are
+    // PUBLIC pages a person can reach by typing a slug wrong, so a blank body
+    // would trade an indexed soft-404 for a blank page. Rewriting to an unrouted
+    // path renders the app's own not-found.tsx, and the status init makes it a
+    // real 404 rather than the 200 the prerendered shell would have committed.
+    return NextResponse.rewrite(new URL("/_404", req.nextUrl.origin), {
+      status: 404,
+    });
   }
 
   // The auth + role gate (pure, unit-tested — see @/lib/route-gate). Anonymous
