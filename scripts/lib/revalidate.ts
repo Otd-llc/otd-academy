@@ -1,24 +1,34 @@
-// Client for POST /api/cron/revalidate — the way a script tells a DEPLOYMENT to
+// Client for POST /api/cron/revalidate — how a script tells the DEPLOYMENT to
 // drop the cache entries its write just made stale.
 //
-// A script runs outside any request context, so `updateTag`/`revalidateTag` are
-// simply unavailable to it: grepping all 476 files under scripts/ finds zero
-// calls, and that is a property of where they run, not an oversight. 156 script
-// files write GuideCard and 11 write MiniLesson, feeding public sitemapped
-// surfaces whose cache holds for an hour and expires after a day.
+// WHY THIS EXISTS. `revalidateTag` only works inside a request context. A
+// `scripts/*.ts` run has none, so a script physically cannot invalidate what it
+// just changed. The surfaces those scripts feed are public and sitemapped (the
+// guide hub, every stage page, /library, both sitemaps) and hold for an hour,
+// expiring after a day. The sharpest case was the repo's own instructions:
+// migration 20260715200000 tells you to run backfill-lesson-derived.ts, and
+// following that exactly left /library showing `readingMinutes = 1` with nothing
+// to grep for.
 //
-// USAGE, at the end of a seed that wrote to PROD:
+// CALLED AUTOMATICALLY by the live content writers (the authoring helper, the
+// cluster seeds, the backfill, the archive import) rather than left to each
+// author to remember — forgetting the line is precisely how the staleness
+// existed in the first place.
 //
-//   import { revalidate } from "./lib/revalidate";
-//   await revalidate({ lessons: ["ohms-law"], tags: ["mini-lessons"] });
+// IT FIRES ONLY WHEN THE WRITE WENT TO PROD, decided by the same
+// `isLocalDbUrl` the driver selection uses (src/lib/db-adapter.ts), so there is
+// one definition of "is this local" in the repo. A run against foundry_dev has
+// no deployment holding a cache, so pinging would be noise on every local seed.
 //
-// It reads REVALIDATE_URL (the deployment's origin, e.g.
-// https://academy.onethousanddrones.com) and CRON_SECRET. With either unset it
-// NO-OPS and says so — that is the normal case for a local run against
-// foundry_dev, where there is no deployment holding a cache and failing would be
-// noise. It never throws: a seed that wrote successfully must not report failure
-// because a cache ping did not land, and the fallback is only ever "the change
-// appears within the hour".
+// IT NEVER THROWS. A seed that wrote successfully must not report failure
+// because a cache ping did not land; the fallback is only ever "the change
+// appears within the hour", which is exactly the old behaviour.
+import { isLocalDbUrl } from "@/lib/db-adapter";
+
+/** Same default as `siteUrl()` in src/lib/seo/jsonld.ts. Override with
+ *  REVALIDATE_URL to target a preview deployment. */
+const DEFAULT_ORIGIN = "https://academy.onethousanddrones.com";
+
 export type RevalidateRequest = {
   /** Broad tags: "mini-lessons" | "projects" | "parts". */
   tags?: string[];
@@ -29,18 +39,23 @@ export type RevalidateRequest = {
 };
 
 export async function revalidate(req: RevalidateRequest): Promise<void> {
-  const base = process.env.REVALIDATE_URL;
-  const secret = process.env.CRON_SECRET;
+  const dbUrl = process.env.DATABASE_URL;
 
-  if (!base || !secret) {
-    console.log(
-      "[revalidate] REVALIDATE_URL or CRON_SECRET unset — skipping." +
-        " (Expected for a local run; a PROD seed should set both.)",
+  // No DATABASE_URL, or a local one: nothing deployed is caching this write.
+  if (!dbUrl || isLocalDbUrl(dbUrl)) return;
+
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    console.warn(
+      "[revalidate] wrote to a REMOTE database but CRON_SECRET is unset —" +
+        " cache NOT invalidated. The change will appear within the hour.",
     );
     return;
   }
 
-  const url = new URL("/api/cron/revalidate", base).toString();
+  const origin = process.env.REVALIDATE_URL ?? DEFAULT_ORIGIN;
+  const url = new URL("/api/cron/revalidate", origin).toString();
+
   try {
     const res = await fetch(url, {
       method: "POST",
@@ -52,14 +67,14 @@ export async function revalidate(req: RevalidateRequest): Promise<void> {
     });
     if (!res.ok) {
       // 404 here means the secret did not match — the route answers 404 rather
-      // than 401 so an unauthenticated caller learns nothing.
+      // than 401 so an unauthenticated caller learns nothing about it.
       console.warn(
         `[revalidate] ${new URL(url).host} answered ${res.status}.` +
           " Cache NOT invalidated; the change will appear within the hour.",
       );
       return;
     }
-    console.log(`[revalidate] ok → ${JSON.stringify(req)}`);
+    console.log(`[revalidate] ${new URL(url).host} ok -> ${JSON.stringify(req)}`);
   } catch (err) {
     console.warn(
       "[revalidate] request failed; cache NOT invalidated, the change will" +
