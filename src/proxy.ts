@@ -4,6 +4,7 @@ import { legacySlugRedirect } from "@/lib/legacy-slug-redirect";
 import { resolveRouteGate } from "@/lib/route-gate";
 import { isDevOnlyBlocked } from "@/lib/dev-only-routes";
 import { isUnknownStaticParam } from "@/lib/static-param-404";
+import { resolveSlugMove } from "@/lib/slug-moves";
 import { TOOLS } from "@/lib/tools/registry";
 import { BRIEF_KEYS } from "@/lib/brief-pages";
 
@@ -80,6 +81,40 @@ export default auth((req) => {
     // would trade an indexed soft-404 for a blank page. Rewriting to an unrouted
     // path renders the app's own not-found.tsx, and the status init makes it a
     // real 404 rather than the 200 the prerendered shell would have committed.
+    return NextResponse.rewrite(new URL("/_404", req.nextUrl.origin), {
+      status: 404,
+    });
+  }
+
+  // A content URL whose slug CHANGED, or whose content was withdrawn. Same wall
+  // as the two blocks above -- a prerendered shell commits 200 before the page's
+  // `notFound()` runs -- but a different remedy, because a moved page should not
+  // 404 at all. Google's guidance is a 301 when there is a replacement, since a
+  // 404 throws the accumulated signal away. So this redirects first and 404s only
+  // for content withdrawn with nothing to point at.
+  //
+  // AFTER the static-param guard and BEFORE the auth gate. After, because the two
+  // never overlap (that guard owns /tools, /embed and /briefs; this owns
+  // /library, /courses and /parts) and the cheaper pure check should run first.
+  // Before, because a moved PUBLIC url must reach its replacement without being
+  // bounced through /sign-in first -- the same reason the legacy 308 above runs
+  // where it does.
+  //
+  // The table is empty today and this costs one array split per request. It is
+  // wired now so the first rename is a data edit rather than a design project.
+  // See @/lib/slug-moves for why it is a committed table and not a live store.
+  const move = resolveSlugMove(pathname);
+  if (move) {
+    if (move.kind === "moved") {
+      // 308, matching the legacy redirect above: permanent AND method-preserving,
+      // which tells search engines to update the index.
+      return NextResponse.redirect(new URL(move.to, req.nextUrl.origin), 308);
+    }
+    // Withdrawn. Rewrite carrying the status, exactly as the static-param guard
+    // does and for the same reason: these are public URLs a person may follow
+    // from an old link, so they get the app's own 404 page rather than a blank
+    // body. Google treats 404 and 410 identically, so 404 keeps this consistent
+    // with the other two guards rather than introducing a second vocabulary.
     return NextResponse.rewrite(new URL("/_404", req.nextUrl.origin), {
       status: 404,
     });
