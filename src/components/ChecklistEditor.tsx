@@ -344,27 +344,23 @@ function ItemRow({
               name="nextNotApplicable"
               value={item.notApplicable ? "false" : "true"}
             />
-            <Tooltip content={item.notApplicable ? "Clear N/A" : "Mark N/A"}>
-              <span
-                tabIndex={0}
-                className="inline-flex rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold"
+            <Tooltip
+              content={item.notApplicable ? "Clear N/A" : "Mark N/A"}
+              wrapDisabled
+            >
+              <button
+                type="submit"
+                aria-pressed={item.notApplicable}
+                aria-label={item.notApplicable ? "Clear N/A" : "Mark as N/A"}
+                disabled={disabled || item.checked}
+                className={`inline-flex shrink-0 items-center justify-center rounded p-2.5 transition-colors disabled:opacity-40 ${
+                  item.notApplicable
+                    ? "text-command-gold hover:bg-command-gold/10"
+                    : "text-muted hover:bg-command-gold/10 hover:text-command-gold"
+                }`}
               >
-                <button
-                  type="submit"
-                  aria-pressed={item.notApplicable}
-                  aria-label={
-                    item.notApplicable ? "Clear N/A" : "Mark as N/A"
-                  }
-                  disabled={disabled || item.checked}
-                  className={`inline-flex shrink-0 items-center justify-center rounded p-2.5 transition-colors disabled:opacity-40 ${
-                    item.notApplicable
-                      ? "text-command-gold hover:bg-command-gold/10"
-                      : "text-muted hover:bg-command-gold/10 hover:text-command-gold"
-                  }`}
-                >
-                  <NotApplicableIcon className="h-5 w-5" />
-                </button>
-              </span>
+                <NotApplicableIcon className="h-5 w-5" />
+              </button>
             </Tooltip>
           </form>
 
