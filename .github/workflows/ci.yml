@@ -12,6 +12,46 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # AN S3 SERVER, SO THE LIVE-INTEGRATION SUITES CAN ACTUALLY RUN.
+    #
+    # Seven test files (56 test declarations) were EXCLUDED from every CI run --
+    # not skipped, excluded: vitest.config.ts drops them from the file list when
+    # `R2_ENABLED != "true"`, so they contributed nothing to any summary and the
+    # run reported a clean sweep of what remained.
+    #
+    # The obvious fix -- a real R2 test bucket -- is the wrong one HERE. This
+    # repository is PUBLIC. An R2 credential in its Actions secrets is reachable
+    # from any merged workflow edit, and a fork PR gets no secrets at all, so the
+    # suites would stay green-by-absence for exactly the contributors worth
+    # guarding against. Cost was never the blocker either: measured at ~371 CI
+    # runs/30d the whole thing sits inside R2's free tier, about $0.30/month at
+    # list price. The blocker is the credential, so the fix removes the credential.
+    #
+    # MinIO is S3-compatible and speaks the same API the `@aws-sdk/client-s3`
+    # client already uses; `R2_ENDPOINT` (src/lib/r2.ts) aims that client here.
+    #
+    # WHAT THIS DOES NOT BUY. MinIO is not R2. It exercises OUR code against the
+    # S3 contract; it cannot reproduce R2-specific behaviour, and this repo has at
+    # least one place that depends on exactly that -- src/lib/actions/enrollment.ts
+    # HEAD-verifies uploads because "R2 has been inconsistent about enforcing
+    # presigned Content-Length". A green run here means our code did not regress.
+    # It does not mean R2 behaved.
+    services:
+      s3:
+        image: bitnami/minio:latest
+        env:
+          MINIO_ROOT_USER: ciminio
+          MINIO_ROOT_PASSWORD: ciminio-secret
+          # Created at container start, so no separate provisioning step can drift
+          # from the bucket name the test env below asks for.
+          MINIO_DEFAULT_BUCKETS: otd-ci
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "mc ready local"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v3
@@ -132,4 +172,38 @@ jobs:
           AUTH_GITHUB_SECRET: stub
           AUTH_RESEND_KEY: stub
           ALLOWED_EMAILS: "seed@example.com"
-          R2_ENABLED: "false"
+          # ON for this step ONLY. The build, seed and diagram steps above keep it
+          # "false": they have no business reaching object storage, and flipping it
+          # there would put the S3 container in the prerender path.
+          #
+          # These four values are LITERALS, not secrets. That is the entire point --
+          # they name a container on this runner, so a fork PR gets exactly the same
+          # coverage as a branch PR.
+          R2_ENABLED: "true"
+          R2_ENDPOINT: http://localhost:9000
+          R2_BUCKET: otd-ci
+          R2_ACCESS_KEY_ID: ciminio
+          R2_SECRET_ACCESS_KEY: ciminio-secret
+          # Unused once R2_ENDPOINT is set (s3Target ignores it), but @/env is
+          # happier with it present and it documents that nothing here is real.
+          R2_ACCOUNT_ID: ci-not-a-real-account
+          # The eighth gated file, parts-mcp-readonly.test.ts, arms itself the
+          # moment this secret exists and stays excluded until then (an unset
+          # secret interpolates to "", which is falsy, which is exactly the
+          # MCP_OFF condition in vitest.config.ts -- so this cannot fail a run).
+          #
+          # It needs a read-only role on the SEEDED ci-test branch, not a bare
+          # container, and the reason is a trap worth naming: the test asserts an
+          # `UPDATE "Part" ...` REJECTS. Against an empty database it rejects with
+          # `relation "Part" does not exist` and the test passes for entirely the
+          # wrong reason -- a read-only guarantee that has silently vanished would
+          # still look green. The schema has to be real.
+          #
+          # One-time provisioning, on the ci-test branch:
+          #   CREATE ROLE foundry_ro LOGIN PASSWORD '<pw>';
+          #   GRANT CONNECT ON DATABASE <db> TO foundry_ro;
+          #   GRANT USAGE ON SCHEMA public TO foundry_ro;
+          #   GRANT SELECT ON ALL TABLES IN SCHEMA public TO foundry_ro;
+          #   ALTER ROLE foundry_ro SET default_transaction_read_only = on;
+          # then set the PARTS_MCP_TEST_DATABASE_URL repo secret to its URL.
+          PARTS_MCP_DATABASE_URL: ${{ secrets.PARTS_MCP_TEST_DATABASE_URL }}
