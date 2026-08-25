@@ -255,11 +255,31 @@ jobs:
           # wrong reason -- a read-only guarantee that has silently vanished would
           # still look green. The schema has to be real.
           #
-          # One-time provisioning, on the ci-test branch:
-          #   CREATE ROLE foundry_ro LOGIN PASSWORD '<pw>';
-          #   GRANT CONNECT ON DATABASE <db> TO foundry_ro;
-          #   GRANT USAGE ON SCHEMA public TO foundry_ro;
-          #   GRANT SELECT ON ALL TABLES IN SCHEMA public TO foundry_ro;
-          #   ALTER ROLE foundry_ro SET default_transaction_read_only = on;
-          # then set the PARTS_MCP_TEST_DATABASE_URL repo secret to its URL.
+          # PROVISIONING IS DOCUMENTED IN ONE PLACE: mcp/parts-server/README.md
+          # section 6. Do not restate it here. The five statements that used to be
+          # inlined at this spot OMITTED
+          #
+          #   ALTER DEFAULT PRIVILEGES FOR ROLE <owner> IN SCHEMA public
+          #     GRANT SELECT ON TABLES TO foundry_ro;
+          #
+          # which is step 5 there and is the one that is easy to lose: without it
+          # `GRANT SELECT ON ALL TABLES` covers only the tables that existed at the
+          # moment it ran, so the role silently loses read access to every table a
+          # later migration adds. The failure is invisible from here -- writes still
+          # fail, so the cannot-write proof stays green while the server can no
+          # longer read the new data.
+          #
+          # Then set the PARTS_MCP_TEST_DATABASE_URL repo secret to the role's URL.
+          #
+          # WHETHER TO DO THIS AT ALL is a real question, and the honest answer today
+          # is probably not. `makeReadOnlyClient` adds nothing (`new PrismaClient({
+          # adapter, log: [] })`), so this file tests a database ROLE's grants, not
+          # code -- and a role CI provisions moments earlier is close to a tautology.
+          # It would say nothing about PRODUCTION's foundry_ro, which is the one the
+          # deployed server uses. The code-side risks are already covered and already
+          # run here unexcluded: mcp/parts-server/__tests__/source-guards.test.ts
+          # asserts no MCP module imports the read-write client and none writes to
+          # stdout. No migration in this repo's history contains a GRANT, REVOKE,
+          # ALTER ROLE or DEFAULT PRIVILEGES statement, so the grants do not drift on
+          # their own. Left wired and unarmed deliberately.
           PARTS_MCP_TEST_DATABASE_URL: ${{ secrets.PARTS_MCP_TEST_DATABASE_URL }}
