@@ -4,8 +4,10 @@
 //
 // Self-contained fixtures: its own ADMIN + LEARNER users and a throwaway
 // project (unique slug via Date.now()), so it never depends on the seed
-// operator's role. ⚠️ `.env.local` DATABASE_URL is PROD — create + clean up
-// only the rows this suite owns.
+// operator's role. This runs against a leased Neon pool branch (TEST_DATABASE_POOL
+// from `.env.test.local`), NOT production — and if that file is missing the suite
+// refuses to run rather than falling back. Still create + clean up only the rows
+// this suite owns: the pool branches are persistent clones, not throwaways.
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 
 // next/cache is stubbed WHOLESALE, so this factory must carry every export anything

@@ -2,7 +2,10 @@
 // PartAvailabilityEvent) per the API User Agreement deletion clause. Direct-Prisma
 // (server actions can't be scripted — [[foundry-headless-scripting]]).
 //
-// ⚠️ `.env.local` DATABASE_URL is PROD. This script wipes production dk* data.
+// ⚠️ `.env.local` DATABASE_URL is LOCAL (`foundry_dev`) since 2026-07-15, so a bare
+// run wipes LOCAL dk* data, not production. To wipe PROD you must go through
+// `pnpm db:prod scripts/purge-digikey-data.ts` -- which prints the target host and
+// makes you type `prod`. Do not read a successful bare run as a completed prod purge.
 // Dry-run by default; pass --confirm to execute. Executing additionally requires
 // a typed project name as a second factor (--project=otd-academy) so a library-
 // wide prod purge can't fire from --confirm alone.
