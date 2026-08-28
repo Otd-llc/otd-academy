@@ -1,10 +1,18 @@
 // Set the locked per-project prices on the 16 PREMIUM curriculum boards.
 //
-// RUN MANUALLY against the intended Stripe mode; do not run here. This creates
-// real Stripe Products + Prices and writes stripePriceId/priceCents onto the
-// PROD Project rows (.env.local DATABASE_URL is PROD, and STRIPE_SECRET_KEY may be
-// live). Verify you are pointed at the Stripe mode you intend (test vs live)
-// BEFORE running:  tsx scripts/set-prices.ts
+// RUN MANUALLY against the intended Stripe mode; do not run here.
+//
+// ⚠️ THE TWO HALVES TARGET DIFFERENT PLACES, AND ONLY ONE OF THEM IS SAFE BY DEFAULT.
+//   DB     -- `.env.local` DATABASE_URL is LOCAL (`foundry_dev`) since 2026-07-15, so a
+//             bare run writes stripePriceId/priceCents onto LOCAL Project rows. Prod
+//             needs `pnpm db:prod scripts/set-prices.ts`.
+//   STRIPE -- unchanged and NOT protected by that split. STRIPE_SECRET_KEY may be live,
+//             and this creates REAL Stripe Products + Prices whatever the DB is pointed
+//             at. Stripe objects are not cleaned up by pointing the DB somewhere else.
+//
+// So the dangerous bare run is not "wrote to prod" -- it is "created live Stripe objects
+// while writing them to a local DB", leaving Stripe and the database disagreeing.
+// Verify the Stripe mode (test vs live) BEFORE running:  tsx scripts/set-prices.ts
 //
 // Direct-Prisma + direct-Stripe (modeled on scripts/seed-access-tiers.ts). The
 // `setProjectPrice` server action can't be scripted headlessly (it calls
