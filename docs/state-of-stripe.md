@@ -197,10 +197,18 @@ can see and manage. **MERGED to `main` (#280, `0577e11`) and LIVE on prod (2026-
 
 ## Runbook / gotchas
 
-- **`.env.local` `DATABASE_URL` is PROD.** Scripts + `pnpm db:migrate` mutate the
-  production Neon DB.
-- **Migrations are hand-authored + additive.** Apply with `pnpm db:migrate`
-  (`prisma migrate deploy`, never `migrate dev`) — it also refreshes the test pool.
+- **`.env.local` `DATABASE_URL` is LOCAL** (`foundry_dev`), since 2026-07-15. A bare
+  script run mutates the LOCAL database, not production, and exits 0 either way — so a
+  green run is NOT evidence that prod changed. Prod goes through
+  `pnpm db:prod <script.ts>`, which prints the target host and makes you type `prod`.
+- **Migrations are hand-authored + additive** (`prisma migrate deploy`, never
+  `migrate dev`). The command is SPLIT, and picking the wrong half fails silently:
+  - `pnpm db:migrate` → **LOCAL** `foundry_dev`. Test here first.
+  - `pnpm db:migrate:prod` → **PROD**, and it refreshes the test pool afterwards
+    (the pool branches clone prod, so they drift once prod migrates).
+
+  `pnpm db:migrate` no longer touches prod or the pool. Running it and seeing exit 0
+  migrated your laptop.
 - **Live provisioning:** the scripts read `STRIPE_SECRET_KEY` via `getStripe()`.
   Swap `.env.local` to your `sk_live_…` FIRST, run the script, then **reset to
   `sk_test_…`** (a live key in local dev = accidental real charges). The Stripe
@@ -208,9 +216,11 @@ can see and manage. **MERGED to `main` (#280, `0577e11`) and LIVE on prod (2026-
   checkout/webhook objects — the scripts use the full `sk_live` instead.
 - **Test pool:** `pnpm test` leases per-file Neon branches; a vitest guardrail
   fast-fails if the pool is behind a migration. `pnpm test:pool:refresh` catches it
-  up (and `pnpm db:migrate` does it for you).
+  up (and `pnpm db:migrate:prod` does it for you — `pnpm db:migrate` does NOT, since
+  it targets local, where a pool refresh would mean nothing). If `.env.test.local` is
+  missing the suite **refuses to run** rather than falling back to `.env.local`.
 - **Deploys:** prod builds from `main`. Merging a webhook change deploys it; the
-  migration is applied separately via `pnpm db:migrate`.
+  migration is applied separately via `pnpm db:migrate:prod`.
 - **Customer Portal config (phase 3, one-time):** `billingPortal.sessions.create` throws
   `No configuration ... default configuration has not been created` until a portal config
   is saved in that Stripe mode; the button surfaces that inline until then. Configure at

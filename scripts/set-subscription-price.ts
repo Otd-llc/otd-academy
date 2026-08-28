@@ -2,10 +2,17 @@
 // all-access Bundle. The same bundle grants the same access as the one-time Pass;
 // this just adds the recurring Stripe price the subscription checkout uses.
 //
-// RUN MANUALLY against the intended Stripe mode; do not run here. This creates a
-// real recurring Stripe Price + writes the Bundle row on the PROD DB (.env.local
-// DATABASE_URL is PROD, and STRIPE_SECRET_KEY may be live). Verify the Stripe mode
-// (test vs live) BEFORE running:  tsx scripts/set-subscription-price.ts
+// RUN MANUALLY against the intended Stripe mode; do not run here.
+//
+// ⚠️ TWO TARGETS, ONLY ONE MADE SAFE BY THE 2026-07-15 SPLIT.
+//   DB     -- `.env.local` DATABASE_URL is LOCAL (`foundry_dev`), so a bare run writes
+//             the Bundle row LOCALLY. Prod needs
+//             `pnpm db:prod scripts/set-subscription-price.ts`.
+//   STRIPE -- STRIPE_SECRET_KEY may be live, and this creates a REAL recurring Stripe
+//             Price regardless of which database the row lands in.
+//
+// A bare run therefore creates a live recurring price while recording it only locally.
+// Verify the Stripe mode (test vs live) BEFORE running:  tsx scripts/set-subscription-price.ts
 //
 // Amount + interval come from env (a business decision), defaulting to $29.00/month:
 //   SUBSCRIPTION_PRICE_CENTS   (default 2900)

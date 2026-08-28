@@ -1,9 +1,15 @@
 // Create the All-Access Pass Stripe product + prices and upsert the Bundle row.
 //
-// RUN MANUALLY against the intended Stripe mode; do not run here. This creates a
-// real Stripe Product + Prices and writes the Bundle row on the PROD DB
-// (.env.local DATABASE_URL is PROD, and STRIPE_SECRET_KEY may be live). Verify the
-// Stripe mode (test vs live) BEFORE running:  tsx scripts/set-pass-price.ts
+// RUN MANUALLY against the intended Stripe mode; do not run here.
+//
+// ⚠️ TWO TARGETS, ONLY ONE MADE SAFE BY THE 2026-07-15 SPLIT.
+//   DB     -- `.env.local` DATABASE_URL is LOCAL (`foundry_dev`), so a bare run writes
+//             the Bundle row LOCALLY. Prod needs `pnpm db:prod scripts/set-pass-price.ts`.
+//   STRIPE -- STRIPE_SECRET_KEY may be live, and this creates a REAL Stripe Product +
+//             Prices regardless of which database the row lands in.
+//
+// A bare run therefore creates live Stripe objects while recording them only locally.
+// Verify the Stripe mode (test vs live) BEFORE running:  tsx scripts/set-pass-price.ts
 //
 // Locked Pass prices (USD cents): standard = 39900, launch = 29900.
 // The launch window closes at the RFC-3339 / ISO timestamp in LAUNCH_WINDOW_END
