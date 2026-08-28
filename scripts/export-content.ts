@@ -20,6 +20,14 @@
 // READ-ONLY. This script performs no Prisma mutation of any kind, which is what
 // makes it safe to point at production.
 //
+// WHICH DATABASE. Each archive tree carries a `.archive-source.json` pin naming
+// the host it mirrors, and the export refuses to run if DATABASE_URL points
+// somewhere else. Nothing else can tell the two apart: a non-production clone
+// clears every floor below, and the README records a wrong-database mirror
+// happening twice on 2026-08-14. Rejecting `localhost` would not be enough --
+// damage requires a *reachable* database, and the vitest branch pool is a real
+// Neon host that is not prod -- so the pin is an equality test, not a heuristic.
+//
 // *** IF YOU CHANGE THIS FILE, BUMP THE PINNED TAG. ***
 // A daily workflow in the PRIVATE Otd-llc/otd-content-archive repo runs this
 // against production. It checks this repo out at the `content-export-v1` TAG, not
@@ -66,7 +74,18 @@ function archiveRoot(): string {
     : resolve(repoRoot, "..", "otd-content-archive", "content");
 }
 
-/** Every file currently in the archive, as archive-relative forward-slash paths. */
+// Which database this archive tree mirrors. Written into the tree itself so the
+// tree is self-describing: `content/` says "I am production", `local-snapshot/`
+// says "I am the dev box". Nothing else can tell them apart -- see assertSource.
+const SOURCE_PIN = ".archive-source.json";
+
+/**
+ * Every file currently in the archive, as archive-relative forward-slash paths.
+ *
+ * SOURCE_PIN is excluded deliberately. Everything this returns and does not
+ * re-write is treated as an orphan and deleted, so including the pin would delete
+ * it on every run and report the archive permanently STALE under --check.
+ */
 function existingFiles(root: string): Set<string> {
   const out = new Set<string>();
   const walk = (dir: string, prefix: string) => {
@@ -75,11 +94,62 @@ function existingFiles(root: string): Set<string> {
       const abs = join(dir, entry);
       const rel = prefix ? `${prefix}/${entry}` : entry;
       if (statSync(abs).isDirectory()) walk(abs, rel);
-      else if (entry.endsWith(".json")) out.add(rel);
+      else if (entry.endsWith(".json") && rel !== SOURCE_PIN) out.add(rel);
     }
   };
   walk(root, "");
   return out;
+}
+
+/**
+ * Refuse to mirror one database into another database's archive.
+ *
+ * The exporter prints the source host but never checked it, and the two trees are
+ * indistinguishable by content: a non-production clone clears every floor
+ * (176/69/7 against floors of 150/60/6). The archive README records this actually
+ * happening TWICE on 2026-08-14. Rejecting `localhost` is not enough -- a bad
+ * DATABASE_URL on a runner has to be *reachable* to do damage, and the vitest
+ * branch pool is exactly that: a real, reachable Neon database that is not prod.
+ * So the check is an equality test against the host this tree was pinned to.
+ *
+ * Absent pin: adopt the current host and carry on, rather than hard-failing a
+ * tree that predates this check. That is a deliberate one-time trust of the first
+ * run -- commit the pin ahead of deploying this if that window matters.
+ */
+function assertSource(root: string, host: string): void {
+  const pinPath = join(root, SOURCE_PIN);
+
+  if (!existsSync(pinPath)) {
+    if (CHECK) {
+      console.log(`  pin     : none (skipped; --check writes nothing)`);
+      return;
+    }
+    mkdirSync(root, { recursive: true });
+    writeFileSync(pinPath, `${JSON.stringify({ host }, null, 2)}\n`, "utf8");
+    console.log(`  pin     : ADOPTED ${host} (first run; ${SOURCE_PIN} created)`);
+    return;
+  }
+
+  let pinned: string | undefined;
+  try {
+    pinned = JSON.parse(readFileSync(pinPath, "utf8")).host;
+  } catch {
+    throw new Error(`${pinPath} is unreadable or not JSON. Fix or delete it; do not export past it.`);
+  }
+  if (!pinned) throw new Error(`${pinPath} has no "host". Fix or delete it; do not export past it.`);
+
+  if (pinned !== host) {
+    throw new Error(
+      `WRONG DATABASE FOR THIS ARCHIVE.\n` +
+        `  archive : ${root}\n` +
+        `  pinned  : ${pinned}\n` +
+        `  actual  : ${host}\n` +
+        `This tree mirrors ${pinned}. Exporting ${host} into it would overwrite that ` +
+        `mirror with another database's content, and the floors cannot tell them apart. ` +
+        `Point DATABASE_URL at the right database, or CONTENT_ARCHIVE_DIR at the right tree.`,
+    );
+  }
+  console.log(`  pin     : ok (${pinned})`);
 }
 
 /**
@@ -110,6 +180,8 @@ async function main() {
   console.log(`  source  : ${host}`);
   console.log(`  archive : ${root}`);
   console.log(`  mode    : ${CHECK ? "--check (no writes)" : "write"}`);
+  // Before any read: a wrong target must stop here, not after a full export.
+  assertSource(root, host);
   console.log("");
 
   // ── read ────────────────────────────────────────────────────────────────
