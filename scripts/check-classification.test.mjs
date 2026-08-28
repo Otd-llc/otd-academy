@@ -3,7 +3,7 @@
 // the vitest suite, which only collects src/**/*.test.tsx).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { detect, SELF_EXEMPT } from "./check-classification.mjs";
+import { detect, SELF_EXEMPT, ANSWER_KEY_EXEMPT } from "./check-classification.mjs";
 
 // Filename-only cases pass a null reader — detection must trip on the name alone.
 const nameOnly = (p) => detect(p, () => null);
@@ -52,4 +52,56 @@ test("CLASSIFICATION: PUBLIC and loose prose do NOT trip", () => {
 
 test("guard's own files are exempt", () => {
   for (const f of SELF_EXEMPT) assert.equal(detect(f, () => "CLASSIFICATION: CONFIDENTIAL"), null);
+});
+
+// --- Exam answer keys (TD-041) ---------------------------------------------
+// A bank is plain JSON: no filename token, nowhere to put a banner. The only
+// thing that can catch it is its shape. `scripts/seed-l101-exam.ts` reached
+// public history this way (#350) and the 2026-07-30 incident repeated it.
+const bank = (n, key = "correctIndex") =>
+  "[" +
+  Array.from(
+    { length: n },
+    (_, i) => `{"id":"q${i}","prompt":"P","options":["a","b","c"],"${key}":${i % 3}}`,
+  ).join(",") +
+  "]";
+
+test("an exam bank trips wherever it is named, underscore or not", () => {
+  // The /scripts/_* gitignore rule keys on the underscore, so this is the gap.
+  assert.match(
+    detect("scripts/l1-06-decoupling-exam-bank.json", () => bank(18)),
+    /exam answer key shape/,
+  );
+  assert.ok(detect("anywhere/else/questions.json", () => bank(18)));
+  // The .ts form that actually leaked in #350.
+  assert.ok(detect("scripts/seed-l106-exam.ts", () => bank(18)));
+});
+
+test("the guide-card `answer` key does NOT trip — those are public by design", () => {
+  // QuizBlock.tsx is "use client" and compares `answer` in the browser, so the
+  // value already ships. Tripping on it would flag 40+ correctly-public tracked
+  // files (seed-*-cluster.ts, scripts/authoring/**). Measured, not assumed.
+  assert.equal(detect("scripts/authoring/l1-02/SCHEMATIC.ts", () => bank(20, "answer")), null);
+});
+
+test("naming the field without a bank of questions does not trip", () => {
+  assert.equal(detect("prisma/schema.prisma", () => "correctIndex Int"), null);
+  assert.equal(
+    detect("src/types.ts", () => "type Q = { options: string[]; correctIndex: number }"),
+    null,
+  );
+  assert.equal(detect("docs/plans/x.md", () => "we store correctIndex: 0 per options: [ ]"), null);
+  assert.equal(detect("one.json", () => bank(1)), null); // a single question is not a bank
+});
+
+test("every answer-key exemption is load-bearing, and only by path", () => {
+  for (const [path, reason] of ANSWER_KEY_EXEMPT) {
+    assert.ok(reason, `${path} must carry a reason`);
+    // Same bytes at any other path must still trip, or the entry is hiding a rule
+    // that does not actually work.
+    assert.ok(
+      detect("scripts/relocated.json", () => bank(5)),
+      `${path}: the shape rule must trip when not exempt`,
+    );
+  }
 });

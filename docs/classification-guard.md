@@ -11,7 +11,7 @@ mechanism that prevents a repeat.
 
 ## How a document is detected
 
-A file trips the guard if EITHER holds:
+A file trips the guard if ANY of these holds:
 
 1. **Filename token.** The guard keys on the same token strings the skill emits, so
    the two sides agree (SKILL.md, "the literal tokens"). It trips on a terminal,
@@ -37,8 +37,39 @@ A file trips the guard if EITHER holds:
    `<!-- CLASSIFICATION: CONFIDENTIAL -->` is matched too). `CLASSIFICATION: PUBLIC`
    is allowed.
 
-Loose words like "confidential" in prose do NOT trip it. Only the explicit token or
-banner does, to keep false positives out of a large public codebase.
+3. **Exam answer-key shape.** A file carrying two or more question objects that pair
+   a `correctIndex` assignment with an `options` array trips, whatever it is called.
+
+   This is the one classified shape that neither rule above can see: an exam bank is
+   plain JSON, so it has no filename token and nowhere to put a banner line. The
+   `/scripts/_*` gitignore rule meant to hold banks back keys on a leading
+   underscore, so a bank named without one committed cleanly — that is how
+   `scripts/seed-l101-exam.ts` reached public history (rotated out in #350), and the
+   same shape recurred on 2026-07-30.
+
+   The trip is `correctIndex`, **not** `answer`, and the difference is load-bearing:
+
+   - `correctIndex` is the **exam** key. `src/lib/actions/exam.ts` is `"use server"`,
+     strips it before questions reach the client ("the answer key NEVER leaves the
+     server") and scores submissions server-side. These keys gate `/verify`
+     certificates.
+   - `answer` is the guide-card formative-quiz key. `QuizBlock.tsx` is `"use client"`
+     and compares it in the browser, so those values are **public by design**.
+
+   Tripping on `answer` would flag 40+ correctly-public tracked files (the
+   `seed-*-cluster.ts` and `scripts/authoring/**` guide content). Requiring two or
+   more question objects keeps a schema, type or doc that names the field once from
+   tripping.
+
+   Three tracked files legitimately carry the shape and are exempt **by path**, each
+   with a stated reason, in `ANSWER_KEY_EXEMPT`: the synthetic authoring template,
+   the Prisma seed fixture, and the exam-action test. A self-test asserts the rule
+   still trips on the same bytes at any other path, so an exemption cannot quietly
+   hide a rule that has stopped working.
+
+Loose words like "confidential" in prose do NOT trip it. Only the explicit token,
+the banner, or the answer-key shape does, to keep false positives out of a large
+public codebase.
 
 ## Where it runs
 
