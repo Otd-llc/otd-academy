@@ -54,10 +54,49 @@ import {
   assertNoLabelCaseCollision,
 } from "@/lib/content-export";
 
-// A partial read must never rotate a good archive out. Calibrated against the
-// live catalog (176 / 69 / 7 at 2026-07-28) with headroom. Do NOT lower these to
-// make a run succeed -- a run that trips a floor is telling you the read failed.
-const FLOOR = { guideCards: 150, miniLessons: 60, exams: 6 };
+// A partial read must never rotate a good archive out.
+//
+// There are TWO checks, because one number cannot do both jobs.
+//
+// 1. CATASTROPHE FLOOR (below). Absolute, and deliberately far below any real
+//    catalog: it catches "the read returned almost nothing" on a first run, when
+//    there is no previous count to compare against.
+// 2. RELATIVE CHECK (checkCounts). The real guard: compare against the counts the
+//    LAST SUCCESSFUL export recorded, and refuse a drop bigger than the allowance.
+//
+// The old design was a single hardcoded floor calibrated to the live catalog, and it
+// failed at both ends. `exams` was 6 against a live count of 6 -- ZERO headroom, so
+// one legitimate exam withdrawal aborted the ENTIRE backup, guides and library
+// included. Meanwhile `guideCards` was 150 against 198, so a read could silently lose
+// 48 cards, clear the floor, and have the exporter rmSync those cards out of the
+// mirror. Too tight to survive an edit, too loose to catch a partial read.
+const FLOOR = { guideCards: 40, miniLessons: 15, exams: 1 };
+
+// How much a count may drop in one day before it reads as a failed read rather than
+// an edit. Percentage alone is wrong at these magnitudes -- 10% of 6 exams rounds to
+// nothing, so a single deliberate withdrawal would still abort -- hence the absolute
+// floor of 1 alongside it.
+const DROP_TOLERANCE = 0.1;
+const allowedDrop = (prev: number) => Math.max(1, Math.ceil(prev * DROP_TOLERANCE));
+
+type Counts = { guideCards: number; miniLessons: number; exams: number };
+
+/** Shortfalls against the catastrophe floor and, when known, the last good counts. */
+function checkCounts(actual: Counts, prev: Counts | undefined): string[] {
+  const out: string[] = [];
+  for (const k of ["guideCards", "miniLessons", "exams"] as const) {
+    const n = actual[k];
+    if (n < FLOOR[k]) out.push(`${k} ${n} < catastrophe floor ${FLOOR[k]}`);
+    const was = prev?.[k];
+    if (typeof was === "number") {
+      const min = was - allowedDrop(was);
+      if (n < min) {
+        out.push(`${k} ${n} < ${min} (last good run had ${was}; a drop of more than ${allowedDrop(was)} reads as a partial read, not an edit)`);
+      }
+    }
+  }
+  return out;
+}
 
 const CHECK = process.argv.includes("--check");
 
@@ -116,23 +155,26 @@ function existingFiles(root: string): Set<string> {
  * tree that predates this check. That is a deliberate one-time trust of the first
  * run -- commit the pin ahead of deploying this if that window matters.
  */
-function assertSource(root: string, host: string): void {
+function assertSource(root: string, host: string): Counts | undefined {
   const pinPath = join(root, SOURCE_PIN);
 
   if (!existsSync(pinPath)) {
     if (CHECK) {
       console.log(`  pin     : none (skipped; --check writes nothing)`);
-      return;
+      return undefined;
     }
     mkdirSync(root, { recursive: true });
     writeFileSync(pinPath, `${JSON.stringify({ host }, null, 2)}\n`, "utf8");
     console.log(`  pin     : ADOPTED ${host} (first run; ${SOURCE_PIN} created)`);
-    return;
+    return undefined;
   }
 
   let pinned: string | undefined;
+  let counts: Counts | undefined;
   try {
-    pinned = JSON.parse(readFileSync(pinPath, "utf8")).host;
+    const parsed = JSON.parse(readFileSync(pinPath, "utf8"));
+    pinned = parsed.host;
+    counts = parsed.counts;
   } catch {
     throw new Error(`${pinPath} is unreadable or not JSON. Fix or delete it; do not export past it.`);
   }
@@ -150,6 +192,16 @@ function assertSource(root: string, host: string): void {
     );
   }
   console.log(`  pin     : ok (${pinned})`);
+  return counts;
+}
+
+/** Record the counts this run verified, so tomorrow has something to compare to. */
+function recordCounts(root: string, host: string, counts: Counts): void {
+  writeFileSync(
+    join(root, SOURCE_PIN),
+    `${JSON.stringify({ host, counts }, null, 2)}\n`,
+    "utf8",
+  );
 }
 
 /**
@@ -181,7 +233,7 @@ async function main() {
   console.log(`  archive : ${root}`);
   console.log(`  mode    : ${CHECK ? "--check (no writes)" : "write"}`);
   // Before any read: a wrong target must stop here, not after a full export.
-  assertSource(root, host);
+  const prevCounts = assertSource(root, host);
   console.log("");
 
   // ── read ────────────────────────────────────────────────────────────────
@@ -263,15 +315,19 @@ async function main() {
   console.log("");
 
   // ── floors, BEFORE anything is written ──────────────────────────────────
-  const shortfalls: string[] = [];
-  if (cardCount < FLOOR.guideCards) shortfalls.push(`guide cards ${cardCount} < ${FLOOR.guideCards}`);
-  if (miniLessons.length < FLOOR.miniLessons) shortfalls.push(`mini-lessons ${miniLessons.length} < ${FLOOR.miniLessons}`);
-  if (exams.length < FLOOR.exams) shortfalls.push(`exams ${exams.length} < ${FLOOR.exams}`);
+  const counts: Counts = {
+    guideCards: cardCount,
+    miniLessons: miniLessons.length,
+    exams: exams.length,
+  };
+  const shortfalls = checkCounts(counts, prevCounts);
   if (shortfalls.length > 0) {
     console.error("  REFUSING: the source looks partial, so the archive is left untouched.");
     for (const s of shortfalls) console.error(`    - ${s}`);
     console.error("");
-    console.error("  If the catalog genuinely shrank, adjust FLOOR deliberately in this file.");
+    console.error("  If the catalog genuinely shrank by this much, the counts in");
+    console.error(`  ${SOURCE_PIN} are what to edit -- deliberately, and knowing that`);
+    console.error("  the next run then treats the new number as the baseline.");
     await db.$disconnect();
     process.exit(1);
   }
@@ -355,6 +411,14 @@ async function main() {
   console.log(`  wrote ${files.size} file(s), ${(bytes / 1024).toFixed(1)} KB` +
     (orphans.length ? `, pruned ${orphans.length}` : ""));
   if (dirty === 0) console.log("  (no content changed)");
+
+  // Only after a clean write: tomorrow compares against what today actually verified.
+  // Recording earlier would let a run that aborted mid-write lower the baseline.
+  recordCounts(root, host, counts);
+  console.log(
+    `  baseline: ${counts.guideCards} cards / ${counts.miniLessons} library / ${counts.exams} exams` +
+      ` (next run may drop at most ${allowedDrop(counts.guideCards)} / ${allowedDrop(counts.miniLessons)} / ${allowedDrop(counts.exams)})`,
+  );
   console.log("");
 
   await db.$disconnect();
