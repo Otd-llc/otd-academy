@@ -10,6 +10,7 @@ import type { StageName } from "@/lib/stages";
 import { NewBuildForm } from "./_form";
 import { InlineBanner } from "@/components/InlineBanner";
 import { ChevronLeftIcon } from "@/components/icons";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 type Params = { slug: string; revLabel: string };
 
@@ -25,6 +26,7 @@ export default async function NewBuildPage({
 }: {
   params: Promise<Params>;
 }) {
+  await requireAdmin();
   const { slug, revLabel } = await params;
   const decodedRev = decodeURIComponent(revLabel);
 

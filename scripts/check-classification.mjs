@@ -7,8 +7,9 @@
 // OUTSIDE this repo. Confidential material has reached public main before, so this
 // guard makes a mistaken commit a hard failure instead of a silent leak.
 //
-// A file trips the guard if EITHER its name carries a classification token OR it
-// contains an explicit classification banner. Loose words in prose do not trip it.
+// A file trips the guard if its name carries a classification token, OR it contains
+// an explicit classification banner, OR it carries the exam answer-key content shape.
+// Loose words in prose do not trip it.
 //
 // Filename tokens (must agree with the skill's naming contract, SKILL.md):
 //   • Hyphen-terminal Axis-A token, the skill's real output shape:
@@ -42,6 +43,44 @@ export const SELF_EXEMPT = new Set([
   "docs/classification-guard.md",
 ]);
 
+// Exam answer keys are the one CONTENT shape that leaks without any name or banner
+// to catch it: a bank is plain JSON, so it carries no filename token and JSON has
+// nowhere to put a banner line. `scripts/seed-l101-exam.ts` reached public history
+// exactly this way (rotated out in #350), and the 2026-07-30 incident was the same
+// shape again. The `/scripts/_*` gitignore rule that is supposed to hold them back
+// keys on a leading underscore, so a bank named without one commits cleanly.
+//
+// The trip is `correctIndex` specifically, NOT `answer`. That distinction is load-
+// bearing and measured, not stylistic:
+//   • `correctIndex` is the EXAM key. src/lib/actions/exam.ts is "use server" and
+//     strips it before sending questions to the client ("the answer key NEVER leaves
+//     the server"); it scores submissions server-side and gates /verify certificates.
+//   • `answer` is the guide-card formative-quiz key. QuizBlock.tsx is "use client"
+//     and compares it in the browser, so those values are public BY DESIGN.
+// Tripping on `answer` would flag 40+ tracked files (the seed-*-cluster.ts and
+// scripts/authoring/** guide content) that are correctly public — measured, not
+// estimated. Narrow to the key that is actually secret.
+//
+// Requires >= 2 question objects so a schema, type or doc mentioning the field once
+// does not trip. Scores measured across all 1924 tracked files: the three entries
+// below are the ONLY tracked files that reach 2, while all ten real banks score 18.
+export const ANSWER_KEY_EXEMPT = new Map([
+  ["docs/boards/_exam-bank-template.json", "synthetic 2-question authoring template, no real key"],
+  ["prisma/seed.ts", "seed fixture questions for the shared esp32-sensor-breakout revision"],
+  ["src/lib/__tests__/exam-actions.test.ts", "synthetic questions asserting the scoring path"],
+]);
+const ANSWER_KEY_INDEX = /["']?\bcorrectIndex\b["']?\s*:\s*\d+/g;
+const ANSWER_KEY_OPTIONS = /["']?\boptions\b["']?\s*:\s*\[/g;
+const ANSWER_KEY_MIN = 2;
+
+// Number of question-shaped objects: pairs of a correctIndex assignment and an
+// options array. min() of the two counts, so neither alone is enough.
+function answerKeyScore(text) {
+  const keys = (text.match(ANSWER_KEY_INDEX) || []).length;
+  if (keys < ANSWER_KEY_MIN) return 0;
+  return Math.min(keys, (text.match(ANSWER_KEY_OPTIONS) || []).length);
+}
+
 // Hyphen-terminal Axis-A token (optionally with an appended regulatory token), and
 // the legacy dot-delimited form. Anchored to the final path segment before the
 // extension, so `internal-state.md` / `some-internal-helper.ts` do NOT trip.
@@ -61,6 +100,12 @@ export function detect(path, readText) {
   const text = readText ? readText() : null;
   if (text != null && BANNER.test(text)) {
     return `CLASSIFICATION: ${text.match(BANNER)[1].toUpperCase()} banner`;
+  }
+  if (text != null && !ANSWER_KEY_EXEMPT.has(path)) {
+    const score = answerKeyScore(text);
+    if (score >= ANSWER_KEY_MIN) {
+      return `exam answer key shape (${score} correctIndex/options question objects)`;
+    }
   }
   return null;
 }

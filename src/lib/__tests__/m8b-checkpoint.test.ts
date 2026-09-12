@@ -42,6 +42,7 @@ import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import type { Stage } from "@prisma/client";
 import { env } from "@/env";
 import { db } from "@/lib/db";
+import { s3Target } from "@/lib/r2-target";
 import { r2 } from "@/lib/r2";
 import {
   createUploadUrl,
@@ -168,7 +169,24 @@ describe("M8b checkpoint — live R2 round-trip on seeded project", () => {
         subkind: "SCHEMATIC_FILE",
       });
       uploadedR2Keys.push(token.key);
-      expect(token.uploadUrl).toMatch(/^https:\/\//);
+      // The presigned URL must point at the endpoint we actually configured.
+      //
+      // This used to be `toMatch(/^https:\/\//)`, which asserted an environment
+      // rather than a property: it passed for ANY https host, so a presigner
+      // aimed at the wrong bucket or account would have sailed through it, and it
+      // failed the moment CI presigned against an S3 container on
+      // http://localhost:9000 -- a scheme difference that says nothing about
+      // whether the flow works.
+      //
+      // Checking the scheme AND the host against `s3Target` is strictly stronger:
+      // production still has to be https (because the endpoint it derives is), and
+      // a URL pointing somewhere unexpected now fails where it previously did not.
+      // `endsWith` rather than equality because virtual-host addressing puts the
+      // bucket in front of the endpoint host, while path style does not.
+      const configured = new URL(s3Target(env).endpoint);
+      const signed = new URL(token.uploadUrl);
+      expect(signed.protocol).toBe(configured.protocol);
+      expect(signed.hostname.endsWith(configured.hostname)).toBe(true);
       expect(token.key).toMatch(
         new RegExp(`^revisions/${testRevisionId}/SCHEMATIC/`),
       );

@@ -2,8 +2,10 @@
 // The client form handles useActionState; this file just supplies the
 // layout chrome (header, hairline panel).
 import { NewProjectForm } from "./_form";
+import { requireAdmin } from "@/lib/auth-helpers";
 
-export default function NewProjectPage() {
+export default async function NewProjectPage() {
+  await requireAdmin();
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-10">
       <h1 className="font-display text-5xl tracking-wider text-title">

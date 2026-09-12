@@ -34,6 +34,7 @@ import { BoardsTable } from "@/components/BoardsTable";
 import { BuildChecklistsPane } from "@/components/BuildChecklistsPane";
 import { MarkBringupCompleteButton } from "@/components/MarkBringupCompleteButton";
 import { ChevronLeftIcon } from "@/components/icons";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 type Params = { slug: string; revLabel: string; buildLabel: string };
 
@@ -46,6 +47,7 @@ export default async function BuildDetailPage({
 }: {
   params: Promise<Params>;
 }) {
+  await requireAdmin();
   const { slug, revLabel, buildLabel } = await params;
   const decodedRev = decodeURIComponent(revLabel);
   const decodedBuild = decodeURIComponent(buildLabel);

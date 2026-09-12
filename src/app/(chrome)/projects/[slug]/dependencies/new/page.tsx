@@ -1,18 +1,26 @@
 // /projects/[slug]/dependencies/new — server shell.
 // Resolves the current (dependent) project and the non-archived candidate
-// targets it can depend on, then hands the lists to the client form. Auth
-// is enforced at the proxy edge (per 12.9), so no requireUser here.
+// targets it can depend on, then hands the lists to the client form.
+//
+// Auth is enforced BOTH at the proxy edge (per 12.9) and here. It used to rely
+// on the edge alone -- but the middleware matcher excluded any path containing
+// a dot, so a revision labelled `v1.1` (canonical vocabulary per
+// src/lib/schemas/revision.ts) skipped the gate entirely. The matcher is fixed;
+// `requireAdmin()` is the authoritative server gate regardless, matching every
+// page under /admin.
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { ChevronLeftIcon } from "@/components/icons";
 import { NewDependencyForm } from "./_form";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 export default async function NewDependencyPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  await requireAdmin();
   const { slug } = await params;
   const currentProject = await db.project.findUnique({
     where: { slug },

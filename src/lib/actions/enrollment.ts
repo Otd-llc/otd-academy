@@ -549,30 +549,63 @@ export async function recordEnrollmentProof(
   // activation. Detect it BEFORE writing this artifact (and before the
   // stale-cleanup below): a passing validated proof with no prior passing proof
   // of this subkind on this enrollment.
-  let firstClean = false;
-  if ((validator === "erc" || validator === "drc") && valid === true) {
-    const priorClean = await db.artifact.findFirst({
-      where: { enrollmentId: enrollment.id, subkind, valid: true },
-      select: { id: true },
-    });
-    firstClean = !priorClean;
-  }
+  // ATOMIC: the first-clean probe, the insert, and the stale sweep are one
+  // transaction. Run unwrapped, a crash between the insert and the sweep left
+  // TWO artifacts of the same subkind on the enrollment -- and because the exit
+  // gate asks `.some(a => a.valid === true)`, a leftover PASSING proof kept the
+  // gate open after the learner uploaded a FAILING one. The gate would say the
+  // stage was cleared on the strength of a file the learner had replaced.
+  //
+  // The R2 deletes and the telemetry stay OUTSIDE, below: both are third-party
+  // network calls. Inside, they would hold a Serializable transaction open
+  // across N round-trips and risk the interactive-transaction ceiling, and
+  // neither can be rolled back anyway.
+  const { created, firstClean, stale } = await withTxRetry(() =>
+    db.$transaction(
+      async (tx) => {
+        let firstClean = false;
+        if ((validator === "erc" || validator === "drc") && valid === true) {
+          const priorClean = await tx.artifact.findFirst({
+            where: { enrollmentId: enrollment.id, subkind, valid: true },
+            select: { id: true },
+          });
+          firstClean = !priorClean;
+        }
 
-  const created = await db.artifact.create({
-    data: {
-      enrollmentId: enrollment.id,
-      stage: data.stage,
-      kind: "FILE",
-      subkind,
-      title: data.filename,
-      fileKey: data.key,
-      fileMime: data.mime,
-      fileBytes: actualSize,
-      valid,
-      validationDetail,
-      createdBy: user.id,
-    },
-  });
+        const created = await tx.artifact.create({
+          data: {
+            enrollmentId: enrollment.id,
+            stage: data.stage,
+            kind: "FILE",
+            subkind,
+            title: data.filename,
+            fileKey: data.key,
+            fileMime: data.mime,
+            fileBytes: actualSize,
+            valid,
+            validationDetail,
+            createdBy: user.id,
+          },
+        });
+
+        // Replace any earlier proof of the same subkind so the gate reflects the
+        // LATEST upload. Selected here, deleted here; the R2 objects they point
+        // at are cleaned up after the commit.
+        const stale = await tx.artifact.findMany({
+          where: { enrollmentId: enrollment.id, subkind, id: { not: created.id } },
+          select: { id: true, fileKey: true },
+        });
+        if (stale.length) {
+          await tx.artifact.deleteMany({
+            where: { id: { in: stale.map((s) => s.id) } },
+          });
+        }
+
+        return { created, firstClean, stale };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    ),
+  );
 
   if (validator === "erc" && firstClean) {
     try {
@@ -586,25 +619,17 @@ export async function recordEnrollmentProof(
     }
   }
 
-  // Replace any earlier proof of the same subkind for this enrollment so the gate
-  // reflects the LATEST upload (and we don't accumulate dead files in R2).
-  const stale = await db.artifact.findMany({
-    where: { enrollmentId: enrollment.id, subkind, id: { not: created.id } },
-    select: { id: true, fileKey: true },
-  });
-  if (stale.length) {
-    await db.artifact.deleteMany({
-      where: { id: { in: stale.map((s) => s.id) } },
-    });
-    for (const s of stale) {
-      if (!s.fileKey) continue;
-      try {
-        await r2.send(
-          new DeleteObjectCommand({ Bucket: env.R2_BUCKET!, Key: s.fileKey }),
-        );
-      } catch {
-        // best-effort cleanup; a leftover object isn't worth failing the upload.
-      }
+  // Post-commit: drop the R2 objects the deleted rows pointed at. The rows are
+  // already gone, so a failure here leaks an object rather than corrupting the
+  // gate -- which is why this is best-effort and outside the transaction.
+  for (const s of stale) {
+    if (!s.fileKey) continue;
+    try {
+      await r2.send(
+        new DeleteObjectCommand({ Bucket: env.R2_BUCKET!, Key: s.fileKey }),
+      );
+    } catch {
+      // best-effort cleanup; a leftover object isn't worth failing the upload.
     }
   }
 

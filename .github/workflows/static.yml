@@ -14,13 +14,15 @@ name: static
 #
 # Nothing here needs a database or a secret: `tsc` and `eslint` are static,
 # `prisma validate` parses the schema without resolving the datasource URL, and
-# the one vitest step below runs only files whose entire import graph is pure.
-# That is what makes it safe to require -- it cannot fail on a cold Neon branch,
-# a playwright download, or a seed race.
+# the vitest step below runs vitest's "unit" project -- the half of the suite
+# defined by NOT touching the real database. It gets stub env literals so `@/env`
+# import-time validation passes; it resolves no real service. That is what makes
+# it safe to require -- it cannot fail on a cold Neon branch, a playwright
+# download, or a seed race.
 #
-# The heavy half (migrate, seed, next build, the diagram gate, ~1930 tests) stays
-# in ci.yml and stays advisory until its flaky steps get the retry treatment that
-# `migrate` already has.
+# The heavy half (migrate, seed, next build, the diagram gate, and the 94 DB test
+# files that need the shared ci-test branch) stays in ci.yml and stays advisory
+# until its flaky steps get the retry treatment that `migrate` already has.
 on:
   pull_request:
   push:
@@ -68,18 +70,59 @@ jobs:
       # returns early with no `TEST_DATABASE_POOL`. No secret is referenced.
       #
       # `--project unit` is deliberate: if one of these ever starts importing the
-      # real database it drops out of that project, vitest finds no matching
-      # files and FAILS here -- loudly, at the moment the assumption above stops
-      # holding, rather than silently widening a required check into one that
-      # needs a database.
+      # real database it drops out of that project, and a file named explicitly
+      # would stop matching. That property is kept below.
       #
-      # Keep this list explicit. `pnpm vitest run --project unit` with no paths
-      # would pull in ~1900 tests and every future unit file with them, which is
-      # how a fast required check becomes a slow flaky one.
-      - name: print-intent pins (pure specs, no DB, no secrets)
-        run: >
-          pnpm vitest run --project unit
-          src/lib/__tests__/hex-print-intent.test.ts
-          src/lib/__tests__/hex-prusa-config.test.ts
-          src/lib/__tests__/hex-spec.test.ts
-          src/lib/__tests__/hex-3mf.test.ts
+      # ======================================================================
+      # THE WHOLE UNIT PROJECT, NOT FOUR FILES.
+      # ======================================================================
+      # This step used to name those four print-intent files explicitly, on the
+      # reasoning that `--project unit` with no paths "would pull in ~1900 tests
+      # ... which is how a fast required check becomes a slow flaky one".
+      #
+      # That was never measured, and it is wrong. Measured on the full project,
+      # under exactly the conditions this job provides -- stub env, no database,
+      # no archive, CI=true:
+      #
+      #     Test Files  178 passed | 1 skipped (179)
+      #     Tests       2142 passed | 3 skipped (2145)
+      #     ~30s wall clock
+      #
+      # Thirty seconds, against a job that already spends longer in `tsc`. What
+      # it buys: the required merge gate goes from 4 files / 101 test
+      # declarations to 179 files / 2145 -- roughly 4% of the suite to all of the
+      # half that needs no database. Everything advisory before this (every
+      # server-action, authz, Stripe-webhook and schema test in the unit half)
+      # now blocks a merge.
+      #
+      # The DB half (94 files) necessarily stays in ci.yml: it needs the shared
+      # ci-test branch, which is what forces that workflow's concurrency group,
+      # which is what makes anything inside it unsafe to require. That half is
+      # still advisory. This closes the part that can be closed.
+      #
+      # The env below is STUB LITERALS, not secrets -- the same values ci.yml
+      # already uses. They exist because `@/env` validates at import and some
+      # unit files reach it transitively. Nothing here resolves a real service:
+      # DATABASE_URL points at a hostname that does not exist, and no unit test
+      # opens a connection (that is what puts them in this project). So the
+      # property that makes this safe to require is intact -- it cannot fail on a
+      # cold Neon branch, a seed race, or a missing secret.
+      #
+      # CONTENT_ARCHIVE_DIR is pointed at nothing on purpose: the content guards
+      # scan a PRIVATE sibling repo that is absent here, and `test.runIf` skips
+      # them rather than failing. Being explicit stops a future runner that
+      # happens to have the archive from turning this into a content check.
+      - name: unit suite (no DB, no secrets)
+        run: pnpm vitest run --project unit
+        env:
+          DATABASE_URL: postgresql://stub:stub@stub/stub
+          DIRECT_URL: postgresql://stub:stub@stub/stub
+          AUTH_SECRET: "stub-secret-32-chars-long-padding-x"
+          AUTH_GOOGLE_ID: stub
+          AUTH_GOOGLE_SECRET: stub
+          AUTH_GITHUB_ID: stub
+          AUTH_GITHUB_SECRET: stub
+          AUTH_RESEND_KEY: stub
+          ALLOWED_EMAILS: "stub@stub"
+          R2_ENABLED: "false"
+          CONTENT_ARCHIVE_DIR: /nonexistent/content-archive
