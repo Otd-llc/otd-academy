@@ -27,11 +27,20 @@
 //
 // The trigger child must be able to receive a ref + the hover/focus handlers
 // Radix forwards. Plain interactive elements (button, a, label) work directly.
-// For a DISABLED button, wrap it in a span (disabled elements fire no
-// pointer/focus events themselves). Note the `asChild` Trigger does NOT inject
-// tabIndex onto that wrapper, so the wrapper must set `tabIndex={0}` itself (+ a
-// focus ring) to stay keyboard-reachable — see `MarkBringupCompleteButton` /
-// `SaveButton` for that pattern.
+//
+// For a trigger that can be DISABLED, pass `wrapDisabled`. A disabled element
+// fires no pointer or focus events, so Radix never sees the hover that should
+// open the bubble; the fix is a focusable wrapper around it. That wrapper also
+// has to set `tabIndex={0}` and its own focus ring, because the `asChild`
+// Trigger does not inject either.
+//
+// That workaround used to be copied into every call site — ChecklistEditor,
+// IconButton, MarkBringupCompleteButton and SaveButton each carried the same
+// span and a paragraph explaining it, and this comment pointed readers at two of
+// them as the reference implementation. It belongs here instead: the constraint
+// is a property of THIS component's Radix trigger, so a consumer that does not
+// know about it now gets the right behaviour by asking for it, rather than by
+// having read someone else's file.
 
 import * as RadixTooltip from "@radix-ui/react-tooltip";
 
@@ -50,6 +59,13 @@ export interface TooltipProps {
    * in-dialog note), rather than behind the modal backdrop.
    */
   container?: Element | DocumentFragment | null;
+  /**
+   * Wrap the trigger in a focusable span so the bubble still opens when the
+   * trigger is disabled. Set this for any button that can go disabled (a
+   * pending submit, a guarded destructive action); without it the hint silently
+   * disappears in exactly the state the user most needs it.
+   */
+  wrapDisabled?: boolean;
 }
 
 export function Tooltip({
@@ -58,10 +74,24 @@ export function Tooltip({
   label,
   side = "top",
   container,
+  wrapDisabled = false,
 }: TooltipProps) {
+  // `inline-flex` so the span hugs the trigger and does not add a line box;
+  // `rounded` + the ring match the 6px chrome radius the button itself uses.
+  const trigger = wrapDisabled ? (
+    <span
+      tabIndex={0}
+      className="inline-flex rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold"
+    >
+      {children}
+    </span>
+  ) : (
+    children
+  );
+
   return (
     <RadixTooltip.Root>
-      <RadixTooltip.Trigger asChild>{children}</RadixTooltip.Trigger>
+      <RadixTooltip.Trigger asChild>{trigger}</RadixTooltip.Trigger>
       <RadixTooltip.Portal container={container ?? undefined}>
         <RadixTooltip.Content
           side={side}

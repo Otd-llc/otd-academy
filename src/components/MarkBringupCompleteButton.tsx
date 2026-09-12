@@ -59,24 +59,17 @@ export function MarkBringupCompleteButton({
         : "";
     const tooltip = `Boards not yet BROUGHT_UP or QUARANTINED: ${sample}${more}`;
     return (
-      <Tooltip label="Blocked" content={tooltip}>
-        {/* Disabled <button> fires no pointer/focus events, so the Radix
-            Trigger targets this wrapper span instead. Radix's asChild Trigger
-            does NOT inject tabIndex, so we set tabIndex=0 (+ a visible focus
-            ring) ourselves so keyboard users can focus the wrapper and surface
-            the blocking-reason tooltip. */}
-        <span
-          tabIndex={0}
-          className="inline-flex rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold"
+      // `wrapDisabled`: this button is ALWAYS disabled in this branch, and the
+      // tooltip is the only place the blocking reason appears — so a keyboard
+      // user who cannot focus it cannot find out why the action is unavailable.
+      <Tooltip label="Blocked" content={tooltip} wrapDisabled>
+        <button
+          type="button"
+          disabled
+          className="rounded border border-panel-border bg-deep-space px-3 py-1 font-mono text-xs uppercase tracking-wider text-muted opacity-60"
         >
-          <button
-            type="button"
-            disabled
-            className="rounded border border-panel-border bg-deep-space px-3 py-1 font-mono text-xs uppercase tracking-wider text-muted opacity-60"
-          >
-            Mark bring-up complete
-          </button>
-        </span>
+          Mark bring-up complete
+        </button>
       </Tooltip>
     );
   }

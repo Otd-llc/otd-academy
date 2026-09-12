@@ -175,7 +175,12 @@ export default async function CoursesPage({
 
           {/* The selected path: its goal + prerequisite chain, topo-ordered,
               rendered to the build-guide number-hero honeycomb standard. */}
-          <div className="-mx-4 sm:mx-0">
+          {/* NO edge bleed. This wrapper used to carry `-mx-4 sm:mx-0`, which cancelled the
+          page gutter on small screens so the old 3-up tessellated grid could buy back
+          two gutters' worth of width. A single-file spine is capped at 360px a cell
+          and centred, so the bleed bought nothing and only jammed the hexes against
+          both screen edges. The page's own `px-4 sm:px-6` is the gutter now. */}
+          <div>
             <SkillHoneycomb
               nodes={selected.nodes}
               goalSlug={selected.goalSlug}

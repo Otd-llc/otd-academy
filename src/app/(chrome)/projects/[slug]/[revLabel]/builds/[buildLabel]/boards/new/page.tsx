@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { NewBoardForm } from "./_form";
 import { InlineBanner } from "@/components/InlineBanner";
 import { ChevronLeftIcon } from "@/components/icons";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 type Params = { slug: string; revLabel: string; buildLabel: string };
 
@@ -18,6 +19,7 @@ export default async function NewBoardPage({
 }: {
   params: Promise<Params>;
 }) {
+  await requireAdmin();
   const { slug, revLabel, buildLabel } = await params;
   const decodedRev = decodeURIComponent(revLabel);
   const decodedBuild = decodeURIComponent(buildLabel);

@@ -9,6 +9,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { ChevronLeftIcon } from "@/components/icons";
 import { NewErratumForm } from "./_form";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 type Params = { slug: string; revLabel: string };
 
@@ -17,6 +18,7 @@ export default async function NewErratumPage({
 }: {
   params: Promise<Params>;
 }) {
+  await requireAdmin();
   const { slug, revLabel } = await params;
   const decodedRev = decodeURIComponent(revLabel);
 

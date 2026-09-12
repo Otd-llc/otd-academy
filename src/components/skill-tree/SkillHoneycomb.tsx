@@ -1,17 +1,20 @@
 "use client";
 
-// SkillHoneycomb — the /courses learning-path body, rendered to the SAME
-// number-hero honeycomb standard as the build-guide hub (`GuideHoneycomb`):
-// pointy-top hexes that TESSELLATE in offset, snaking rows and grow to fill the
-// width (3-up desktop → 2-up phone). Each hex is the full course button — a big
-// outline POSITION numeral owning the top third, then title · tagline · a status
-// chip — and the whole hex is the link.
+// SkillHoneycomb — the /courses learning-path body, rendered to the SAME standard as
+// the build-guide hub (`GuideHoneycomb`): a VERTICAL SPINE of pointy-top hexes, single
+// file, laced edge to edge, alternating left and right down the page. Each hex is the
+// full course button (position watermark · the board render · title · status chip) and
+// the whole hex is the link.
 //
-// It shares `computeLayout` + the `.gh-*` CSS with GuideHoneycomb (no fork — see
-// the C1 design-system note in docs/tech-debt-register.md), and maps the skill
-// tree's EIGHT `NodeState`s onto the four honeycomb visual states (done /
-// current / pending / blocked) — the chip text + a `sk-dim` recede modifier
-// carry the finer distinctions (Premium / Sign in / Soon / Locked).
+// A path is short by construction — the closure of one goal's prerequisites, three to
+// six nodes, with the other builds living in the go-further comb at the foot of the
+// page — so a single file is a page, not a scroll.
+//
+// It shares `lib/comb-spine.ts`, `SpineCombScene` and the `.gh-*` CSS with the hub (no
+// fork — see the C1 design-system note in docs/tech-debt-register.md), and maps the
+// skill tree's EIGHT `NodeState`s onto the four honeycomb visual states (done /
+// current / pending / blocked) — the chip text + a `sk-dim` recede modifier carry the
+// finer distinctions (Premium / Sign in / Soon / Locked).
 //
 // Progressive enhancement: unlike GuideHoneycomb (which renders nothing until it
 // measures), every node ALSO renders in a stacked fallback before the client
@@ -20,14 +23,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import {
-  computeLayout,
-  HexPrism,
-  RATIO,
-  buildCombScene,
-  type Box,
-} from "@/components/guide/GuideHoneycomb";
-import { CombArrows, HexPrismScene } from "@/components/guide/HexPrismScene";
+import { HexShell, RATIO } from "@/components/guide/GuideHoneycomb";
+import { SpineCombScene } from "@/components/guide/SpineCombScene";
+import { fitCellWidth, placeSpine, projectSpine, SPINE_CLIP } from "@/lib/comb-spine";
 import { Tooltip } from "@/components/Tooltip";
 import { AdminTierToggle } from "@/components/skill-tree/AdminTierToggle";
 import type { NodeState, SkillNode } from "@/lib/skill-tree-core";
@@ -181,23 +179,21 @@ function HexInner({
   // `.gh-node` is a `container-type: inline-size` container, so cqw resolves).
   numFontSize: number | string;
   isStarred: boolean;
-  /** true only before the layout is measured, when there is no scene to draw into. */
+  /** true only before the layout is measured, when there is no scene to draw into.
+   *  Without it the pre-hydration view is floating type with no hex, and with JS off
+   *  it stays that way. */
   showShell: boolean;
 }) {
   const trackColor = node.track ? TRACK_COLOR[node.track] : undefined;
   return (
     <>
-      {/* The flat shell is the PRE-MEASURE fallback only. Once the layout is
-          measured the hexes come from the shared perspective scene, so a measured
-          cell renders content alone. */}
-      {showShell ? <HexPrism className="gh-hex" /> : null}
+      {showShell ? <HexShell className="gh-hex" /> : null}
       {/* The ordinal, as a watermark spanning the whole face. The stroke/fill
           colours travel as `--num-*` vars so the light theme can re-point them
           (an inline colour would beat any stylesheet). */}
       <span className="comb-num" aria-hidden style={{ fontSize: numFontSize }}>
         {num}
       </span>
-      <BoardArt slug={node.slug} isCurrent={node.state === "available" && node.isNext} />
       <span className="gh-m">
         <span className="gh-title">
           {trackColor ? (
@@ -231,21 +227,15 @@ export interface SkillHoneycombProps {
 
 export function SkillHoneycomb({ nodes, goalSlug, viewer }: SkillHoneycombProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [layout, setLayout] = useState<{ boxes: Box[]; height: number }>({
-    boxes: [],
-    height: 0,
-  });
-  // container width, kept for the arrow overlay's coordinate space
+  // container width; the spine solves everything else from it
   const [cw, setCw] = useState(0);
-  // index of the hovered/focused node — lights its OUTGOING path arrow
+  // index of the hovered/focused node — lights its outline in the scene
   const [hot, setHot] = useState<number | null>(null);
 
   const measure = useCallback(() => {
     const el = ref.current;
-    if (!el) return;
-    setCw(el.clientWidth);
-    setLayout(computeLayout(el.clientWidth, nodes.length));
-  }, [nodes.length]);
+    if (el) setCw(el.clientWidth);
+  }, []);
 
   useIsoLayoutEffect(() => {
     measure();
@@ -254,44 +244,57 @@ export function SkillHoneycomb({ nodes, goalSlug, viewer }: SkillHoneycombProps)
     return () => ro.disconnect();
   }, [measure]);
 
-  const measured = layout.boxes.length === nodes.length && layout.height > 0;
+  const w = cw > 0 ? fitCellWidth(nodes.length, cw) : 0;
+  const { boxes, height } = placeSpine(nodes.length, w, cw);
+  const solids = projectSpine(boxes, cw, height);
+  const measured = boxes.length === nodes.length && height > 0;
 
   if (nodes.length === 0) return null;
-
-  const scene = buildCombScene(layout.boxes, cw);
 
   return (
     <div
       ref={ref}
       className="gh sk-lean"
-      style={{ position: "relative", height: measured ? scene.height : undefined }}
+      style={{ position: "relative", height: measured ? height : undefined }}
     >
-      {measured && scene.solids.length > 0 ? (
-        <HexPrismScene
-          solids={scene.solids}
-          vb={scene.vb}
+      {measured && solids.length > 0 ? (
+        <SpineCombScene
+          solids={solids}
+          sceneW={cw}
+          sceneH={height}
+          cellW={w}
           cells={nodes.map((n) => ({ kind: hexKind(n), dim: isDim(n.state) }))}
           hot={hot}
         />
       ) : null}
 
       {nodes.map((node, i) => {
-        const b = layout.boxes[i];
+        const b = boxes[i];
         const num = String(i + 1).padStart(2, "0");
         const kind = hexKind(node);
         const href = hrefForNode(node, viewer);
         const isStarred = node.slug === goalSlug || CAPSTONE_SLUGS.has(node.slug);
         const dim = isDim(node.state);
 
-        // Wrapper: absolute box once measured; a stacked, fluid block before that
-        // (the no-JS / pre-hydration fallback). The `#node-<slug>` anchor lives
-        // here so it resolves in both modes.
-        // Measured: the cell's content, billboarded onto its projected face (the hex
-        // itself is in the scene svg above). Pre-measure: the stacked fluid fallback
-        // that keeps the `#node-<slug>` anchors and the links in the SSR HTML.
-        const placed = b ? scene.place(i) : null;
-        const wrapStyle: React.CSSProperties = placed
-          ? placed
+        // Wrapper: the measured box once measured; a stacked, fluid block before that.
+        // The pre-measure branch is the no-JS / pre-hydration fallback and it is not
+        // cosmetic — it is what keeps the `#node-<slug>` anchors (the "jump to your
+        // next step" target) and the course links in the SSR HTML for crawlers.
+        //
+        // Measured cells take NO transform and NO scale: a one-point face lies in the
+        // picture plane, so a cell's content sits at exactly its layout box.
+        const wrapStyle: React.CSSProperties = b
+          ? {
+              position: "absolute",
+              left: b.left,
+              top: b.top,
+              width: b.w,
+              height: b.h,
+              zIndex: 2,
+              // HIT TEST, not decoration: overlapping rectangles at one z-index let
+              // the later cell capture clicks on the earlier cell's own face.
+              clipPath: SPINE_CLIP,
+            }
           : {
               position: "relative",
               width: "100%",
@@ -317,7 +320,7 @@ export function SkillHoneycomb({ nodes, goalSlug, viewer }: SkillHoneycombProps)
             num={num}
             numFontSize={numFontSize}
             isStarred={isStarred}
-            showShell={!placed}
+            showShell={!b}
           />
         );
 
@@ -373,30 +376,71 @@ export function SkillHoneycomb({ nodes, goalSlug, viewer }: SkillHoneycombProps)
             onBlur={() => setHot((h) => (h === i ? null : h))}
           >
             {withTooltip}
-            {/* Admin-only inline tier toggle, tucked into the hex's empty top
-                corner. The action re-checks requireAdmin (defense in depth). */}
-            {viewer.isAdmin ? (
-              <div className="absolute right-1 top-1 z-20 rounded bg-deep-space/90 px-1">
-                <AdminTierToggle slug={node.slug} tier={node.accessTier} />
-              </div>
-            ) : null}
           </div>
         );
       })}
 
-      {/* Path-direction arrows (K10): a 12 × 10 solid triangle on each
-          consecutive pair's seam, base 7px (scaled) off the line on the
-          destination face, rotated along the flow. The seam midpoint is the
-          midpoint of the two cell centers (true for tessellated hexes). Gold =
-          traversed (source done); dim = ahead; a hovered/focused hex lights its
-          outgoing arrow. Decorative — the chips carry the affordance. */}
+      {/* The board renders, in a LAYER of their own rather than inside each cell.
+          A board has to sit above every hex in the comb, not just its own, and a cell
+          is an absolutely-positioned z-indexed box, which is a stacking context: art
+          parented inside one can never rise above the next cell's outline, so at spine
+          sizes those outlines cut straight across the boards. The layer takes no
+          pointer events and reads its hover state from the same `hot` index the scene
+          does.
+
+          Pre-measure there is no layer: the fallback is a stacked list of links for
+          crawlers, and a board floating over it would land nowhere. */}
       {measured ? (
-        <CombArrows
-          solids={scene.solids}
-          vb={scene.vb}
-          on={nodes.map((n) => hexKind(n) === "done")}
-          hot={hot}
-        />
+        <div className="gh-art-layer">
+          {nodes.map((node, i) => {
+            const b = boxes[i];
+            if (!b) return null;
+            return (
+              <div
+                key={node.slug}
+                className={`gh-node ${hexKind(node)}${isDim(node.state) ? " sk-dim" : ""}${
+                  hot === i ? " hot" : ""
+                }`}
+                style={{
+                  position: "absolute",
+                  left: b.left,
+                  top: b.top,
+                  width: b.w,
+                  height: b.h,
+                }}
+              >
+                <BoardArt
+                  slug={node.slug}
+                  isCurrent={node.state === "available" && node.isNext}
+                />
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {/* Admin-only tier toggles, in a layer ABOVE the artwork.
+          They used to sit inside each cell at z-20, which does not work: `.gh-node` is
+          `container-type: inline-size`, so it establishes a stacking context and the
+          z-20 was trapped at the cell's own level, underneath the art layer. A board at
+          1.3 scale covers the whole upper half of a hex, including the corner the
+          toggle sits in, so it was buried (still clickable, just invisible). */}
+      {viewer.isAdmin && measured ? (
+        <div className="gh-admin-layer">
+          {nodes.map((node, i) => {
+            const b = boxes[i];
+            if (!b) return null;
+            return (
+              <div
+                key={node.slug}
+                className="absolute rounded bg-deep-space/90 px-1"
+                style={{ left: b.left + b.w * 0.62, top: b.top + b.h * 0.1 }}
+              >
+                <AdminTierToggle slug={node.slug} tier={node.accessTier} />
+              </div>
+            );
+          })}
+        </div>
       ) : null}
     </div>
   );

@@ -129,6 +129,19 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/diagram-render/adc1-pin-map")).toBe(true);
   });
 
+  it("admits the film capture surface, for the same reason", () => {
+    // otd-promo drives this with a headless browser that has no session. A 307
+    // here does not fail loudly - it captures 300 frames of the sign-in page.
+    expect(isPublicPath("/film-render/logbook")).toBe(true);
+  });
+
+  it("does not admit a lookalike prefix", () => {
+    // The check is on the FIRST SEGMENT, so a route that merely starts with the
+    // same letters must not inherit the exemption.
+    expect(isPublicPath("/film-renderer/logbook")).toBe(false);
+    expect(isPublicPath("/film")).toBe(false);
+  });
+
   it("admits the public EE-tools hub + each calculator", () => {
     expect(isPublicPath("/tools")).toBe(true);
     expect(isPublicPath("/tools/lipo-battery-runtime")).toBe(true);

@@ -17,6 +17,7 @@ import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { invalidateHexCluster } from "@/lib/cache-invalidate";
 import { getStripe } from "@/lib/stripe";
+import { withTxRetry } from "@/lib/tx-retry";
 
 const ALL_ACCESS_KEY = "all-access";
 
@@ -210,18 +211,37 @@ export async function deleteStudent(input: unknown): Promise<{ ok: true }> {
   // it, userId is already NULL, an updateMany({ where: { userId } }) matches
   // zero rows, the id list is unobtainable, and the scrub reports success
   // having done nothing.
-  const hexClusterIds = (
-    await db.hexCluster.findMany({ where: { userId }, select: { id: true } })
-  ).map((c) => c.id);
-  if (hexClusterIds.length > 0) {
-    await db.hexCluster.updateMany({
-      where: { id: { in: hexClusterIds } },
-      data: { name: "(deleted)" },
-    });
-  }
-
+  //
+  // ATOMIC with the delete, and that matters: the catch below proves a P2003 is
+  // an EXPECTED outcome here, not a freak error. Run unwrapped, that path left
+  // the user very much alive with every one of their build names permanently
+  // rewritten to "(deleted)" -- irreversible, since the originals were the only
+  // copy. Inside a transaction the FK violation aborts at the DELETE statement
+  // and the scrub rolls back with it.
+  //
+  // The Stripe cancellation above deliberately stays OUTSIDE: it is a network
+  // call to a third party that no database rollback can undo, and holding a
+  // transaction open across it would risk the interactive-transaction ceiling.
+  let hexClusterIds: string[];
   try {
-    await db.user.delete({ where: { id: userId } });
+    hexClusterIds = await withTxRetry(() =>
+      db.$transaction(
+        async (tx) => {
+          const ids = (
+            await tx.hexCluster.findMany({ where: { userId }, select: { id: true } })
+          ).map((c) => c.id);
+          if (ids.length > 0) {
+            await tx.hexCluster.updateMany({
+              where: { id: { in: ids } },
+              data: { name: "(deleted)" },
+            });
+          }
+          await tx.user.delete({ where: { id: userId } });
+          return ids;
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      ),
+    );
   } catch (e) {
     if (
       e instanceof Prisma.PrismaClientKnownRequestError &&

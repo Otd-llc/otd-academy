@@ -19,12 +19,16 @@
 // key segment never contains characters that need URL-encoding or fight with
 // the S3 SDK's URL builder.
 import { S3Client } from "@aws-sdk/client-s3";
+import { s3Target } from "@/lib/r2-target";
 import { env } from "@/env";
 import type { PartAssetKindT } from "@/lib/schemas/part-asset";
 
+const target = s3Target(env);
+
 export const r2 = new S3Client({
   region: "auto",
-  endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  endpoint: target.endpoint,
+  forcePathStyle: target.forcePathStyle,
   credentials: {
     accessKeyId: env.R2_ACCESS_KEY_ID!,
     secretAccessKey: env.R2_SECRET_ACCESS_KEY!,

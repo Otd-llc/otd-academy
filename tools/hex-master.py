@@ -143,13 +143,31 @@ def achievable_target(m):
 
 
 def apply(src, dst, ir_path, wet, comp, m, target_i):
+    """Apply the chain, and REPORT WHICH MODE loudnorm actually used.
+
+    `linear=true` is a request. Reading af_loudnorm.c, linear mode survives only
+    if BOTH of these hold, and it reverts to dynamic silently otherwise:
+
+        offset_tp = measured_tp + (target_i - measured_i)  <=  target_tp
+        measured_lra                                       <=  target_lra
+
+    achievable_target() above solves the FIRST condition by construction - it
+    picks the target that makes offset_tp land exactly on the ceiling. It says
+    nothing about the SECOND. A bed whose loudness range exceeds LRA=9 falls to
+    dynamic with the true-peak arithmetic looking perfectly correct, which is
+    the same silent squash wearing a different hat.
+
+    So stop inferring the mode and read it: the filter emits
+    `normalization_type` in its JSON, and this returns it for the caller to
+    assert on. Inferring was how the first incident shipped.
+    """
     g = chain(ir_path, wet, comp) + (
         f"loudnorm=I={target_i}:TP={TARGET_TP}:LRA={TARGET_LRA}"
         f":measured_I={m['input_i']}:measured_TP={m['input_tp']}"
         f":measured_LRA={m['input_lra']}:measured_thresh={m['input_thresh']}"
-        f":offset={m['target_offset']}:linear=true[out]"
+        f":offset={m['target_offset']}:linear=true:print_format=json[out]"
     )
-    args = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", src]
+    args = ["ffmpeg", "-y", "-hide_banner", "-i", src]
     if ir_path:
         args += ["-i", ir_path]
     args += ["-filter_complex", g, "-map", "[out]",
@@ -157,6 +175,10 @@ def apply(src, dst, ir_path, wet, comp, m, target_i):
     r = run(args)
     if r.returncode != 0:
         raise SystemExit("master failed:\n" + r.stderr[-1200:])
+    start, end = r.stderr.rfind("{"), r.stderr.rfind("}")
+    if start < 0 or end < 0:
+        return None
+    return json.loads(r.stderr[start : end + 1])
 
 
 if __name__ == "__main__":
@@ -199,7 +221,20 @@ if __name__ == "__main__":
         note = f"linear-capped, {TARGET_I - target_i:+.2f} dB short of {TARGET_I}"
     elif reach < TARGET_I:
         note = f"DYNAMIC fallback, {TARGET_I - reach:.2f} dB beyond linear reach"
-    apply(tmp2, tmpm, ir_path, a.wet, not a.no_comp, m, target_i)
+    out_m = apply(tmp2, tmpm, ir_path, a.wet, not a.no_comp, m, target_i)
+
+    # MEASURED, NOT INFERRED. See apply(). The LRA condition in particular is
+    # not covered by achievable_target(), so a bed can clear the true-peak
+    # arithmetic and still be squashed.
+    mode = (out_m or {}).get("normalization_type", "unknown")
+    if a.preserve_arc and mode != "linear":
+        raise SystemExit(
+            f"loudnorm used {mode.upper()} normalisation, not linear - the "
+            f"arrangement's dynamics have been compressed to hit the target.\n"
+            f"  input LRA {m['input_lra']} vs target LRA {TARGET_LRA} "
+            f"({'LRA is the cause' if float(m['input_lra']) > TARGET_LRA else 'LRA is fine, so it is the true-peak condition'})\n"
+            f"  Raise --lra, lower the target, or accept it with --no-preserve-arc."
+        )
 
     # KEEP THE SECOND LAP. The first one rings out of silence; the second rings
     # out of the first, which is what the loop point will actually hear.
@@ -210,8 +245,12 @@ if __name__ == "__main__":
         if os.path.exists(f):
             os.remove(f)
     print(
-        f"{out}\n  measured in  {m['input_i']} LUFS, TP {m['input_tp']} dBTP\n"
+        f"{out}\n  measured in  {m['input_i']} LUFS, TP {m['input_tp']} dBTP, "
+        f"LRA {m['input_lra']} (ceiling {TARGET_LRA})\n"
         f"  target       {target_i} LUFS, TP {TARGET_TP} dBTP  ({note})\n"
+        f"  loudnorm     {mode}"
+        + (f", out {out_m['output_i']} LUFS / {out_m['output_tp']} dBTP" if out_m else "")
+        + "\n"
         f"  reverb       {'none' if not ir_path else os.path.basename(ir_path)} wet {a.wet}\n"
         f"  compression  {'off' if a.no_comp else '1.6:1 @ -12 dB, no makeup'}"
     )

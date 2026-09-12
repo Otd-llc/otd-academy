@@ -63,8 +63,12 @@ export default async function HexClustersPage({
           shareCode: true,
           createdAt: true,
           summary: true,
-          payload: true,
-          payloadHash: true,
+          // NOT payload/payloadHash. `payload` is the full compressed
+          // configurator state -- hundreds of KB per revision, capped only by
+          // checkPayload -- and this page renders none of it: the card links to
+          // /c/<shareCode>, which loads the payload itself when someone opens a
+          // build. Selecting it here pulled every revision of every cluster
+          // (up to MAX_TOTAL_CLUSTERS) into memory to render a list of names.
         },
       },
     },

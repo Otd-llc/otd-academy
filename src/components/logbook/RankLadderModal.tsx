@@ -4,8 +4,18 @@
 // card can open the same thing): a rolodex wheel of all 12 wings (full color), the
 // centered rank's wing grown 2x, the learner's current rank marked. Mounted only while
 // open (the parent conditionally renders it); one wheel notch = one rank.
+//
+// DISMISSAL + FOCUS: a native <dialog> (`showModal()`), matching PartGlanceModal,
+// PatchDetailModal and the rest. This used to createPortal a positioned div at
+// `z-[100]` with an onClick on the backdrop: no focus trap and no Escape
+// handler, so a keyboard user could tab out of an open modal into the page
+// behind it and had no way to dismiss it without finding the ✕. The top layer
+// also retires the z-index question — this sat at z-[100] purely to out-rank
+// PatchDetailModal's z-50, a race nobody had adjudicated.
+//
+// The VISUAL treatment is unchanged: deep-space, gold hairline, --elev-card,
+// dimmed backdrop, radius 8. No navy fill.
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { RankWing } from "./RankWing";
 import { LEVELS } from "@/lib/logbook/economy";
 
@@ -14,6 +24,7 @@ const ROW_H = 68, WHEEL_H = 320;
 
 export function RankLadderModal({ level, onClose }: { level: number; onClose: () => void }) {
   const [focus, setFocus] = useState(level - 1);
+  const dlg = useRef<HTMLDialogElement>(null);
   const wheel = useRef<HTMLDivElement>(null);
   const idxRef = useRef(level - 1);
   const clampIdx = (n: number) => Math.max(0, Math.min(LEVELS.length - 1, n));
@@ -48,11 +59,36 @@ export function RankLadderModal({ level, onClose }: { level: number; onClose: ()
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
-  if (typeof document === "undefined") return null;
-  return createPortal(
-    <div className="fixed inset-0 z-[100] grid place-items-center bg-deep-space/80 p-4" onClick={onClose}>
-      <div className="relative w-full max-w-sm border border-command-gold/25 bg-deep-space p-5 shadow-[var(--elev-card)]" style={{ borderRadius: 8 }} onClick={(e) => e.stopPropagation()}>
-        <button type="button" onClick={onClose} aria-label="Close" className="absolute right-2.5 top-2.5 grid h-7 w-7 place-items-center rounded-full text-base leading-none text-muted transition-colors hover:bg-command-gold/10 hover:text-command-gold">&#10005;</button>
+  // The parent mounts this only while open, so opening on mount is the whole
+  // lifecycle. showModal() (not show()) is the call that traps focus and puts the
+  // element in the top layer.
+  useEffect(() => {
+    const d = dlg.current;
+    if (d && !d.open) d.showModal();
+  }, []);
+
+  // A click whose target is the <dialog> itself landed on the backdrop, not the
+  // panel. Replaces the old stopPropagation dance, which needed a click handler
+  // on a non-interactive div.
+  function onDialogClick(e: React.MouseEvent<HTMLDialogElement>) {
+    if (e.target === dlg.current) onClose();
+  }
+
+  return (
+    <dialog
+      ref={dlg}
+      onClose={onClose}
+      onCancel={onClose}
+      onClick={onDialogClick}
+      aria-label="The rank ladder"
+      // Centred explicitly (fixed inset-0 + m-auto + h-fit): Tailwind's preflight
+      // margin reset defeats the UA's default modal centring. Same fix as the
+      // other dialogs.
+      className="fixed inset-0 m-auto h-fit w-[calc(100%-2rem)] max-w-sm border border-command-gold/25 bg-deep-space p-5 text-text shadow-[var(--elev-card)] backdrop:bg-deep-space/80"
+      style={{ borderRadius: 8 }}
+    >
+      <div className="relative">
+        <button type="button" autoFocus onClick={onClose} aria-label="Close" className="absolute right-0 top-0 z-30 grid h-7 w-7 place-items-center rounded-full text-base leading-none text-muted transition-colors hover:bg-command-gold/10 hover:text-command-gold focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-command-gold">&#10005;</button>
         <div className="mb-2 border-b border-panel-border/50 pb-2 pr-8">
           <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-command-gold">Flight levels</p>
           <p className="font-display text-xl tracking-wide text-title">The rank ladder</p>
@@ -81,7 +117,6 @@ export function RankLadderModal({ level, onClose }: { level: number; onClose: ()
           </div>
         </div>
       </div>
-    </div>,
-    document.body,
+    </dialog>
   );
 }

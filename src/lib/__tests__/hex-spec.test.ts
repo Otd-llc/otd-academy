@@ -50,7 +50,19 @@ function valueOf(rows: SpecRow[], label: string): string {
 }
 
 describe("the slicer band matches the build sheet's PARAMS", () => {
-  // html.ts:206-215 — one assertion per band cell, so a failure names the cell.
+  // bs-cap-hex src/hex/export/html.ts:272-282 (Perimeters :277, Infill :278) --
+  // one assertion per band cell, so a failure names the cell.
+  //
+  // THE LINE NUMBERS WERE 66 LINES STALE, and this whole mechanism is "a red
+  // test sends a human to that line in the other repo". A pointer that lands
+  // inside the wrong function taxes the single manual step the design rests on.
+  //
+  // NOTE FOR WHOEVER SEES THIS RED: `Perimeters` and `Infill` are no longer
+  // spelled in `hex-spec.ts` -- they DERIVE from `PRINT_INTENT_TABLE`. So the
+  // way to make this green is NOT to edit a literal here. Either the sheet
+  // moved (fix the table) or the table moved (fix the sheet) -- and changing
+  // the table changes `Metadata/model_settings.config` in every plate every
+  // customer downloads, plus both READMEs and the /hex card.
   it.each([
     ["Nozzle", "240 °C"],
     ["Bed", "70–85 °C"],
@@ -118,7 +130,12 @@ describe("licence", () => {
 
 describe("release + configurator constants", () => {
   it("match what upload-printables.ts stamps and the sheet prints", () => {
-    expect(HEX_RELEASE).toBe("2026-08-03");
+    // A LITERAL, deliberately. The release string is a live R2 path prefix, and
+    // release keys are immutable -- bumping it without uploading that cut points
+    // every download at objects that do not exist. Pinning it here means the
+    // bump is always a conscious edit rather than a constant drifting under the
+    // uploader.
+    expect(HEX_RELEASE).toBe("2026-08-17");
     expect(HEX_CONFIGURATOR_URL).toBe("https://demo.onethousanddrones.com/hex");
   });
 });
