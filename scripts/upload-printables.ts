@@ -35,7 +35,35 @@ import {
   HEX_CLEARANCE,
   HEX_ORIENTATION,
   HEX_PRINT_PARAMS,
+  HEX_RELEASE,
 } from "../src/lib/hex-spec";
+// Plain data, no env, so a static import is safe above the dotenv call below --
+// same reasoning as hex-spec. See that module on why the list lives in one place.
+import {
+  NEEDS_SUPPORT_NAMES,
+  SUPPORT_NOTE,
+  SUPPORT_SLICER_NOTE,
+} from "../src/lib/hex-support";
+
+/** Hard-wrap for the archive README, which is read in Notepad and in terminals.
+ *  Neither reflows, so a long sentence is either cut off at the column or
+ *  scrolls sideways out of view. The academy's README module has its own copy of
+ *  this for the same reason; sharing it would mean importing a module that pulls
+ *  in the print spec to wrap a string. */
+function wrap72(text: string, indent = ""): string[] {
+  const out: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    if (line !== "" && `${indent}${line} ${word}`.length > 72) {
+      out.push(indent + line);
+      line = word;
+    } else {
+      line = line === "" ? word : `${line} ${word}`;
+    }
+  }
+  if (line !== "") out.push(indent + line);
+  return out;
+}
 
 // Dynamic imports inside main() so dotenv populates process.env BEFORE
 // src/env.ts validates it at module-eval time (a static import would hoist
@@ -51,7 +79,24 @@ const SOURCE_DIR = resolve(
 
 // Immutable release segment. Override to re-cut without clobbering a published
 // URL; bump it whenever the meshes change.
-const RELEASE = process.env.PRINTABLES_RELEASE ?? "2026-07-31";
+//
+// DERIVED FROM `HEX_RELEASE`, NOT SPELLED AGAIN. It used to be a literal, and
+// the literal said "2026-07-31" long after 2026-08-03 had shipped -- 08-03 was
+// published by passing PRINTABLES_RELEASE on the command line and nobody came
+// back for the default. So running this script the obvious way would have
+// written a fresh cut into a SUPERSEDED release prefix: the keys 08-03 links
+// point at would be untouched, the new meshes would land where nothing reads
+// them, and the only symptom is a release that appears to upload fine and
+// changes nothing.
+//
+// `hex-spec.test.ts` carried a row captioned "match what upload-printables.ts
+// stamps", which pinned `HEX_RELEASE` to a literal and never looked at this
+// file at all -- a pin between a constant and itself. Reading the constant
+// directly is the version of that intention which cannot drift.
+//
+// The env override stays, because re-cutting to a scratch prefix without
+// touching the app's notion of the current release is a real thing to want.
+const RELEASE = process.env.PRINTABLES_RELEASE ?? HEX_RELEASE;
 
 // EVERYTHING SHIPS FREE, as one set. There is deliberately no gated tier.
 //
@@ -365,22 +410,34 @@ function orientationNote(parts: ManifestPart[]): string[] {
     );
   }
 
-  // The two parts that rest on a line by DESIGN, named so nobody is surprised
-  // mid-print. Owner decision 2026-08-03: keep the orientation, say it plainly.
-  // A spike carries load along its axis; printed upright the layers stack along
-  // that axis and peel apart, so both are laid down to run the layers across it.
-  // A lying cone touches the bed along a line no matter how it is turned.
-  const NEEDS_SUPPORT = ["Hex-TB-Spike-Solid", "Hex-TB-Spike-Ball-Joint"];
-  const present = NEEDS_SUPPORT.filter((n) => parts.some((p) => p.part === n));
+  // The parts that rest on a line by DESIGN, named so nobody is surprised
+  // mid-print. The list used to be a local const here AND a second one in
+  // src/lib/hex-pack-readme.ts, each asking the other to be kept in sync. It now
+  // lives once in @/lib/hex-support, because the download endpoint reads the same
+  // set to decide whether a single-plate build ships bare or inside an archive --
+  // so a re-cut that updated this file and not that one would ship a bare file
+  // with no warning in it at all. See that module's header.
+  const present = NEEDS_SUPPORT_NAMES.filter((n) =>
+    parts.some((p) => p.part === n),
+  );
   if (present.length > 0) {
     lines.push(
       "",
       `Support required -- ${present.join(", ")}.`,
-      "These are laid on their side on purpose: a spike is loaded along its axis,",
-      "and lying down runs the layers ACROSS that load instead of letting them",
-      "peel apart. The cost is that they touch the bed along a line, so give them",
-      "supports or a brim. Every other part stands on its own.",
+      "These lie on their side on purpose: a spike carries its load along its",
+      "axis, so printed upright the layers stack along that load and peel apart.",
+      "Lying down runs them ACROSS it. What that costs is what they stand on, and",
+      "it is not the same for both. Every other part stands on a flat face.",
+      "",
     );
+    // ONE ENTRY PER PART. The old note gave both the same sentence and sent
+    // everyone to a brim, which cannot hold a part with no perimeter on the
+    // plate. The measured figures live beside the list in src/lib/hex-support.
+    for (const name of present) {
+      const note = SUPPORT_NOTE[name];
+      if (note) lines.push(...wrap72(`${name} ${note}`, "  "));
+    }
+    lines.push("", ...wrap72(SUPPORT_SLICER_NOTE, ""));
   }
   return lines;
 }
@@ -409,6 +466,40 @@ function setReadme(
     // text is corrected for the NEXT release. Composed from the SHARED spec
     // module so the archive and the page cannot drift apart.
     "Print settings:",
+    // ======================================================================
+    // THESE TWO ROWS ARE NOW DERIVED, AND THIS README IS IMMUTABLE.
+    // ======================================================================
+    // `HEX_PRINT_PARAMS` used to hardcode `Perimeters` and `Infill`. They now
+    // derive from `PRINT_INTENT_TABLE`, which is what stops the /hex card, both
+    // archive READMEs and the downloaded plate from disagreeing.
+    //
+    // The cost lands HERE, and it is easy to miss: this README is PUT to R2
+    // under `public, max-age=31536000, immutable`, inside a release prefix that
+    // is never overwritten. So the text below is frozen at publish time, while
+    // the table it derives from is not.
+    //
+    // CONSEQUENCE: editing `PRINT_INTENT_TABLE` makes every ALREADY-PUBLISHED
+    // release's README disagree with every newly generated plate, silently, and
+    // nothing anywhere compares an R2 object against the running code.
+    //
+    // ==================================================================
+    // DECIDED, 2026-08-18 (owner): A RELEASE BUMP IS **NOT** REQUIRED.
+    // ==================================================================
+    // Pre-V1. No users, no configs in the wild -- so there is nobody holding a
+    // published release whose README could contradict what they download today.
+    // Editing the table is free RIGHT NOW, and re-cutting 161 objects to correct
+    // a sentence would be ceremony rather than care.
+    //
+    // WHAT ENDS THIS, and it is not a date. The moment a published release is in
+    // someone's hands -- the first real download of a release segment we do not
+    // control, the first saved build whose sheet cites one, V1 -- the trade
+    // inverts: an immutable README is then a promise made to a person, and the
+    // only ways to keep it are a new segment or an explicit correction. Whoever
+    // notices that has happened owns re-opening this comment.
+    //
+    // Recorded rather than deleted on purpose. A warning that is simply removed
+    // reads later as an oversight nobody weighed; this one was weighed, and the
+    // condition it was weighed under is written down beside it.
     ...HEX_PRINT_PARAMS.map(
       (p) =>
         `  ${p.label}: ${ascii(p.value)}${p.aside ? ` (${ascii(p.aside)})` : ""}`,

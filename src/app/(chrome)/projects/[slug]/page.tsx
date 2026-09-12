@@ -35,6 +35,7 @@ import {
   ChevronLeftIcon,
   PlusIcon,
 } from "@/components/icons";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 // Track → text-color mapping for the curriculum badge pill. Lives next to
 // the only consumer (the detail page header strip); when a second view
@@ -77,6 +78,7 @@ export default async function ProjectDetailPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  await requireAdmin();
   const { slug } = await params;
 
   const project = await db.project.findUnique({

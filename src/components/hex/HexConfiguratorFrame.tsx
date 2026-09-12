@@ -31,6 +31,17 @@
 // component opens a panel in the academy's own DOM. No message performs a
 // write; the write is gated on a click here, on a form the visitor can see.
 //
+// THE TWO EXCEPTIONS to "no message performs a write" both write the same two
+// integer columns, the visitor's print bed. `bed-changed` writes it straight
+// through with no click on this side, because the value is bounded, idempotent,
+// visible on /account and undoable there -- and because a confirmation dialog
+// for "which printer do you own" is chrome nobody reads. `promote-bed` writes it
+// only if the account has none, decided in one conditional statement at the
+// database rather than by the child, which cannot see the account and cannot
+// tell "it has none" from "it has not answered yet". The reasoning in full, and
+// the line past which it stops applying, is in the protocol's security model.
+// Everything else still goes through a click.
+//
 // Every message is validated by `parseMessage`, and the peer is pinned by BOTH
 // its origin and `event.source === iframe.contentWindow`. Origin alone is not
 // enough: any other frame or popup on a permitted origin could otherwise post a
@@ -57,6 +68,11 @@ import {
 import { EmbeddedSavePanel } from "@/components/hex/EmbeddedSavePanel";
 import { loadHexRecall } from "@/lib/actions/hex-recall";
 import {
+  getPrintBed,
+  promotePrintBed,
+  setPrintBed,
+} from "@/lib/actions/print-bed";
+import {
   hexConfiguratorOrigin,
   hexConfiguratorSrc,
 } from "@/lib/hex-configurator-url";
@@ -66,6 +82,7 @@ import {
   CHANNEL,
   PROTOCOL_VERSION,
   parseMessage,
+  type Bed,
   type SaveRequest,
 } from "@/lib/hex-embed-protocol";
 import { getPosthog } from "@/lib/posthog-client";
@@ -121,12 +138,37 @@ export function HexConfiguratorFrame({
   /** Bumped to remount the iframe, which is the only reload available across
    *  origins. Part of the `key`, so it also resets the handshake. */
   const [reloadKey, setReloadKey] = useState(0);
+  /** What the ACCOUNT holds, and only that. It drives the `set-bed` relay below,
+   *  so a `bed-changed` must never be written here: echoing the child's own pick
+   *  straight back at it is a message it did not ask for, and a loop if a future
+   *  child build treats an inbound bed as a change worth announcing. */
+  const [accountBed, setAccountBed] = useState<Bed | null>(null);
 
   const panelRef = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const originRectRef = useRef<DOMRect | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const animationRef = useRef<Animation | null>(null);
+  /** The best bed known to this page, read at SEND time rather than captured.
+   *  It can arrive from either side -- the account read in `open`, or a pick the
+   *  visitor makes inside the configurator -- and the handshake fires again on a
+   *  frame remount (the context-lost reload), so a value captured when the
+   *  callback was built would hand a reloaded frame a stale bed. Exactly why the
+   *  theme is read with `currentTheme()` at send time rather than closed over. */
+  const bedRef = useRef<Bed | null>(null);
+  /** The bed already stored on the account, as `WxH`, so an identical pick is
+   *  not re-written. A repeat is the cheapest way for a compromised child to
+   *  turn one slider into a stream of database writes with the visitor's
+   *  session; it is also just what a picker emits when someone clicks the chip
+   *  they are already on. */
+  const persistedRef = useRef<string | null>(null);
+  /** A promotion has been offered on this page-load. The child already promotes
+   *  once and remembers it, but the guard belongs on this side too: the child is
+   *  the untrusted half of the channel, and without this a compromised one could
+   *  turn a message it is allowed to send into a stream of conditional writes.
+   *  Cleared on FAILURE only -- a decline is a real answer (the account has a
+   *  bed), and re-asking would never get a different one. */
+  const promotedRef = useRef(false);
 
   const origin = enabled ? hexConfiguratorOrigin() : "";
 
@@ -162,6 +204,31 @@ export function HexConfiguratorFrame({
       // id is read here rather than at render because a prerendered page would
       // otherwise bake one visitor's id into HTML served to everyone else.
       if (!src) {
+        // The account's bed, on its own promise and deliberately NOT awaited
+        // below: it is a database round trip, and blocking the panel's open on
+        // it would trade a correct plate count for a visibly slower open. The
+        // child resolves account -> this browser -> default, so a late answer
+        // costs nothing -- it arrives as `set-bed` (see the relay below) rather
+        // than as a delay nobody asked for.
+        //
+        // TRIED, not asked. /hex is prerendered with no session provider, so
+        // there is no client-side "am I signed in" to consult; `getPrintBed`
+        // throws for an anonymous caller and that throw IS the answer. Same
+        // discovery pattern EmbeddedSavePanel documents, one layer down.
+        void (async () => {
+          try {
+            const { bed } = await getPrintBed();
+            if (!bed) return;
+            bedRef.current = bed;
+            persistedRef.current = `${bed.x}x${bed.y}`;
+            setAccountBed(bed);
+          } catch {
+            // Signed out, or the read failed. Neither is an error state here:
+            // the child has its own store and a shipped default, and a bed the
+            // academy cannot supply is exactly what that fallback is for.
+          }
+        })();
+
         void (async () => {
           let distinctId: string | null = null;
           try {
@@ -383,6 +450,92 @@ export function HexConfiguratorFrame({
     post({ type: "set-theme", theme: currentTheme() });
   }, [phase, src, post]);
 
+  // -- the bed -----------------------------------------------------------
+  //
+  // Bound to the frame EXISTING, like the theme relay and for a sharper version
+  // of the same reason: the account read is fired at open and not awaited, so it
+  // routinely lands AFTER the handshake has already gone. Without this the
+  // visitor's stored bed would be ignored for the rest of the session and the
+  // download would lay out for whatever this browser happened to remember --
+  // which is the "220 here, 350 there" support question the account copy exists
+  // to answer.
+  //
+  // Sent again when the frame appears, so it does not matter which of the two
+  // won the race. Fires only for an account value: `accountBed` is never written
+  // from an inbound `bed-changed`, so this cannot echo the child's own pick back
+  // at it.
+  useEffect(() => {
+    if (!src || !accountBed) return;
+    post({ type: "set-bed", bed: accountBed });
+  }, [src, accountBed, post]);
+
+  /**
+   * A bed picked inside the configurator, written through to the account.
+   *
+   * The one inbound message that reaches a write; the reasoning, and the line
+   * past which it stops applying, is in the protocol's security model. The peer
+   * is already pinned by origin AND `event.source`, and `parseMessage` has
+   * already held the numbers to the same bounds the pack endpoint and the
+   * settings action use, so what is left to guard here is repetition.
+   *
+   * A failure is SWALLOWED, deliberately. The common one is "signed out", which
+   * is not an error: the configurator keeps the pick in its own store, which is
+   * precisely what the resolver's second tier is for. The optimistic mark is
+   * cleared on failure so a later attempt at the same size is not suppressed by
+   * a write that never landed -- someone can sign in through the save panel
+   * moments later, inside this same frame.
+   */
+  const persistBed = useCallback((bed: Bed) => {
+    bedRef.current = bed;
+    const key = `${bed.x}x${bed.y}`;
+    if (persistedRef.current === key) return;
+    persistedRef.current = key;
+    void setPrintBed(bed).catch(() => {
+      if (persistedRef.current === key) persistedRef.current = null;
+    });
+  }, []);
+
+  /**
+   * A bed this browser was already holding, offered to an account that may have
+   * none.
+   *
+   * NOT `persistBed`, and the difference is the whole message. A `bed-changed`
+   * is a choice the visitor made seconds ago and must win; a `promote-bed` is an
+   * older local value offered on the child's BELIEF that the account is empty --
+   * a belief it cannot check, because an absent `Ready.bed` means "no answer",
+   * which covers an account read still in flight. So the condition is not
+   * evaluated here either: `promotePrintBed` writes only if both columns are
+   * still null, in one statement, which is why a slow read can no longer clobber
+   * a bed the visitor set on another device.
+   *
+   * A DECLINE IS NOT AN ERROR and deliberately posts nothing back. The academy's
+   * own account read is already relayed as `set-bed` by the effect above, and
+   * that effect is driven by `accountBed`, which has exactly one writer. Letting
+   * a value the child sent reach `accountBed` -- even the account's own answer,
+   * returned to us -- would put an inbound message on the path that posts back
+   * out, which is the echo the single-writer rule exists to prevent.
+   *
+   * A failure is swallowed for the same reason `persistBed` swallows one: the
+   * common case is "signed out", which is exactly the state the child's own
+   * local store is for.
+   */
+  const promoteBed = useCallback((bed: Bed) => {
+    if (promotedRef.current) return;
+    promotedRef.current = true;
+    void promotePrintBed(bed)
+      .then(({ promoted }) => {
+        // Only when it TOOK. On a decline the account holds something else, and
+        // recording the child's bed here would hand a stale value to the next
+        // handshake and suppress a later identical pick from being written.
+        if (!promoted) return;
+        bedRef.current = bed;
+        persistedRef.current = `${bed.x}x${bed.y}`;
+      })
+      .catch(() => {
+        promotedRef.current = false;
+      });
+  }, []);
+
   // -- the inbound channel -----------------------------------------------
 
   useEffect(() => {
@@ -412,15 +565,27 @@ export function HexConfiguratorFrame({
         case "context-lost":
           setContextLost(true);
           break;
+        case "bed-changed":
+          // The child owns the picker; the academy owns the account. Writing it
+          // through here is what makes a bed picked on a laptop true on a phone.
+          // UNCONDITIONAL, and it stays that way: the visitor's newest choice
+          // wins, which is the one thing `promote-bed` must never do.
+          persistBed(message.bed);
+          break;
+        case "promote-bed":
+          // Deliberately NOT `persistBed`. Same two columns, same bounds, but
+          // this one writes only into a null pair -- see `promoteBed`.
+          promoteBed(message.bed);
+          break;
         default:
-          // `ready` / `set-theme` / `saved` / `save-failed` / `save-cancelled`
-          // are ours to send, not to receive.
+          // `ready` / `set-theme` / `set-bed` / `saved` / `save-failed` /
+          // `save-cancelled` are ours to send, not to receive.
           break;
       }
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [enabled, origin, close]);
+  }, [enabled, origin, close, persistBed, promoteBed]);
 
   // -- the close fallback ------------------------------------------------
   //
@@ -451,6 +616,11 @@ export function HexConfiguratorFrame({
       type: "ready",
       parentOrigin: window.location.origin,
       theme: currentTheme(),
+      // OMITTED, not sent as null, when there is no answer yet. The field means
+      // "the account says this", and absent is the only spelling of "no answer"
+      // the protocol defines -- a null would be a third state the child would
+      // have to guess at. See `Ready.bed`.
+      ...(bedRef.current ? { bed: bedRef.current } : {}),
     });
   }, [post]);
 

@@ -3,6 +3,18 @@ import { auth } from "@/auth";
 import { legacySlugRedirect } from "@/lib/legacy-slug-redirect";
 import { resolveRouteGate } from "@/lib/route-gate";
 import { isDevOnlyBlocked } from "@/lib/dev-only-routes";
+import { isUnknownStaticParam } from "@/lib/static-param-404";
+import { resolveSlugMove } from "@/lib/slug-moves";
+import { TOOLS } from "@/lib/tools/registry";
+import { BRIEF_KEYS } from "@/lib/brief-pages";
+
+// Built once at module scope, not per request. Both sources are pure data — the
+// TOOLS registry says so in its own header ("PURE DATA — no React, no client
+// imports") because the sitemap already imports it the same way.
+const KNOWN_STATIC_PARAMS = {
+  tools: TOOLS.map((t) => t.slug),
+  briefs: BRIEF_KEYS,
+} as const;
 
 // Auth.js v5's bare `auth` export only attaches `req.auth` to the request — it
 // does not redirect unauthenticated users on its own. Wrap it so unauth requests
@@ -53,6 +65,61 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(legacyPath, req.nextUrl.origin), 308);
   }
 
+  // Unknown param on a statically-enumerated route (/tools, /embed, /briefs) —
+  // answered here for the same reason the dev-only block above is: a prerendered
+  // route's status is committed before its `notFound()` runs, so those paths
+  // served the 404 BODY under a 200 and a crawler indexed them as real pages.
+  // Measured, not assumed — see @/lib/static-param-404 for the numbers.
+  //
+  // AFTER the legacy redirect deliberately: a legacy URL that would resolve to a
+  // real page must get its 308 rather than being refused on the way.
+  if (isUnknownStaticParam(pathname, KNOWN_STATIC_PARAMS)) {
+    // A REWRITE carrying the status, not `new NextResponse(null, {status:404})`.
+    // The bare response is what the dev-only block above returns, and it is right
+    // there: a dev-only surface should look like it does not exist. These are
+    // PUBLIC pages a person can reach by typing a slug wrong, so a blank body
+    // would trade an indexed soft-404 for a blank page. Rewriting to an unrouted
+    // path renders the app's own not-found.tsx, and the status init makes it a
+    // real 404 rather than the 200 the prerendered shell would have committed.
+    return NextResponse.rewrite(new URL("/_404", req.nextUrl.origin), {
+      status: 404,
+    });
+  }
+
+  // A content URL whose slug CHANGED, or whose content was withdrawn. Same wall
+  // as the two blocks above -- a prerendered shell commits 200 before the page's
+  // `notFound()` runs -- but a different remedy, because a moved page should not
+  // 404 at all. Google's guidance is a 301 when there is a replacement, since a
+  // 404 throws the accumulated signal away. So this redirects first and 404s only
+  // for content withdrawn with nothing to point at.
+  //
+  // AFTER the static-param guard and BEFORE the auth gate. After, because the two
+  // never overlap (that guard owns /tools, /embed and /briefs; this owns
+  // /library, /courses and /parts) and the cheaper pure check should run first.
+  // Before, because a moved PUBLIC url must reach its replacement without being
+  // bounced through /sign-in first -- the same reason the legacy 308 above runs
+  // where it does.
+  //
+  // The table is empty today and this costs one array split per request. It is
+  // wired now so the first rename is a data edit rather than a design project.
+  // See @/lib/slug-moves for why it is a committed table and not a live store.
+  const move = resolveSlugMove(pathname);
+  if (move) {
+    if (move.kind === "moved") {
+      // 308, matching the legacy redirect above: permanent AND method-preserving,
+      // which tells search engines to update the index.
+      return NextResponse.redirect(new URL(move.to, req.nextUrl.origin), 308);
+    }
+    // Withdrawn. Rewrite carrying the status, exactly as the static-param guard
+    // does and for the same reason: these are public URLs a person may follow
+    // from an old link, so they get the app's own 404 page rather than a blank
+    // body. Google treats 404 and 410 identically, so 404 keeps this consistent
+    // with the other two guards rather than introducing a second vocabulary.
+    return NextResponse.rewrite(new URL("/_404", req.nextUrl.origin), {
+      status: 404,
+    });
+  }
+
   // The auth + role gate (pure, unit-tested — see @/lib/route-gate). Anonymous
   // requests on non-public routes go to /sign-in; an explicit LEARNER on an
   // admin-only view goes to /learn. Public surfaces (the parts catalog, the
@@ -87,6 +154,18 @@ export const config = {
     // symptom would be downloads 307ing to /sign-in for signed-out visitors --
     // which is exactly nobody who is logged in, so it would look fine in
     // testing.
-    "/((?!api/auth|api/avatar|api/part-model|api/printable|api/stripe/webhook|api/capture|api/cron|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico|.*\\..*).*)",
+    // The last alternative exempts static assets by EXTENSION, anchored to the
+    // end of the path. It used to be `.*\\..*` -- any path containing a dot
+    // anywhere -- which was far wider than "an asset request". Revision labels
+    // are `[A-Za-z0-9 .-]+` and the schema names `v1.1` as canonical vocabulary
+    // (src/lib/schemas/revision.ts), so a single revision created through the
+    // normal admin UI took `/projects/<slug>/v1.1` and everything beneath it out
+    // of the gate's reach entirely -- the whole operator subtree, served to
+    // anonymous requests, with no error anywhere to notice.
+    //
+    // Anchoring to `$` and naming the extensions makes an unrecognised dotted
+    // path fail CLOSED: it stays gated (working, slightly more work per request)
+    // rather than silently public. Add to the list when a new asset type ships.
+    "/((?!api/auth|api/avatar|api/part-model|api/printable|api/stripe/webhook|api/capture|api/cron|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico|.*\\.(?:ico|png|jpe?g|gif|svg|webp|avif|txt|xml|json|map|css|js|mjs|woff2?|ttf|otf|mp4|webm|pdf|3mf|stl|zip)$).*)",
   ],
 };

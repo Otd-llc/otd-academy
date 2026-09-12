@@ -38,6 +38,7 @@ import {
 } from "@/components/RevisionChecklistsPane";
 import { KicadExportButton } from "@/components/KicadExportButton";
 import { ChevronLeftIcon, PlusIcon } from "@/components/icons";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 type Params = { slug: string; revLabel: string };
 
@@ -46,6 +47,7 @@ export default async function RevisionDetailPage({
 }: {
   params: Promise<Params>;
 }) {
+  await requireAdmin();
   const { slug, revLabel } = await params;
   const decodedLabel = decodeURIComponent(revLabel);
 

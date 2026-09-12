@@ -14,6 +14,7 @@
 //   pnpm exec tsx scripts/authoring/l1-02-espnow-link/LAYOUT.ts --write    # local
 //   pnpm db:prod scripts/authoring/l1-02-espnow-link/LAYOUT.ts --yes -- --write
 import { config as loadEnv } from "dotenv";
+import { revalidate } from "../lib/revalidate";
 loadEnv({ path: ".env.local" });
 
 export type Blk = Record<string, unknown>;
@@ -162,4 +163,11 @@ export async function publishCard({ slug, stage, blocks, revLabel = "v1" }: Publ
   await db.guideCard.update({ where: { id: card.id }, data: { contentBlocks: blocks as unknown as object } });
   const back = await db.guideCard.findUniqueOrThrow({ where: { id: card.id }, select: { contentBlocks: true } });
   console.log(`\nWROTE. read-back: ${((back.contentBlocks ?? []) as unknown[]).length} blocks`);
+
+  // Drop the cache for THIS project's guide. Scoped rather than broad because
+  // the slug is right here: re-authoring one stage of one board should not evict
+  // every other board's guide. No-ops on a local write. Awaited, not
+  // fire-and-forget — a caller that exits the process would kill an unawaited
+  // request before it left.
+  await revalidate({ guides: [slug] });
 }
