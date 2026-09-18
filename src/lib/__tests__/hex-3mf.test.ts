@@ -894,7 +894,7 @@ describe("Metadata/model_settings.config", () => {
     const cfg = await configOf(
       await plate3mf([at("a", 4, 4), at("b", 20, 4)], SOURCES),
     );
-    expect(cfg.match(/key="sparse_infill_pattern" value="gyroid"/g)).toHaveLength(2);
+    expect(cfg.match(/key="sparse_infill_pattern" value="adaptivecubic"/g)).toHaveLength(2);
   });
 
   it("gives every part the density and perimeters the infill was chosen against", async () => {
@@ -915,10 +915,14 @@ describe("Metadata/model_settings.config", () => {
   });
 
   it("spells the infill in the case the slicer's enum map uses", async () => {
-    // MEASURED: "Gyroid" is silently replaced with grid, behind a dialog that
-    // blames a version mismatch. The file looks right and prints weak.
+    // MEASURED, on the value this row used to carry: "Gyroid" with a capital G
+    // is silently replaced with grid, behind a dialog that blames a version
+    // mismatch. The file looks right and prints weak. The rule the measurement
+    // establishes is about CASE, not about that one word, so it survives the
+    // pattern change -- the enum is lower-case and an enum miss fails open.
     const cfg = await configOf(await plate3mf([at("a", 4, 4)], SOURCES));
-    expect(cfg).toContain('value="gyroid"');
+    expect(cfg).toContain('value="adaptivecubic"');
+    expect(cfg).not.toContain('value="AdaptiveCubic"');
     expect(cfg).not.toContain('value="Gyroid"');
   });
 
@@ -1041,6 +1045,6 @@ describe("support settings ride only on the parts that need them", () => {
     const cfg = await configOf(
       await plate3mf([at(SPIKE, 4, 4, {}, "Hex-TB-Spike-Ball-Joint")], sources),
     );
-    expect(cfg).toContain('value="gyroid"');
+    expect(cfg).toContain('value="adaptivecubic"');
   });
 });

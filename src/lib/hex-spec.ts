@@ -24,7 +24,10 @@
 // The house ban is on EM dashes; do not "fix" these to hyphens or the two
 // surfaces stop matching.
 
-import { INTENT_EVERY_PART } from "@/lib/hex-print-intent";
+import {
+  INTENT_EVERY_PART,
+  INTENT_EVERY_PART_DISPLAY,
+} from "@/lib/hex-print-intent";
 import {
   HEX_RELEASE_FILES as GENERATED_RELEASE_FILES,
   HEX_TABLES_RELEASE,
@@ -108,9 +111,14 @@ export const HEX_PRINT_PARAMS: SpecRow[] = [
   { label: "Perimeters", value: INTENT_EVERY_PART.wall_loops },
   // Density then pattern, the order the sheet prints and the order it is said
   // aloud. Both halves come from the table; neither is spelled here.
+  //
+  // THE DISPLAY MAP, NOT THE VALUE MAP. This is a card a person reads, and the
+  // pattern's slicer enum is `adaptivecubic` -- one word, no space. It used to
+  // not matter, because every value was its own display back when the pattern
+  // was "gyroid".
   {
     label: "Infill",
-    value: `${INTENT_EVERY_PART.sparse_infill_density} ${INTENT_EVERY_PART.sparse_infill_pattern}`,
+    value: `${INTENT_EVERY_PART.sparse_infill_density} ${INTENT_EVERY_PART_DISPLAY.sparse_infill_pattern}`,
   },
   { label: "Speed", value: "40–50 mm/s" },
   { label: "Cooling", value: "~30%" },
