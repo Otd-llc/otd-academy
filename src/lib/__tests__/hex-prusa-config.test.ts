@@ -111,7 +111,7 @@ describe("the volume range, without which the object loses its mesh", () => {
 describe("it says the same thing as the Orca payload, in Prusa's words", () => {
   it("gives every part the infill, density and perimeters from the table", () => {
     const cfg = prusaModelConfig([plain()]);
-    expect(cfg).toContain('key="fill_pattern" value="gyroid"');
+    expect(cfg).toContain('key="fill_pattern" value="adaptivecubic"');
     expect(cfg).toContain('key="fill_density" value="30%"');
     expect(cfg).toContain('key="perimeters" value="4"');
   });

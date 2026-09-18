@@ -3,9 +3,12 @@
 //
 // WHY THE FILE CARRIES SETTINGS AT ALL. Alpha testers do not read the README.
 // Not "some of them" -- the reported behaviour was that nobody selected the
-// infill the parts need, and gyroid on these parts is a TORSION REQUIREMENT
-// rather than a preference. Advice that must be read is advice that does not
+// infill the parts need. Advice that must be read is advice that does not
 // arrive, so the intent travels inside the file instead.
+//
+// (This used to add "and gyroid on these parts is a TORSION REQUIREMENT rather
+// than a preference". That claim had no test behind it and the pattern is now
+// adaptive cubic; see the table's own infill row for what replaced it and why.)
 //
 // WHERE IT LANDS. `Metadata/model_settings.config`, the Orca-family dialect
 // (OrcaSlicer, Bambu Studio, Creality Print, ElegooSlicer, Anycubic Slicer Next
@@ -142,19 +145,64 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
   // =====================================================================
   // EVERY PART ON THE PLATE.
   //
-  // Infill is the load-bearing one, and it is a PATTERN requirement before
-  // it is a density one: these parts are loaded in torsion, and gyroid is
-  // what that choice was made for. Density and perimeters travel with it
-  // because 30% was chosen against four -- stating either alone describes a
-  // part nobody tested.
+  // Infill is the load-bearing one, and it is a PATTERN choice before it is
+  // a density one. Density and perimeters travel with it because 30% was
+  // chosen against four -- stating either alone describes a part nobody
+  // tested.
+  //
+  // THIS WAS GYROID, AND THE REASON GIVEN FOR IT WAS NEVER TRUE.
+  // Every surface in both repos said gyroid was "a TORSION REQUIREMENT
+  // rather than a preference". A literature round on 2026-09-18 went looking
+  // for the test behind that and there is none: no peer-reviewed torsion
+  // comparison of gyroid against other infill patterns exists at all. Every
+  // source making the claim is a vendor blog or a forum post, and the forums
+  // do not even agree with each other. It was folklore, repeated across four
+  // files until it read like a specification.
+  //
+  // WHAT IS MEASURED IS THE COST. On `hex-main`, extrusion is 94.4% of
+  // commanded motion at 13.85 mm3/s -- already 87% of the machine's flow
+  // ceiling -- yet commanded motion totals 278.7 min against a 522 min
+  // estimate. 46.7% of that print is ACCELERATION, because gyroid never
+  // stops turning. Holding density and walls fixed and changing only the
+  // pattern (hex-cluster `tools/sweep_print_settings.py`):
+  //
+  //     gyroid           522 min   278.4 g
+  //     adaptive cubic   397 min   255.5 g   -23.9%
+  //     grid             442 min   279.4 g   -15.3%
+  //     honeycomb        590 min   300.4 g   +13.0%
+  //
+  // Adaptive cubic at 30% finishes sooner than gyroid at 15% while carrying
+  // 16 g MORE material, so this buys two hours without spending a gram --
+  // which is why it does not wait on the strength tests that are still owed
+  // (hex-cluster `docs/cad-backlog.md` section 9b).
+  //
+  // CURA IS NOT THE SAME PATTERN, and that is new. The three dialects used
+  // to agree literally -- `gyroid` everywhere. Cura has no adaptive cubic;
+  // its nearest analogue is Cubic Subdivision, which also grades density
+  // toward walls but is a different algorithm. Verified against Cura's own
+  // `fdmprinter.def.json`, whose `infill_pattern` keys are: lines,
+  // trihexagon, cubicsubdiv, tetrahedral, quarter_cubic, concentric, zigzag,
+  // cross, cross_3d, gyroid, lightning, honeycomb, octagon, grid, cubic,
+  // triangles. `adaptivecubic` is NOT among them, so a literal copy would
+  // fail the enum and fall back. `display` therefore describes the Orca
+  // family, which is very nearly the whole consumer market.
   // =====================================================================
   {
     key: "sparse_infill_pattern",
-    value: "gyroid",
-    prusa: { key: "fill_pattern", value: "gyroid" },
-    cura: { key: "infill_pattern", value: "gyroid" },
+    value: "adaptivecubic",
+    // IDENTICAL TO ORCA'S, a fork artefact rather than a standard -- verified
+    // against the installed binary rather than the docs, which do not print
+    // the enum: `prusa-slicer-console.exe --help-fff` lists `--fill-pattern
+    // (rectilinear, alignedrectilinear, grid, triangles, stars, cubic, line,
+    // concentric, honeycomb, 3dhoneycomb, gyroid, hilbertcurve,
+    // archimedeanchords, octagramspiral, adaptivecubic, supportcubic,
+    // lightning, zigzag)`.
+    prusa: { key: "fill_pattern", value: "adaptivecubic" },
+    // THE ONE ROW WHERE THE DIALECTS DIVERGE IN KIND, not just in spelling.
+    // See the block above.
+    cura: { key: "infill_pattern", value: "cubicsubdiv" },
     label: "infill",
-    display: "gyroid",
+    display: "adaptive cubic",
     scope: "every",
   },
   {
@@ -372,6 +420,30 @@ function byScope(
 /** What EVERY part on a plate is asked to print with. */
 export const INTENT_EVERY_PART = byScope("every");
 
+/**
+ * The same rows as a READER is shown them, by key.
+ *
+ * WHY THIS EXISTS NOW AND DID NOT BEFORE. Every `display` used to be its own
+ * `value` spelled identically -- "gyroid" was both the enum the slicer wants and
+ * the word a person reads -- so a reader-facing surface could interpolate
+ * `INTENT_EVERY_PART` and be right by accident. `adaptivecubic` breaks that: it
+ * is the enum literal, and printing it on a spec card states our infill as a
+ * word with no space in it.
+ *
+ * So a surface built for a person takes this, and a surface built for a slicer
+ * takes `INTENT_EVERY_PART`. Mixing them up is now VISIBLE rather than silent,
+ * which is the only reason it is safe to have two.
+ */
+export const INTENT_EVERY_PART_DISPLAY: Readonly<Record<string, string>> =
+  Object.freeze(
+    Object.fromEntries(
+      PRINT_INTENT_TABLE.filter((r) => r.scope === "every").map((r) => [
+        r.key,
+        r.display,
+      ]),
+    ),
+  );
+
 /** Added ONLY for the parts that print into thin air, from `hex-support.ts`. */
 export const INTENT_SUPPORT_PARTS = byScope("support");
 
@@ -415,8 +487,8 @@ export const PRINT_INTENT_FACTS: readonly { label: string; value: string }[] =
  * One clause, because it is read in the second after a download starts, which is
  * not a moment anyone spends on a paragraph. It is not an instruction -- there is
  * no step to take. It is here to stop someone re-slicing from habit and quietly
- * replacing gyroid, which on these parts is a torsion requirement rather than a
- * preference.
+ * replacing the pattern, which is chosen against a measured cost surface rather
+ * than picked: see the table's infill row.
  */
 export const PRINT_INTENT_LEAD = "Already set in the file, leave as is";
 
