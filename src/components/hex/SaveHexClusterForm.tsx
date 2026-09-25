@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { InlineBanner } from "@/components/InlineBanner";
 import { saveHexCluster } from "@/lib/actions/hex-clusters";
 import { MAX_NAME_CHARS, type SaveErrCode } from "@/lib/hex-cluster";
+import { savedBuildPath } from "@/lib/hex-return-link";
+import { SaveConsent } from "@/components/hex/SaveConsent";
 import {
   HEX_STASH_KEY,
   HEX_STASH_TTL_MS,
@@ -90,6 +92,23 @@ function decodeEnvelope(raw: string): Envelope | null {
   }
 }
 
+/**
+ * After a save, back to the build -- in the ACADEMY's framed configurator, as
+ * the drawing just saved.
+ *
+ * This used to assign `demo.onethousanddrones.com/hex` with the six identity
+ * parameters and the whole payload in the fragment: a hop off the academy to a
+ * host that is being retired (1.10), carrying a build in a URL. The visitor
+ * came here from the configurator to save and the page says "Returning you to
+ * the configurator", so the continuation is the configurator, not the public
+ * /c/ record -- and `/hex?open=1&build=<shareCode>` reopens it with the saved
+ * revision recalled server-side (`loadHexRecall`), identity included, so the
+ * sheet prints CONTROLLED. The payload stays out of every academy URL.
+ */
+function returnToConfigurator(shareCode: string): void {
+  window.location.assign(savedBuildPath(shareCode));
+}
+
 export function SaveHexClusterForm({
   mode,
   share,
@@ -99,6 +118,7 @@ export function SaveHexClusterForm({
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [name, setName] = useState("");
+  const [consent, setConsent] = useState(false);
 
   useEffect(() => {
     // Pre-fill from the configurator's draft. Applied at BOTH entry points
@@ -173,6 +193,7 @@ export function SaveHexClusterForm({
       payloadHash: envelope.h,
       schemaVersion: envelope.v,
       summary: envelope.s,
+      consent,
     });
 
     if (!res.ok) {
@@ -187,21 +208,11 @@ export function SaveHexClusterForm({
       return;
     }
 
-    // CLIENT-SIDE, not a server redirect(): the payload rides the fragment and
-    // a fragment that large would not survive a Location response header.
-    const url = new URL("https://demo.onethousanddrones.com/hex");
-    url.searchParams.set("d", res.drawingLabel);
-    url.searchParams.set("r", res.revLabel);
-    url.searchParams.set("s", res.shareCode);
-    url.searchParams.set("h", envelope.h);
-    url.searchParams.set("n", res.name);
-    url.searchParams.set("t", res.savedAt);
     setPhase({
       kind: "done",
       label: `${res.drawingLabel} Rev ${res.revLabel}`,
     });
-    // Query BEFORE the fragment — everything after '#' is fragment.
-    window.location.assign(`${url.toString()}#${envelope.p}`);
+    returnToConfigurator(res.shareCode);
   }
 
   async function retryUnarchived() {
@@ -216,6 +227,7 @@ export function SaveHexClusterForm({
       payloadHash: envelope.h,
       schemaVersion: envelope.v,
       summary: envelope.s,
+      consent,
       // ONE transaction: the unarchive, the cap re-check and the insert. Two
       // calls would not be atomic, and this page holds a share code and no
       // cluster id to call unarchiveHexCluster with.
@@ -236,14 +248,7 @@ export function SaveHexClusterForm({
       kind: "done",
       label: `${res.drawingLabel} Rev ${res.revLabel}`,
     });
-    const url = new URL("https://demo.onethousanddrones.com/hex");
-    url.searchParams.set("d", res.drawingLabel);
-    url.searchParams.set("r", res.revLabel);
-    url.searchParams.set("s", res.shareCode);
-    url.searchParams.set("h", envelope.h);
-    url.searchParams.set("n", res.name);
-    url.searchParams.set("t", res.savedAt);
-    window.location.assign(`${url.toString()}#${envelope.p}`);
+    returnToConfigurator(res.shareCode);
   }
 
   const busy = phase.kind === "saving";
@@ -348,9 +353,16 @@ export function SaveHexClusterForm({
                 : "This mints a new drawing number. The name is stamped on the sheet."}
             </p>
 
+            <SaveConsent
+              id="hex-save-consent"
+              checked={consent}
+              onChange={setConsent}
+              disabled={busy}
+            />
+
             <button
               type="submit"
-              disabled={busy || name.trim().length === 0}
+              disabled={busy || name.trim().length === 0 || !consent}
               className="mt-6 border border-command-gold/60 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.16em] text-command-gold disabled:opacity-50"
             >
               {busy ? "Saving…" : "Save build"}

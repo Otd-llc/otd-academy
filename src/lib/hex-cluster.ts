@@ -5,10 +5,12 @@
 // formatter lives here — re-exporting a type from a "use server" file compiles
 // fine and crashes at runtime.
 //
-// The payload is treated as an OPAQUE TOKEN throughout. Its schema, validator
-// and migrate() chokepoint live in the configurator on a different deploy
-// cadence; mirroring them here would be a third copy of enum unions that file
-// already documents as fragile. So we validate its SHAPE and never its meaning.
+// The payload is STORED as an opaque token: never re-encoded or migrated, and
+// written back to the configurator byte for byte. Since v2 (plan 6.3) it is
+// also DECODED once on the way in, server-side, by `decodeV2State` in
+// @/lib/hex-v2-state -- a bounded grammar check that refuses anything that is
+// not a v2 build, not a second model of the scene. That module needs
+// node:zlib, so it lives apart from this one, which is in the client graph.
 //
 // Design: docs/plans/2026-08-01-hex-cluster-saved-builds-design.md §§2.4, 4.1,
 // 5.2, 6.
@@ -99,26 +101,33 @@ export const MAX_SUMMARY_BYTES = 8_192;
 export type PayloadProblem = "malformed" | "uncompressed" | "too-large";
 
 /**
- * Validate the payload as an opaque token.
+ * Check the payload's SHAPE and route it on its prefix. The CONTENT is decoded
+ * separately, server-side, by `decodeV2State` (@/lib/hex-v2-state), which this
+ * client-graph module must not import (it needs node:zlib).
+ *
+ * v2 ONLY. `v2s=` is the one accepted prefix; v1's `s=` and `u=` are
+ * `malformed` like any other unknown prefix (owner, 2026-09-25: no v1 support
+ * in any capacity).
  *
  * Split on the FIRST `=`: the prefix contains one, so applying the character
  * class to the whole string rejects every real payload. The remainder is
  * url-safe base64 with padding already stripped by the encoder.
  *
- * `u=` is refused outright rather than given a larger byte ceiling. On that
- * path the QR is V28 at five cells and past QR capacity entirely at nineteen,
- * so any byte cap still admits a sheet whose code cannot be scanned — and an
- * unscannable QR on a printed drawing is worse than a refusal the user can act
- * on. Roughly 7% of global traffic lacks deflate-raw, so the message has to be
- * actionable rather than a shrug.
+ * `v2u=` (the configurator's uncompressed branch) is refused outright rather
+ * than given a larger byte ceiling. On that path the QR is V28 at five cells
+ * and past QR capacity entirely at nineteen, so any byte cap still admits a
+ * sheet whose code cannot be scanned — and an unscannable QR on a printed
+ * drawing is worse than a refusal the user can act on. Roughly 7% of global
+ * traffic lacks deflate-raw, so the message has to be actionable rather than a
+ * shrug.
  */
 export function checkPayload(payload: string): PayloadProblem | null {
   const eq = payload.indexOf("=");
   if (eq < 1) return "malformed";
   const prefix = payload.slice(0, eq);
   const body = payload.slice(eq + 1);
-  if (prefix === "u") return "uncompressed";
-  if (prefix !== "s") return "malformed";
+  if (prefix === "v2u") return "uncompressed";
+  if (prefix !== "v2s") return "malformed";
   if (body.length < 3) return "malformed";
   if (!/^[A-Za-z0-9_-]+$/.test(body)) return "malformed";
   if (payload.length > MAX_PAYLOAD_CHARS) return "too-large";
@@ -286,6 +295,12 @@ export interface SaveInput {
   payloadHash: string;
   schemaVersion: number;
   summary: unknown;
+  /** The consent box on the save panel (plan 6.3). REQUIRED and checked on the
+   *  server: a save without it is refused as `consent-required`, so a client
+   *  that forgets the box cannot write. Not persisted (no column, and this
+   *  change carries no migration); the save itself is the record that it was
+   *  ticked. */
+  consent: boolean;
   /** Set by the save page's "Unarchive and save", so the unarchive, the
    *  active-cap re-check and the revision insert are ONE transaction. Two
    *  sequential calls would not be atomic: the unarchive could commit and the
@@ -300,6 +315,7 @@ export type SaveErrCode =
   | "summary-invalid"
   | "summary-incomplete"
   | "name-invalid"
+  | "consent-required"
   | "quota-clusters"
   | "quota-revisions"
   | "quota-total"
@@ -338,6 +354,8 @@ export const SAVE_ERROR_MESSAGE: Record<SaveErrCode, string> = {
   "summary-incomplete":
     "The build sheet was still loading. Go back and press Save again.",
   "name-invalid": `Give the drawing a name of 1 to ${MAX_NAME_CHARS} characters.`,
+  // OWNER-WORDING
+  "consent-required": "Tick the box to confirm before saving.",
   "quota-clusters": `You already have ${MAX_ACTIVE_CLUSTERS} active drawings. Archive one to make room.`,
   "quota-revisions": `This drawing already has ${MAX_REVISIONS_PER_CLUSTER} revisions. Save it as a new drawing instead.`,
   "quota-total": `You have reached the limit of ${MAX_TOTAL_CLUSTERS} drawings, archived included.`,

@@ -21,6 +21,7 @@ import {
   type BuildSummaryWire,
 } from "@/lib/hex-cluster";
 import type { ClusterLookup, PublicCluster } from "@/lib/hex-cluster-load";
+import { decodeV2State } from "@/lib/hex-v2-state";
 
 export const MAX_LABEL_CHARS = 80;
 export const MAX_DIMS_CHARS = 40;
@@ -99,9 +100,13 @@ function readSummary(value: unknown): BuildSummaryWire | null {
 }
 
 function buildView(c: PublicCluster): SharedBuildView | null {
+  // v2 ONLY, and DECODED, not just shaped: a row whose payload is not a v2
+  // build (a v1 `s=` row included -- there is no v1 path) is the generic page,
+  // because "Open in the configurator" would open an empty bench.
   if (typeof c.payload !== "string" || checkPayload(c.payload) !== null) {
     return null;
   }
+  if (!decodeV2State(c.payload)) return null;
   if (typeof c.payloadHash !== "string" || !isPayloadHash(c.payloadHash)) {
     return null;
   }

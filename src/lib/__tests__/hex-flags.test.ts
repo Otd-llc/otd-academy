@@ -7,6 +7,7 @@
 // not is a switch anyone with curl can ignore.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextRequest } from "next/server";
+import { v2Payload } from "./hex-v2-payload.fixture";
 
 // ── The Edge Config store, faked at the one seam the module uses ─────────────
 const store = vi.hoisted(() => ({
@@ -214,10 +215,13 @@ describe("the save action honours hexSaveEnabled", () => {
   const input = {
     mode: "new" as const,
     name: "Bench cluster",
-    payload: "s=eJyrVkrKz1WyUkotLs1RqgUAJ8QEjA",
+    payload: v2Payload(),
     payloadHash: `h1:${"a".repeat(64)}`,
     schemaVersion: 1,
     summary: {},
+    // UNTICKED on purpose: the switch must win over every other refusal, the
+    // consent check included, so a paused save says "paused" and nothing else.
+    consent: false,
   };
 
   it("refuses before touching the database when the flag is off", async () => {
@@ -238,7 +242,7 @@ describe("the save action honours hexSaveEnabled", () => {
     const { saveHexCluster } = await import("@/lib/actions/hex-clusters");
     // `summary: {}` is refused by validation, which runs after the switch and
     // before any query -- so reaching it proves the switch let the save through.
-    const res = await saveHexCluster(input);
+    const res = await saveHexCluster({ ...input, consent: true });
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.code).toBe("summary-invalid");
   });

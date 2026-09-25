@@ -25,6 +25,7 @@
 // from "archived" would turn this into an oracle for which codes exist.
 
 import { loadClusterByShareCode } from "@/lib/hex-cluster-load";
+import { decodeV2State } from "@/lib/hex-v2-state";
 import type { HexRecallResult } from "@/lib/hex-recall";
 
 export async function loadHexRecall(
@@ -38,6 +39,11 @@ export async function loadHexRecall(
   if (lookup.outcome !== "hit") return { ok: false };
 
   const c = lookup.cluster;
+  // Only a payload the v2 configurator can open. A v1 row, or anything that
+  // does not decode, is the same `{ ok: false }` as an unknown code: the frame
+  // then says the recall failed instead of opening an empty bench as if the
+  // visitor had asked for one.
+  if (!decodeV2State(c.payload)) return { ok: false };
   return {
     ok: true,
     payload: c.payload,

@@ -73,35 +73,41 @@ describe("makeShareCode", () => {
 });
 
 describe("checkPayload", () => {
-  const body = "eJyrVkrKz1WyUkotLs1RqgUAJ8QEjA";
+  const body = "q1YqU7Iy1FEqVrKqVirITE1OLVayio7VUSrOSyyAMQsys2HCyfllqUUwNlxFZl5xalEJlJORmJeSg1Cfl5eaXJIP01NUmgdjZRZDTaqtBQA";
 
-  it("accepts a real compressed payload", () => {
-    expect(checkPayload(`s=${body}`)).toBeNull();
+  it("accepts a real v2 compressed payload", () => {
+    expect(checkPayload(`v2s=${body}`)).toBeNull();
   });
 
   it("splits on the FIRST equals, because the prefix contains one", () => {
     // Applying the character class to the whole string rejects every real
     // payload — the bug the design caught in review.
-    expect(checkPayload(`s=${body}`)).toBeNull();
-    expect(checkPayload("s=")).toBe("malformed");
+    expect(checkPayload(`v2s=${body}`)).toBeNull();
+    expect(checkPayload("v2s=")).toBe("malformed");
     expect(checkPayload("=abc")).toBe("malformed");
     expect(checkPayload(body)).toBe("malformed");
   });
 
-  it("refuses the uncompressed transport outright", () => {
-    // Not a larger byte cap: on the u= path the QR is over capacity entirely
-    // by nineteen cells, so any cap still admits an unscannable sheet.
-    expect(checkPayload(`u=${body}`)).toBe("uncompressed");
+  it("refuses the uncompressed v2 transport outright", () => {
+    // Not a larger byte cap: on the uncompressed path the QR is over capacity
+    // entirely by nineteen cells, so any cap still admits an unscannable sheet.
+    expect(checkPayload(`v2u=${body}`)).toBe("uncompressed");
+  });
+
+  it("refuses v1 in every form: there is no v1 path at all", () => {
+    expect(checkPayload(`s=${body}`)).toBe("malformed");
+    expect(checkPayload(`u=${body}`)).toBe("malformed");
   });
 
   it("rejects an unknown prefix and non-base64url bodies", () => {
     expect(checkPayload(`z=${body}`)).toBe("malformed");
-    expect(checkPayload("s=has spaces")).toBe("malformed");
-    expect(checkPayload("s=has/slash+plus")).toBe("malformed");
+    expect(checkPayload(`v3s=${body}`)).toBe("malformed");
+    expect(checkPayload("v2s=has spaces")).toBe("malformed");
+    expect(checkPayload("v2s=has/slash+plus")).toBe("malformed");
   });
 
   it("bounds the length", () => {
-    expect(checkPayload(`s=${"a".repeat(MAX_PAYLOAD_CHARS)}`)).toBe(
+    expect(checkPayload(`v2s=${"a".repeat(MAX_PAYLOAD_CHARS)}`)).toBe(
       "too-large",
     );
   });

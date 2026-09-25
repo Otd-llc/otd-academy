@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { PageHeader } from "@/components/PageHeader";
 import { loadClusterByShareCode } from "@/lib/hex-cluster-load";
 import { sharedView } from "@/lib/hex-share-view";
+import { savedBuildPath } from "@/lib/hex-return-link";
 
 // The public record for one saved hex cluster — what a printed build sheet's
 // QR points at.
@@ -53,7 +54,7 @@ export const metadata: Metadata = {
  * silent one.
  */
 function openInConfigurator(shareCode: string): string {
-  return `/hex?open=1&build=${encodeURIComponent(shareCode)}`;
+  return savedBuildPath(shareCode);
 }
 
 function Shell({ children }: { children: React.ReactNode }) {

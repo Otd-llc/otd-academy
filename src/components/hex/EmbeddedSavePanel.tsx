@@ -34,6 +34,7 @@ import {
 } from "@/components/hex/hex-stash";
 import { saveHexClusterEmbedded } from "@/lib/actions/hex-clusters";
 import { MAX_NAME_CHARS, type SaveErrCode } from "@/lib/hex-cluster";
+import { SaveConsent } from "@/components/hex/SaveConsent";
 import type { SaveRequest } from "@/lib/hex-embed-protocol";
 import { fireHexSaveCompleted } from "@/lib/analytics-client";
 
@@ -80,6 +81,8 @@ export function EmbeddedSavePanel({
   const [mode, setMode] = useState(request.mode);
   const [share, setShare] = useState(request.share);
   const [allowUnarchive, setAllowUnarchive] = useState(false);
+  // Unticked on open, every time: consent is per save, not remembered.
+  const [consent, setConsent] = useState(false);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const pollRef = useRef<number | null>(null);
@@ -113,6 +116,7 @@ export function EmbeddedSavePanel({
           payloadHash: request.envelope.h,
           schemaVersion: request.envelope.v,
           summary: request.envelope.s,
+          consent,
           allowUnarchive: opts?.unarchive ?? allowUnarchive,
         });
       } catch {
@@ -154,7 +158,7 @@ export function EmbeddedSavePanel({
         savedAt: result.savedAt,
       });
     },
-    [allowUnarchive, mode, name, onFailed, onSaved, request, share],
+    [allowUnarchive, consent, mode, name, onFailed, onSaved, request, share],
   );
 
   /** Stash the build and send the TOP window to the save page.
@@ -392,10 +396,17 @@ export function EmbeddedSavePanel({
                 : "This mints a new drawing number. The name is stamped on the sheet."}
             </p>
 
+            <SaveConsent
+              id="hex-embed-consent"
+              checked={consent}
+              onChange={setConsent}
+              disabled={busy}
+            />
+
             <div className="mt-6 flex flex-wrap items-center gap-4">
               <button
                 type="submit"
-                disabled={busy || name.trim().length === 0}
+                disabled={busy || name.trim().length === 0 || !consent}
                 className="glass-button glass-button-cta px-4 py-2 font-mono text-[11px] uppercase tracking-[0.16em] disabled:opacity-50"
               >
                 {busy ? "Saving…" : "Save build"}
