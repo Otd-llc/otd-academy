@@ -10,7 +10,9 @@ vi.mock("@/lib/analytics", () => ({ captureNow }));
 vi.mock("@/lib/abuse-limit", () => ({ enforce }));
 
 import {
+  hexBeaconOrigins,
   parseClientBeacon,
+  parseHexBeacon,
   safePath,
   serverErrorProperties,
 } from "@/lib/error-telemetry";
@@ -198,6 +200,96 @@ describe("POST /api/beacon/error", () => {
 
   it("has its own limiter rule", () => {
     expect(RULES["beacon:ip:hour"]).toEqual({ limit: 20, window: "1 h" });
+  });
+});
+
+describe("the Hex configurator's cross-site beacon", () => {
+  const HEX = "https://hex.onethousanddrones.com";
+  const BOOT = JSON.stringify({
+    v: 1,
+    app: "hex",
+    kind: "boot",
+    outcome: "timeout",
+    ms: 12_345,
+    release: "2026-10-01",
+  });
+  const cross = (body: string, origin = HEX, site = "same-site") =>
+    beacon(body, { "sec-fetch-site": site, origin });
+
+  it("is accepted from the configurator host and recorded as its own event", async () => {
+    const res = await POST(cross(BOOT));
+    expect(res.status).toBe(204);
+    expect(captureNow).toHaveBeenCalledWith(
+      "hex_configurator_beacon",
+      { kind: "boot", outcome: "timeout", ms: 12_300, name: null, where: null, release: "2026-10-01" },
+      "server:beacon",
+    );
+  });
+
+  it("is accepted cross-site too (a *.pages.dev build), from an allowed origin", async () => {
+    const res = await POST(cross(BOOT, HEX, "cross-site"));
+    expect(res.status).toBe(204);
+  });
+
+  it("is refused from any other origin, before reading", async () => {
+    for (const origin of ["https://evil.example", "https://hex.onethousanddrones.com.evil.example"]) {
+      const res = await POST(cross(BOOT, origin));
+      expect(res.status).toBe(403);
+    }
+    const noOrigin = await POST(beacon(BOOT, { "sec-fetch-site": "cross-site" }));
+    expect(noOrigin.status).toBe(403);
+    expect(captureNow).not.toHaveBeenCalled();
+  });
+
+  it("an allowed origin still cannot send an academy-shaped body", async () => {
+    const res = await POST(cross(GOOD));
+    expect(res.status).toBe(400);
+    expect(captureNow).not.toHaveBeenCalled();
+  });
+
+  it("keeps only enum, bounded and pattern fields", () => {
+    expect(
+      parseHexBeacon(
+        JSON.stringify({
+          v: 1,
+          app: "hex",
+          kind: "error",
+          name: "TypeError",
+          where: "/assets/hex-D4.js:12:34",
+          release: "2026-10-01",
+          message: "secret build payload",
+          url: "https://hex.example/#v2s=abc",
+        }),
+      ),
+    ).toEqual({
+      kind: "error",
+      outcome: null,
+      ms: null,
+      name: "TypeError",
+      where: "/assets/hex-D4.js:12:34",
+      release: "2026-10-01",
+    });
+    for (const bad of [
+      { v: 2, app: "hex", kind: "boot", outcome: "ok", release: "2026-10-01" },
+      { v: 1, app: "academy", kind: "boot", outcome: "ok", release: "2026-10-01" },
+      { v: 1, app: "hex", kind: "hack", release: "2026-10-01" },
+      { v: 1, app: "hex", kind: "boot", release: "2026-10-01" },
+      { v: 1, app: "hex", kind: "boot", outcome: "ok", release: "latest" },
+    ]) {
+      expect(parseHexBeacon(JSON.stringify(bad))).toBeNull();
+    }
+    expect(
+      parseHexBeacon(
+        JSON.stringify({ v: 1, app: "hex", kind: "error", where: "https://x/#v2s=1:1:1", release: "2026-10-01" }),
+      )?.where,
+    ).toBeNull();
+  });
+
+  it("reads its allow-list exactly, dropping anything that is not a bare https origin", () => {
+    expect([...hexBeaconOrigins(undefined)]).toEqual(["https://hex.onethousanddrones.com"]);
+    expect([
+      ...hexBeaconOrigins("https://hex.onethousanddrones.com, https://staging.hex.example ,http://x.test,https://a.test/path"),
+    ]).toEqual(["https://hex.onethousanddrones.com", "https://staging.hex.example"]);
   });
 });
 

@@ -63,6 +63,67 @@ export function serverErrorProperties(
   };
 }
 
+/** The Hex configurator's beacon (bioscale-viz `src/hex/v2/error-beacon.ts`):
+ *  boot outcomes and uncaught errors from a DIFFERENT origin, sent with no
+ *  cookies, no referrer and no identifier. Its own event name, so a configurator
+ *  fault never reads as an academy render fault. */
+export const HEX_BEACON_EVENT = "hex_configurator_beacon";
+
+const HEX_KINDS = ["boot", "error", "rejection", "chunk_reload"] as const;
+const HEX_OUTCOMES = ["ok", "timeout", "webgl_fail", "missing_base", "unsupported"] as const;
+const HEX_MAX_MS = 600_000;
+/** `file:line:col`, where file is a bundle path such as `/assets/hex-abc.js`. */
+const HEX_WHERE = /^[A-Za-z0-9_./-]{1,120}:\d{1,7}:\d{1,7}$/;
+const RELEASE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Parse + sanitize a Hex configurator beacon. Null when it is not one. Every
+ *  field is an enum, a bounded number or a strict pattern: nothing free-form
+ *  from another origin reaches the event. */
+export function parseHexBeacon(
+  raw: string,
+): Record<string, string | number | null> | null {
+  let body: unknown;
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  const b = body as Record<string, unknown>;
+  if (b.v !== 1 || b.app !== "hex") return null;
+  if (!(HEX_KINDS as readonly unknown[]).includes(b.kind)) return null;
+  if (typeof b.release !== "string" || !RELEASE.test(b.release)) return null;
+  const outcome = (HEX_OUTCOMES as readonly unknown[]).includes(b.outcome)
+    ? (b.outcome as string)
+    : null;
+  if (b.kind === "boot" && !outcome) return null;
+  const ms =
+    typeof b.ms === "number" && Number.isFinite(b.ms) && b.ms >= 0
+      ? Math.min(HEX_MAX_MS, Math.round(b.ms / 100) * 100)
+      : null;
+  return {
+    kind: b.kind as string,
+    outcome,
+    ms,
+    name: safeToken(b.name),
+    where: typeof b.where === "string" && HEX_WHERE.test(b.where) ? b.where : null,
+    release: b.release,
+  };
+}
+
+/** Origins allowed to send the Hex beacon cross-site. Exact matches only, from
+ *  `HEX_BEACON_ALLOW_ORIGINS` (comma-separated: prod + staging), defaulting to
+ *  the production configurator host (decision 1.10). */
+export function hexBeaconOrigins(
+  env: string | undefined = process.env.HEX_BEACON_ALLOW_ORIGINS,
+): ReadonlySet<string> {
+  const list = (env ?? "https://hex.onethousanddrones.com")
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => /^https:\/\/[a-z0-9.-]+(:\d+)?$/.test(s));
+  return new Set(list);
+}
+
 /** Parse + sanitize a client beacon body. Null when it is not a beacon. */
 export function parseClientBeacon(raw: string): Record<string, string | null> | null {
   let body: unknown;

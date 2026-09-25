@@ -18,7 +18,13 @@ import type { NextRequest } from "next/server";
 import { captureNow } from "@/lib/analytics";
 import { enforce } from "@/lib/abuse-limit";
 import { clientIp, ipCheckFor } from "@/lib/abuse-policy";
-import { CLIENT_ERROR_EVENT, parseClientBeacon } from "@/lib/error-telemetry";
+import {
+  CLIENT_ERROR_EVENT,
+  HEX_BEACON_EVENT,
+  hexBeaconOrigins,
+  parseClientBeacon,
+  parseHexBeacon,
+} from "@/lib/error-telemetry";
 
 const MAX_BODY_BYTES = 2048;
 
@@ -47,20 +53,29 @@ async function readCapped(req: NextRequest): Promise<string | null> {
 }
 
 export async function POST(req: NextRequest) {
-  // Browsers send Sec-Fetch-Site on every fetch/sendBeacon. Only our own pages
-  // report; a header-less client (curl) still meets the limiter below.
+  // Browsers send Sec-Fetch-Site on every fetch/sendBeacon. Our own pages
+  // report same-origin; a header-less client (curl) still meets the limiter.
+  //
+  // The ONE cross-site sender is the Hex configurator, on its own host. It is
+  // admitted only from an exact Origin allow-list AND only in its own body
+  // shape: a cross-site academy-shaped body is still refused. It sends with
+  // credentials omitted and text/plain, so there is no preflight and no CORS
+  // response header is needed (its fetch is `no-cors`; it never reads us).
   const site = req.headers.get("sec-fetch-site");
-  if (site && site !== "same-origin") return empty(403);
+  const crossSite = site !== null && site !== "same-origin";
+  const origin = req.headers.get("origin");
+  if (crossSite && !(origin && hexBeaconOrigins().has(origin))) return empty(403);
 
   const raw = await readCapped(req);
   if (raw === null) return empty(413);
 
-  const props = parseClientBeacon(raw);
+  const hex = crossSite ? parseHexBeacon(raw) : null;
+  const props = crossSite ? hex : parseClientBeacon(raw);
   if (!props) return empty(400);
 
   const check = ipCheckFor("beacon:ip:hour", clientIp(req.headers));
   if (check && !(await enforce([check], "open")).ok) return empty(429);
 
-  await captureNow(CLIENT_ERROR_EVENT, props, "server:beacon");
+  await captureNow(hex ? HEX_BEACON_EVENT : CLIENT_ERROR_EVENT, props, "server:beacon");
   return empty(204);
 }
