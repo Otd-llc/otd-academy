@@ -216,8 +216,37 @@ export function isCopyleft(license: string): boolean {
  * upgrade re-triggers the review instead of inheriting the old exemption.
  *
  * Shape: { name: "pkg", version: "1.2.3", reason: "why, who approved, when" }
+ *
+ * The entries below were RECORDED BY AN AGENT on 2026-09-25, PENDING THE
+ * OWNER'S CONFIRMATION. None of them changes what ships: all three were
+ * already in production when this guard landed. Each is a standard,
+ * compliant use of its licence, stated so the owner can check the claim.
  */
-export const COPYLEFT_ALLOW: readonly { name: string; version: string; reason: string }[] = [];
+const SHARP_SERVER_ONLY =
+  "LGPL-3.0-or-later (bundled libvips). next/image runs sharp on the SERVER; the library is " +
+  "never conveyed to a visitor, and LGPL obligations attach to conveying. " +
+  "Agent-recorded 2026-09-25, pending owner confirmation.";
+export const COPYLEFT_ALLOW: readonly { name: string; version: string; reason: string }[] = [
+  {
+    name: "jszip",
+    version: "3.10.1",
+    reason:
+      "Dual-licensed (MIT OR GPL-3.0-or-later); we take the MIT side, as its LICENSE.markdown " +
+      "offers. Agent-recorded 2026-09-25, pending owner confirmation.",
+  },
+  {
+    name: "occt-import-js",
+    version: "0.0.23",
+    reason:
+      "LGPL-2.1. Shipped UNMODIFIED as its own file (public/occt-import-js.wasm + its loader), " +
+      "loaded on demand, so a user can replace it (LGPL-2.1 s.6); its notice and source URL are " +
+      "in THIRD_PARTY_NOTICES. Agent-recorded 2026-09-25, pending owner confirmation.",
+  },
+  // sharp's per-platform binaries: Linux x64 is what Vercel builds on; win32 is local dev.
+  { name: "@img/sharp-linux-x64", version: "0.34.5", reason: SHARP_SERVER_ONLY },
+  { name: "@img/sharp-libvips-linux-x64", version: "1.2.4", reason: SHARP_SERVER_ONLY },
+  { name: "@img/sharp-win32-x64", version: "0.34.5", reason: SHARP_SERVER_ONLY },
+];
 
 /** Every entry declaring a copyleft licence that the allow-list does not cover. */
 export function copyleftViolations(
