@@ -174,12 +174,77 @@ export function renderNotices(entries: NoticeEntry[]): string {
 /** Floor for a sane walk: the academy has ~40 direct prod deps, hundreds transitive. */
 export const MIN_PACKAGES = 50;
 
+// ---------------------------------------------------------------------------
+// Copyleft licence guard.
+//
+// The academy is proprietary, and everything in the production closure ends up
+// in (or beside) what we serve. A GPL/AGPL/LGPL/SSPL package there is a licence
+// problem, not a notices problem, so the build refuses to proceed.
+//
+// This is not hypothetical. @c15t/nextjs 2.0.0-rc.12 pulled in
+// @c15t/translations 2.0.0-rc.8, and EVERY 2.0.0 pre-release of that package
+// (rc.0-rc.8) declares GPL-3.0-only; from 2.0.0 stable it is Apache-2.0. It sat
+// in the client bundle until the 2.2.1 upgrade. Nothing flagged it, because
+// nothing looked.
+//
+// The match is deliberately broad: case-insensitive, any -only / -or-later /
+// "+" / "v3" spelling, the long GNU/Affero/Server Side names, and any SPDX
+// expression that CONTAINS one of them -- including a dual licence like
+// "(MIT OR GPL-3.0)". A dual-licensed package may well be fine to ship under
+// its other licence, but that is a decision a person makes and records below,
+// not one this script infers from an "OR".
+const COPYLEFT = [
+  /(?<![a-z])[al]?gpl/i, // GPL, LGPL, AGPL in any SPDX or informal spelling
+  /(?<![a-z])sspl/i,
+  /general public license/i, // GNU GPL / GNU Lesser/Library GPL / Affero GPL
+  /affero/i,
+  /server side public license/i,
+];
+
+/** True if a declared licence string names, or contains, a copyleft licence. */
+export function isCopyleft(license: string): boolean {
+  return COPYLEFT.some((re) => re.test(license));
+}
+
+/**
+ * THE ALLOW-LIST. EMPTY, AND IT SHOULD STAY THAT WAY.
+ *
+ * An entry here ships a copyleft-declared package in a proprietary product, so
+ * adding one needs the owner's explicit sign-off and a written reason (e.g. a
+ * dual licence where we take the permissive side, confirmed by reading the
+ * package's own LICENSE file). Entries pin an exact name AND version, so an
+ * upgrade re-triggers the review instead of inheriting the old exemption.
+ *
+ * Shape: { name: "pkg", version: "1.2.3", reason: "why, who approved, when" }
+ */
+export const COPYLEFT_ALLOW: readonly { name: string; version: string; reason: string }[] = [];
+
+/** Every entry declaring a copyleft licence that the allow-list does not cover. */
+export function copyleftViolations(
+  entries: readonly NoticeEntry[],
+  allow: readonly { name: string; version: string }[] = COPYLEFT_ALLOW,
+): NoticeEntry[] {
+  return entries.filter(
+    (e) =>
+      isCopyleft(e.license) && !allow.some((a) => a.name === e.name && a.version === e.version),
+  );
+}
+
 function main() {
   const root = process.cwd();
   const entries = collectNotices(root);
   if (entries.length < MIN_PACKAGES) {
     console.error(
       `[third-party-notices] only ${entries.length} packages found (floor ${MIN_PACKAGES}); refusing to write`,
+    );
+    process.exit(1);
+  }
+  const bad = copyleftViolations(entries);
+  if (bad.length > 0) {
+    console.error(
+      "[third-party-notices] copyleft licence in the production dependency closure; refusing to build:\n" +
+        bad.map((e) => `  ${e.name}@${e.version}  (${e.license})`).join("\n") +
+        "\nUpgrade or replace it. See COPYLEFT_ALLOW in scripts/gen-third-party-notices.ts.",
     );
     process.exit(1);
   }

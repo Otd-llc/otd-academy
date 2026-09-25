@@ -6,6 +6,9 @@ import {
   collectNotices,
   renderNotices,
   MIN_PACKAGES,
+  COPYLEFT_ALLOW,
+  copyleftViolations,
+  isCopyleft,
 } from "../../scripts/gen-third-party-notices";
 
 // /THIRD_PARTY_NOTICES.txt is generated on every `pnpm build` and gitignored, so
@@ -52,6 +55,79 @@ describe("third-party notices", () => {
       expect(e?.license, name).toBe("MIT");
       expect(e?.texts.length, name).toBeGreaterThan(0);
     }
+  });
+
+  it("ships no copyleft-licensed production dependency", () => {
+    // The real tree. Before the c15t 2.2.1 upgrade this was red:
+    // @c15t/translations@2.0.0-rc.8 declared GPL-3.0-only.
+    //
+    // RED ON PURPOSE when this guard landed (2026-09-25), on three packages
+    // that predate it and each need an owner decision -- replace, or an
+    // allow-list entry with a written reason:
+    //   jszip@3.10.1              (MIT OR GPL-3.0-or-later)  dual; MIT side is takeable
+    //   occt-import-js@0.0.23     LGPL-2.1                   wasm served to the client
+    //   @img/sharp-*/libvips      LGPL-3.0-or-later          next's server-side sharp
+    // Do not make this green by weakening the match.
+    const bad = copyleftViolations(entries).map((e) => `${e.name}@${e.version} (${e.license})`);
+    expect(bad).toEqual([]);
+  });
+
+  it("keeps the copyleft allow-list empty", () => {
+    // Adding an entry is an owner decision, not a way to turn this suite green.
+    expect(COPYLEFT_ALLOW).toEqual([]);
+  });
+
+  it("recognises every copyleft spelling, and nothing permissive", () => {
+    const copyleft = [
+      "GPL-3.0-only",
+      "gpl-2.0-or-later",
+      "GPL-2.0+",
+      "GPLv3",
+      "LGPL-2.1-only",
+      "LGPL-3.0-or-later",
+      "AGPL-3.0-only",
+      "agpl-3.0",
+      "SSPL-1.0",
+      "(MIT OR GPL-3.0-or-later)",
+      "Apache-2.0 AND LGPL-3.0-only",
+      "GPL-2.0-only WITH Classpath-exception-2.0",
+      "GNU General Public License v3",
+      "GNU Affero General Public License",
+      "Server Side Public License",
+    ];
+    const permissive = [
+      "MIT",
+      "Apache-2.0",
+      "BSD-3-Clause",
+      "ISC",
+      "MPL-2.0",
+      "0BSD",
+      "BlueOak-1.0.0",
+      "CC-BY-4.0",
+      "(MIT OR Apache-2.0)",
+      "Python-2.0",
+      "UNKNOWN",
+    ];
+    for (const l of copyleft) expect(isCopyleft(l), l).toBe(true);
+    for (const l of permissive) expect(isCopyleft(l), l).toBe(false);
+  });
+
+  it("flags a GPL entry in the real tree, and only an exact name+version allow-list entry clears it", () => {
+    // Fixture: the real closure with one Apache package relabelled as the rc it
+    // replaced. Proves the guard reads the tree it is given, not a constant.
+    const target = entries.find((e) => e.name === "@c15t/translations")!;
+    expect(target.license).toBe("Apache-2.0");
+    const poisoned = entries.map((e) => (e === target ? { ...e, license: "GPL-3.0-only" } : e));
+    // Compared against the unpoisoned baseline, so this test is about the
+    // mechanism and stays independent of whatever the real tree holds.
+    const baseline = new Set(copyleftViolations(entries).map((e) => e.name));
+    const added = (allow?: { name: string; version: string }[]) =>
+      copyleftViolations(poisoned, allow)
+        .map((e) => e.name)
+        .filter((n) => !baseline.has(n));
+    expect(added()).toEqual(["@c15t/translations"]);
+    expect(added([{ name: target.name, version: "0.0.0-other" }])).toEqual(["@c15t/translations"]);
+    expect(added([{ name: target.name, version: target.version }])).toEqual([]);
   });
 
   it("renders a non-empty text file naming each package and its licence", () => {
