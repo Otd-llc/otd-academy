@@ -66,6 +66,8 @@ describe("middleware matcher", () => {
       "/favicon.ico",
       "/robots.txt",
       "/sitemap.xml",
+      "/THIRD_PARTY_NOTICES.txt",
+      "/fonts/space-mono-latin-400-normal.woff2",
       "/og/card.png",
       "/fonts/bebas.woff2",
       "/images/hex/thumb.webp",
