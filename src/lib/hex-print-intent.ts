@@ -19,7 +19,7 @@
 // those two.
 //
 // ============================================================================
-// MEASURED, 2026-08-17, Creality Print 7.2.1, not inferred from documentation
+// MEASURED in Creality Print 7.2.1 (August 2026), not inferred from docs
 // ============================================================================
 // A probe battery settled what survives, because three separate research passes
 // disagreed with each other and two of them were wrong:
@@ -28,7 +28,7 @@
 //     the slicer parses them and then deliberately calls `config.reset()`,
 //     keeping only `extruder`. Double-clicking onto an EMPTY PLATE is an
 //     open-as-project, so the ordinary path keeps them; a deliberate Import
-//     does not. That gap is accepted (owner, 2026-08-17) rather than papered
+//     does not. That gap is accepted (owner decision) rather than papered
 //     over with instructions nobody reads.
 //   - A BAD ENUM VALUE DOES NOT FAIL. `"Gyroid"` and `"notapattern"` were both
 //     silently replaced with **grid**, behind a dialog that blames "a newer
@@ -324,12 +324,12 @@ export const PRINT_INTENT_TABLE: readonly PrintIntentRow[] = [
   //   support  answers "is anything printing into thin air", and is decided
   //            by what happens at every layer ABOVE the first.
   //
-  // Bundling them was wrong in both directions at once. `Hex-TB-Corner-M-
-  // Solid` has 416.8 sq mm of bed contact and wants no brim whatsoever, but
-  // Creality reports it "has floating regions" and asks for support.
-  // `Hex-TB-Spike-Ball-Joint` is the mirror image: it needs support badly and
-  // a brim cannot help it, because there is almost no perimeter for one to
-  // hold on to. One flag could not be right for both.
+  // Bundling them was wrong in both directions at once, on the v1 parts the
+  // flags were first measured on: a corner with 416.8 sq mm of bed contact
+  // wanted no brim whatsoever, but Creality reported it "has floating regions"
+  // and asked for support; a ball-joint spike was the mirror image, needing
+  // support badly with almost no perimeter for a brim to hold on to. One flag
+  // could not be right for both.
   // =====================================================================
   {
     key: "brim_type",

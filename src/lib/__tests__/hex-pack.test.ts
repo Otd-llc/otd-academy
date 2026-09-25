@@ -7,6 +7,7 @@
 import { describe, expect, it } from "vitest";
 
 import { HEX_PART_SLUGS, isHexPartSlug } from "@/lib/hex-parts";
+import { HEX_PUBLISHED_RECORD_SLUGS } from "@/lib/hex-published-record";
 import { HEX_PART_COUNT } from "@/lib/hex-spec";
 import {
   BED_FLOOR_MM,
@@ -31,7 +32,7 @@ const TWO = HEX_PART_SLUGS[1];
 /** A build name, in the shape the configurator really produces: caps, spaces,
  *  and nothing that needs sanitising. Deliberately NOT the fallback, so a
  *  `platePath` that ignored its stem would fail rather than coincide. */
-const STEM = "TB-1 POWER";
+const STEM = "BENCH-2 POWER";
 
 describe("the published part list", () => {
   it("has exactly the number of parts the spec claims", () => {
@@ -54,18 +55,20 @@ describe("the published part list", () => {
     expect(new Set(HEX_PART_SLUGS).size).toBe(HEX_PART_SLUGS.length);
   });
 
-  it("does NOT contain the withheld part", () => {
-    // TB-1-POWER is withheld on disclosure grounds: a carrier is shaped around
-    // its board, so publishing it publishes that board's footprint.
-    expect(HEX_PART_SLUGS.some((s) => s.includes("tb-1-power"))).toBe(false);
+  it("does NOT contain a board carrier", () => {
+    // Board carriers are withheld on disclosure grounds: a carrier is shaped
+    // around its board, so publishing it publishes that board's footprint. No
+    // released slug is a carrier, and none is named after a bench board.
+    expect(HEX_PART_SLUGS.filter((s) => s.includes("carrier"))).toEqual([]);
+    expect(HEX_PART_SLUGS.filter((s) => /(^|-)tb-\d/.test(s))).toEqual([]);
   });
 
   it("rejects a well-formed slug that is not one of ours", () => {
     expect(isHexPartSlug("hex-main")).toBe(true);
     expect(isHexPartSlug("not-a-real-part")).toBe(false);
     // A v1 part is well formed and was published, and is not one of ours any
-    // more: it is the published record, not the release.
-    expect(isHexPartSlug("hex-tb-main")).toBe(false);
+    // more: it is the published record, not the release. All 53 of them.
+    for (const s of HEX_PUBLISHED_RECORD_SLUGS) expect(isHexPartSlug(s), s).toBe(false);
   });
 });
 
@@ -100,8 +103,8 @@ describe("resolvePack", () => {
 
   it.each([
     ["traversal", "../../secrets"],
-    ["an absolute key", "printables/2026-07-31/3mf/hex-tb-main"],
-    ["a plausible invention", "hex-tb-main-v2"],
+    ["an absolute key", "printables/2026-07-31/3mf/hex-main"],
+    ["a plausible invention", "hex-main-v2"],
     ["empty-ish", " , , "],
   ])("refuses %s", (_why: string, parts: string) => {
     const r = resolvePack({ release: RELEASE, format: "3mf", parts });
@@ -191,16 +194,16 @@ describe("packFilename", () => {
       { slug: ONE, qty: 6 },
       { slug: TWO, qty: 3 },
     ];
-    expect(packFilename(build, { ...INSTANCES, stem: "TB-1 POWER" })).toBe(
-      "TB-1 POWER-9-parts.zip",
+    expect(packFilename(build, { ...INSTANCES, stem: "BENCH-2 POWER" })).toBe(
+      "BENCH-2 POWER-9-parts.zip",
     );
     expect(
       packFilename([{ slug: ONE, qty: 1 }], {
         ...INSTANCES,
-        stem: "TB-1 POWER",
+        stem: "BENCH-2 POWER",
         ext: "3mf",
       }),
-    ).toBe(`TB-1 POWER-${ONE}.3mf`);
+    ).toBe(`BENCH-2 POWER-${ONE}.3mf`);
   });
 
   it("counts a multi-part pack", () => {
@@ -315,8 +318,8 @@ describe("the build's name, as a request field", () => {
   });
 
   it("carries a real name through to the request", () => {
-    const r = resolvePack({ release: RELEASE, parts: ONE, name: "TB-1 POWER" });
-    expect(r.ok && r.request.stem).toBe("TB-1 POWER");
+    const r = resolvePack({ release: RELEASE, parts: ONE, name: "BENCH-2 POWER" });
+    expect(r.ok && r.request.stem).toBe("BENCH-2 POWER");
   });
 
   it("REFUSES a name carrying a newline, rather than tidying it away", () => {
@@ -570,12 +573,12 @@ describe("the canonical query", () => {
       release: RELEASE,
       parts: ONE,
       plate: "256x256",
-      name: "TB-1 POWER",
+      name: "BENCH-2 POWER",
       bedFrom: "<img src=x>",
       plateIndex: "3",
     });
     expect(canonicalPackQuery(req)).toBe(
-      `release=${RELEASE}&parts=${ONE}&plate=256x256&name=TB-1%20POWER&bedFrom=unknown&plate_index=3`,
+      `release=${RELEASE}&parts=${ONE}&plate=256x256&name=BENCH-2%20POWER&bedFrom=unknown&plate_index=3`,
     );
     const stl = resolved({ release: RELEASE, parts: ONE, format: "stl" });
     expect(canonicalPackQuery(stl)).toBe(

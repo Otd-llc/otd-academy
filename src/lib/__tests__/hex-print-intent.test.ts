@@ -7,7 +7,7 @@
 // five places: here as slicer keys, in `hex-spec.ts` as the /hex spec card's
 // `Infill` and `Perimeters` rows, in both archive READMEs through those, on the
 // configurator's build sheet, and once more in the configurator's download
-// strip. They disagreed. Release 2026-08-17 baked 15% infill at 2 walls into
+// strip. They disagreed. The last v1 release baked 15% infill at 2 walls into
 // every plate while every sentence beside it said 30% gyroid at 4 perimeters,
 // so an archive shipped a README contradicting the file it was wrapped around.
 //
@@ -31,7 +31,7 @@ import {
 } from "@/lib/hex-print-intent";
 import { plateReadme, packReadme } from "@/lib/hex-pack-readme";
 import type { Placement } from "@/lib/hex-plate";
-import { HEX_LICENSE, HEX_PRINT_PARAMS } from "@/lib/hex-spec";
+import { HEX_LICENSE, HEX_PRINT_PARAMS, HEX_RELEASE } from "@/lib/hex-spec";
 
 /** A row that passes every branch of the guard, to be spoiled one field at a
  *  time. Written out rather than taken from the real table, so a test of the
@@ -181,12 +181,11 @@ describe("the surfaces cannot disagree with the file", () => {
   });
 
   const BOX = { x0: 0, y0: 0, z0: 0, dx: 40, dy: 30, dz: 10 } as const;
-  /** 826 sq mm on the bed and no warning from the slicer. NOT `hex-tb-main`,
-   *  which the calibration sweep moved onto the support list along with the rest
-   *  of the base family -- a neutral fixture has to actually be neutral. */
+  /** A released v2 part. Its support need is UNKNOWN until 4.7, which does
+   *  not matter here: these rows are about the settings block, not supports. */
   const PLAIN: Placement = {
-    slug: "hex-tb-spike-platform-lrg",
-    name: "Hex-TB-Spike-Platform-Lrg",
+    slug: "spike-acc-platform-lrg",
+    name: "spike-acc-platform-lrg",
     box: BOX,
     x: 4,
     y: 4,
@@ -194,7 +193,7 @@ describe("the surfaces cannot disagree with the file", () => {
 
   const plated = () =>
     plateReadme({
-      release: "2026-08-17",
+      release: HEX_RELEASE,
       bed: { x: 220, y: 220 },
       plates: [[PLAIN]],
       credit: HEX_LICENSE.credit,
@@ -217,9 +216,9 @@ describe("the surfaces cannot disagree with the file", () => {
     // as they were cut. "Already set in the file" over those would be false in
     // the direction that stops someone setting the one thing that matters.
     const loose = packReadme({
-      release: "2026-08-17",
+      release: HEX_RELEASE,
       format: "stl",
-      parts: [{ slug: "hex-tb-spike-platform-lrg", qty: 1 }],
+      parts: [{ slug: "spike-acc-platform-lrg", qty: 1 }],
       credit: HEX_LICENSE.credit,
       specUrl: "https://academy.onethousanddrones.com/hex",
     }).replace(/\s+/g, " ");

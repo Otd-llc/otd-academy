@@ -38,11 +38,11 @@ vi.mock("@/lib/part-r2", () => ({ getR2ObjectBytes: getBytes }));
 const captured = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/analytics", () => ({ capture: captured }));
 
-/** ONE SUPPORT ROW, on a v2 part, because the real support table is still v1.
+/** ONE FIXTURE SUPPORT ROW, because the real v2 support data is UNKNOWN.
  *
- *  `hex-support.ts` is the slicer's answer for the v1 set; its v2 replacement
- *  is launch readiness 4.7, from the owner's calibration slice (4.4). Until
- *  then no v2 part is on it, and the rows below are about the ROUTE's handling
+ *  `hex-support.ts` carries an explicit `unknown` state until launch readiness
+ *  4.7 turns the owner's calibration slice (4.4) into rows, so no part is on
+ *  it, and the rows below are about the ROUTE's handling
  *  of a part that needs support -- archive it, warn in the README and inside the
  *  plate -- not about which parts do. So the table is swapped for one row on
  *  the v2 spike, with the brim-and-support remedy the v1 spike carried. When
@@ -59,6 +59,15 @@ vi.mock("@/lib/hex-support", async () => {
   const slugs: ReadonlySet<string> = new Set([slug]);
   return {
     ...actual,
+    // MEASURED, for this file: a part without a row is then known to need
+    // nothing, which is the state the "No supports needed" rows below assert.
+    // The unknown-state wording is pinned in `hex-pack-readme.test.ts`.
+    HEX_SUPPORT_DATA: {
+      state: "measured",
+      source: "fixture",
+      rows: [{ name: slug, slug, support: true, brim: true, note }],
+    },
+    SUPPORT_UNKNOWN: false,
     NEEDS_SUPPORT_NAMES: [slug],
     NEEDS_SUPPORT_SLUGS: slugs,
     PART_REMEDY: { [slug]: { support: true, brim: true } },
@@ -161,10 +170,10 @@ const entriesOf = async (res: Response) =>
 
 /** THE PLATE, out of the archive that now always surrounds it.
  *
- *  EVERY response is a zip. The licence has to travel (owner, 2026-08-17: "zip
+ *  EVERY response is a zip. The licence has to travel (owner, August 2026: "zip
  *  is not optional"), and the branch that served a lone plate bare had become
- *  unreachable anyway -- a calibration sweep put 25 of 53 parts on the support
- *  list, `hex-cap-edge-1h-f` among them, and that part is in nearly every build.
+ *  unreachable anyway -- the v1 calibration sweep put 25 of 53 parts on the
+ *  support list, the main base among them, which is in nearly every build.
  *
  *  Rows about what the PLATE says reach through the box with this rather than
  *  each re-deriving how to open it. It asserts there is exactly ONE, so a row
@@ -313,7 +322,7 @@ describe("one plate versus many", () => {
 // zip, that a hostile one is refused before any R2 read, and that two names
 // really do produce two different responses rather than two labels on one.
 describe("the download is named after the cluster", () => {
-  const NAME = "TB-1 POWER";
+  const NAME = "BENCH-2 POWER";
 
   it("names a bare plate after the build, in both parameters", async () => {
     const res = await call(
@@ -323,8 +332,8 @@ describe("the download is named after the cluster", () => {
     // Pinned as a LITERAL here, once, rather than through `disp` -- so this row
     // still fails if the header builder and the test helper drift together.
     expect(res.headers.get("content-disposition")).toBe(
-      `attachment; filename="TB-1 POWER-3-parts.zip"; ` +
-        `filename*=UTF-8''TB-1%20POWER-3-parts.zip`,
+      `attachment; filename="BENCH-2 POWER-3-parts.zip"; ` +
+        `filename*=UTF-8''BENCH-2%20POWER-3-parts.zip`,
     );
   });
 

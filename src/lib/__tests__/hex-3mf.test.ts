@@ -7,7 +7,7 @@
 // below is pinned to a MEASURED fact about the known-good reference plate
 // (`c:\zzz\hex-cluster-plate-K2.3mf`, opened in Creality Print V7.2.1) rather
 // than to what this module happens to emit.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import JSZip from "jszip";
 
 import {
@@ -21,6 +21,28 @@ import { PRUSA_CONFIG_PATH } from "@/lib/hex-prusa-config";
 import { HEX_LICENSE } from "@/lib/hex-spec";
 import { HEX_PART_BOX, HEX_PART_NAME } from "@/lib/hex-geometry";
 import type { Placement } from "@/lib/hex-plate";
+
+/** A FIXTURE support table, because the real one is UNKNOWN for v2.
+ *
+ *  `hex-support.ts` carries no measured rows until launch readiness 4.7 (the
+ *  owner's calibration slice, 4.4), so `PART_REMEDY` is empty and nothing would
+ *  be painted or configured. The rows below are about the WRITER's handling of
+ *  each remedy -- paint one upward facet, switch support on, add a brim, or do
+ *  neither -- not about which real parts need them, so they are keyed on
+ *  fixture slugs that name no real part. TODO(4.7): once real rows exist, point
+ *  at least one row here back at a real flagged part. */
+vi.mock("@/lib/hex-support", async () => {
+  const actual =
+    await vi.importActual<typeof import("@/lib/hex-support")>("@/lib/hex-support");
+  return {
+    ...actual,
+    PART_REMEDY: {
+      "fx-support-and-brim": { support: true, brim: true },
+      "fx-support-only": { support: true, brim: false },
+      "fx-brim-only": { support: false, brim: true },
+    },
+  };
+});
 
 /** The exact shape every published part ships in -- one `<object id="1"
  *  type="model">`, one `<item>` with an identity transform, no materials, no
@@ -88,10 +110,10 @@ const SOURCES = new Map([
 
 const BOX = { x0: 0, y0: 0, z0: 0, dx: 10, dy: 10, dz: 10 };
 
-/** The published display name for a slug, in the shape the real table has:
- *  `hex-tb-main` maps to `Hex-TB-Main`, which no rule recovers from the slug.
+/** A display name for a slug, DIFFERENT from it.
  *
- *  DELIBERATELY DIFFERENT from the slug, and used as the default below so every
+ *  In v2 the published name is the slug itself, which is exactly why the
+ *  fixtures do not use it: DELIBERATELY DIFFERENT from the slug, and used as the default below so every
  *  placement in this file carries a name it cannot be confused with. The writer
  *  holds both fields and only one of them belongs in the object list; if the
  *  fixtures named a part after its slug, the module could reach for either and
@@ -348,22 +370,21 @@ describe("buildPlate3mf", () => {
   it("names each object with the published spelling, not the R2 slug", async () => {
     // THE POINT OF 3MF. The object name is what a slicer shows in its object
     // list, and it was measured surviving a Creality Print round trip -- all 15
-    // names in the known-good reference plate read back as `Hex-TB-Main`,
-    // `Dovetail-Cap-Single-F-Solid` and so on. The slug is a lossy projection of
-    // that filename, so shipping it hands somebody a list of lowercase hyphen
-    // soup for no gain.
+    // names in the known-good reference plate read back exactly as written. In
+    // v2 the published name happens to equal the slug, but the writer must still
+    // emit the NAME field: that is the contract the name table feeds.
     //
     // The NEGATIVE half is what makes this bite. A writer that emitted the slug
     // would still produce a well-formed plate with one correctly-pointed object
     // per part, and every other assertion in this file would pass.
     const model = await modelOf(
       await plate3mf(
-        [at("a", 4, 4, {}, "Hex-TB-Main"), at("b", 20, 4, {}, "Dovetail-Cap-Single-F-Solid")],
+        [at("a", 4, 4, {}, "Hex-Main"), at("b", 20, 4, {}, "Hex-Cap-Edge-Solid-F")],
         SOURCES,
       ),
     );
-    expect(model).toContain('name="Hex-TB-Main"');
-    expect(model).toContain('name="Dovetail-Cap-Single-F-Solid"');
+    expect(model).toContain('name="Hex-Main"');
+    expect(model).toContain('name="Hex-Cap-Edge-Solid-F"');
     expect(model).not.toContain('name="a"');
     expect(model).not.toContain('name="b"');
   });
@@ -378,18 +399,18 @@ describe("buildPlate3mf", () => {
     // What replaces it is the defect the owner actually hit: a plate of two caps
     // and a ball joint where one cap had no name and none of the settings.
     const buf = await plate3mf(
-      [at("a", 4, 4, {}, "Hex-TB-Main"), at("a", 20, 4, {}, "Hex-TB-Spare")],
+      [at("a", 4, 4, {}, "Hex-Main"), at("a", 20, 4, {}, "Hex-Spare")],
       SOURCES,
     );
     const model = await modelOf(buf);
-    expect(itemNames(model)).toEqual(["Hex-TB-Main", "Hex-TB-Spare"]);
+    expect(itemNames(model)).toEqual(["Hex-Main", "Hex-Spare"]);
 
     // ...and BOTH carry the settings, which is the half that was silently lost.
     const zip = await JSZip.loadAsync(buf);
     const cfg = await zip.file(MODEL_SETTINGS_PATH)!.async("string");
     expect(cfg.match(/key="sparse_infill_pattern"/g)).toHaveLength(2);
-    expect(cfg).toContain('value="Hex-TB-Main"');
-    expect(cfg).toContain('value="Hex-TB-Spare"');
+    expect(cfg).toContain('value="Hex-Main"');
+    expect(cfg).toContain('value="Hex-Spare"');
   });
 
   it("translates a placement to its minimum corner and seats it on the bed", async () => {
@@ -408,9 +429,9 @@ describe("buildPlate3mf", () => {
   });
 
   it("subtracts a positive minimum corner as readily as a negative one", async () => {
-    // The case above cannot tell `x - x0` from `x + |x0|`. Half the published
-    // parts have a positive x0 (`hex-tb-carrier-right-parts-tray` starts at
-    // +2.367), so the sign has to be right in both directions.
+    // The case above cannot tell `x - x0` from `x + |x0|`. Released parts can
+    // start at a positive x0 as readily as a negative one, so the sign has to
+    // be right in both directions.
     const model = await modelOf(
       await plate3mf([at("a", 10, 20, { x0: 3, y0: 7, z0: 0 })], SOURCES),
     );
@@ -438,9 +459,8 @@ describe("buildPlate3mf", () => {
   });
 
   it("writes a plain decimal rather than an exponent", async () => {
-    // Fifteen published parts have a mesh bottom that is the exporter's own
-    // float noise -- `hex-tb-spike-solid` sits 1.90781e-12 mm above its origin --
-    // seating those EXACTLY means a translation `String` would spell
+    // Published meshes have had a bottom that is the exporter's own float
+    // noise -- one sat 1.90781e-12 mm above its origin -- and seating those EXACTLY means a translation `String` would spell
     // `1.90781e-12`. The published meshes are full of exponential vertex text
     // and Creality Print reads them, so the notation is not exotic; but
     // `transform` is a different attribute with its own type in the 3MF schema,
@@ -795,7 +815,7 @@ describe("buildPlate3mf", () => {
 
    These exist because alpha testers do not read the README and did not select
    the infill the parts need. Every row below is about a behaviour MEASURED in
-   Creality Print 7.2.1 on 2026-08-17, not inferred from documentation, because
+   Creality Print 7.2.1 (August 2026), not inferred from documentation, because
    three research passes disagreed and two of them were wrong.
    =========================================================================== */
 
@@ -837,12 +857,12 @@ describe("Metadata/model_settings.config", () => {
 </model>
 `;
 
-  /** REAL slugs, because the painter keys off `PART_REMEDY` -- the list the
-   *  SLICER produced. A fabricated slug would exercise the `?? false` fallback
-   *  rather than the decision the feature turns on. */
+  /** One slug the FIXTURE `PART_REMEDY` above flags and one real v2 slug it
+   *  does not, so the flagged half runs through the table rather than through
+   *  the `?? false` fallback alone. */
   const PAINT_SOURCES = new Map([
-    ["hex-tb-spike-solid", TWO_SIDED],
-    ["hex-tb-spike-platform-lrg", TWO_SIDED],
+    ["fx-support-and-brim", TWO_SIDED],
+    ["hex-main", TWO_SIDED],
   ]);
 
   it("paints ONE upward facet on a part the slicer said needs support", async () => {
@@ -857,7 +877,7 @@ describe("Metadata/model_settings.config", () => {
     // unpainted twin is silent; and with support ON the painted file slices
     // IDENTICALLY to the unpainted one, so the paint costs the print nothing.
     const model = await modelOf(
-      await plate3mf([at("hex-tb-spike-solid", 4, 4)], PAINT_SOURCES),
+      await plate3mf([at("fx-support-and-brim", 4, 4)], PAINT_SOURCES),
     );
     // EXACTLY ONE. Probe 5 painted all 420 facets of a cap, and a fully painted
     // part generates real support -- the opposite of free.
@@ -869,7 +889,7 @@ describe("Metadata/model_settings.config", () => {
     // projects into the enforcer layers. Paint triangle 0 here and the tripwire
     // starts generating support, silently, on every support part we ship.
     const model = await modelOf(
-      await plate3mf([at("hex-tb-spike-solid", 4, 4)], PAINT_SOURCES),
+      await plate3mf([at("fx-support-and-brim", 4, 4)], PAINT_SOURCES),
     );
     expect(model).toContain(
       '<triangle paint_supports="4" v1="3" v2="4" v3="5"',
@@ -883,7 +903,7 @@ describe("Metadata/model_settings.config", () => {
     // support on globally, which is wrong for the 28 parts measured not to
     // need it.
     const model = await modelOf(
-      await plate3mf([at("hex-tb-spike-platform-lrg", 4, 4)], PAINT_SOURCES),
+      await plate3mf([at("hex-main", 4, 4)], PAINT_SOURCES),
     );
     expect(model).not.toContain("paint_supports");
   });
@@ -903,7 +923,7 @@ describe("Metadata/model_settings.config", () => {
     // from `PRINT_INTENT_TABLE`, which the /hex print card and the archive
     // README also render: this row is the one that checks the BYTES, so the
     // three surfaces cannot agree with each other while disagreeing with the
-    // file. Release 2026-08-17 baked 15% at 2 walls under a README saying 30%
+    // file. The last v1 release baked 15% at 2 walls under a README saying 30%
     // at 4, and nothing caught it because nothing compared them.
     const cfg = await configOf(
       await plate3mf([at("a", 4, 4), at("b", 20, 4)], SOURCES),
@@ -983,14 +1003,13 @@ describe("support settings ride only on the parts that need them", () => {
     return zip.file(MODEL_SETTINGS_PATH)!.async("string");
   };
 
-  /** The real slug from `hex-support.ts`, not a stand-in: the point of the row
-   *  is that THESE two parts are the ones treated differently. */
-  const SPIKE = "hex-tb-spike-ball-joint";
+  /** A FIXTURE slug from the mocked `PART_REMEDY` above: support, no brim. */
+  const SPIKE = "fx-support-only";
 
   it("switches support on for a line-resting part", async () => {
     const sources = new Map([[SPIKE, source("1")]]);
     const cfg = await configOf(
-      await plate3mf([at(SPIKE, 4, 4, {}, "Hex-TB-Spike-Ball-Joint")], sources),
+      await plate3mf([at(SPIKE, 4, 4, {}, "Fx-Support-Only")], sources),
     );
     expect(cfg).toContain('key="enable_support" value="1"');
     // AND NO BRIM. This part rests on the ball, with almost no perimeter for a
@@ -1000,10 +1019,10 @@ describe("support settings ride only on the parts that need them", () => {
   });
 
   it("gives a brim to a part that needs adhesion but not support", async () => {
-    const ZIP = "hex-tb-spike-ball-zip-single";
+    const ZIP = "fx-brim-only";
     const sources = new Map([[ZIP, source("1")]]);
     const cfg = await configOf(
-      await plate3mf([at(ZIP, 4, 4, {}, "Hex-TB-Spike-Ball-Zip-Single")], sources),
+      await plate3mf([at(ZIP, 4, 4, {}, "Fx-Brim-Only")], sources),
     );
     expect(cfg).toContain('key="brim_type" value="outer_only"');
     expect(cfg).not.toContain("enable_support");
@@ -1012,10 +1031,10 @@ describe("support settings ride only on the parts that need them", () => {
   it("gives support to a corner without giving it a pointless brim", async () => {
     // 416.8 sq mm on the bed, and Creality still reports it "has floating
     // regions". Adhesion is not its problem; what happens above layer one is.
-    const C = "hex-tb-corner-m-solid";
+    const C = "fx-support-only";
     const sources = new Map([[C, source("1")]]);
     const cfg = await configOf(
-      await plate3mf([at(C, 4, 4, {}, "Hex-TB-Corner-M-Solid")], sources),
+      await plate3mf([at(C, 4, 4, {}, "Fx-Support-Only")], sources),
     );
     expect(cfg).toContain('key="enable_support" value="1"');
     expect(cfg).not.toContain("brim_type");
@@ -1035,7 +1054,7 @@ describe("support settings ride only on the parts that need them", () => {
     // "needs support" means after the fact.
     const sources = new Map([[SPIKE, source("1")]]);
     const cfg = await configOf(
-      await plate3mf([at(SPIKE, 4, 4, {}, "Hex-TB-Spike-Ball-Joint")], sources),
+      await plate3mf([at(SPIKE, 4, 4, {}, "Fx-Support-Only")], sources),
     );
     expect(cfg).toContain('key="support_threshold_angle" value="30"');
   });
@@ -1043,7 +1062,7 @@ describe("support settings ride only on the parts that need them", () => {
   it("still gives the support part the same infill as everything else", async () => {
     const sources = new Map([[SPIKE, source("1")]]);
     const cfg = await configOf(
-      await plate3mf([at(SPIKE, 4, 4, {}, "Hex-TB-Spike-Ball-Joint")], sources),
+      await plate3mf([at(SPIKE, 4, 4, {}, "Fx-Support-Only")], sources),
     );
     expect(cfg).toContain('value="adaptivecubic"');
   });

@@ -45,6 +45,8 @@ import {
   NEEDS_SUPPORT_SLUGS,
   SUPPORT_NOTE,
   SUPPORT_SLICER_NOTE,
+  SUPPORT_UNKNOWN,
+  SUPPORT_UNKNOWN_NOTE,
   needsSupport,
 } from "@/lib/hex-support";
 
@@ -185,11 +187,25 @@ function supportLines(
         .map((p) => [p.slug, ascii(p.label)] as const),
     ),
   ];
+  // UNKNOWN IS NOT "NONE". While the served release has not been through the
+  // slicer sweep (TODO(4.7)), a part without a row is a part nobody has sliced,
+  // and "No supports needed" about it would be a promise with nothing behind
+  // it. Say what is actually true instead.
+  const unknown = SUPPORT_UNKNOWN
+    ? parts.some((p) => !NEEDS_SUPPORT_SLUGS.has(p.slug))
+    : false;
+  const unknownLines = unknown ? wrap(SUPPORT_UNKNOWN_NOTE, "") : [];
   if (present.length === 0) {
-    return ["Every part here stands on a flat face. No supports needed."];
+    return unknown
+      ? unknownLines
+      : ["Every part here stands on a flat face. No supports needed."];
   }
   return [
+    ...(unknown ? [...unknownLines, ""] : []),
     `Support required -- ${present.map(([, label]) => label).join(", ")}.`,
+    // TODO(4.7): this paragraph was written for the v1 spikes. It renders only
+    // beside a measured row, and there are none for v2 yet; rewrite it from the
+    // parts the v2 sweep actually flags.
     ...wrap(
       "These lie on their side on purpose: a spike carries its load along its " +
         "axis, so printed upright the layers stack along that load and peel " +

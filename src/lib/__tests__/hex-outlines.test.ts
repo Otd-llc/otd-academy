@@ -21,6 +21,7 @@ import {
   HEX_PART_SLUGS,
   displayFamilyOf,
 } from "@/lib/hex-parts";
+import { HEX_PUBLISHED_RECORD_SLUGS } from "@/lib/hex-published-record";
 import { HEX_RELEASE } from "@/lib/hex-spec";
 
 /** Twice the signed area of a closed flat ring. Holes come out of the tracer
@@ -111,7 +112,7 @@ describe("the outline table", () => {
     //
     // The point budget is the other half. A simplifier that stops simplifying is
     // SILENT -- the outline is right, and twenty times bigger and slower. The
-    // busiest part on this set is `hex-tb-main` at 50 points.
+    // budget below is the ceiling every part in the set must stay under.
     for (const slug of Object.keys(HEX_PART_OUTLINE)) {
       const fill = fillFraction(slug);
       expect(fill, `${slug} fill`).toBeGreaterThan(0.3);
@@ -138,7 +139,9 @@ describe("the display families", () => {
     for (const slug of HEX_PART_SLUGS) {
       expect(displayFamilyOf(slug), slug).toBeDefined();
     }
-    expect(displayFamilyOf("hex-tb-main")).toBeUndefined();
+    // A part that is not in the release (here, a v1 slug from the published
+    // record) has no display family: membership, not a name rule.
+    expect(displayFamilyOf(HEX_PUBLISHED_RECORD_SLUGS[0])).toBeUndefined();
   });
 
   it("draw the parts that are what they say as that, and cells' fittings as inserts", () => {

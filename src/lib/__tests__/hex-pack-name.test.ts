@@ -39,7 +39,7 @@ describe("names that are simply names", () => {
     // `UNTITLED BUILD`. None of that needs touching, and touching it would be
     // this module inventing a second naming policy.
     expect(stem("UNTITLED BUILD")).toBe("UNTITLED BUILD");
-    expect(stem("TB-1 POWER 7-CELL")).toBe("TB-1 POWER 7-CELL");
+    expect(stem("BENCH-2 POWER 7-CELL")).toBe("BENCH-2 POWER 7-CELL");
     expect(stem("Josh's rig (v2)")).toBe("Josh's rig (v2)");
   });
 
@@ -125,8 +125,8 @@ describe("REFUSALS -- the header, and only the header", () => {
 
 describe("REPAIRS -- the filesystem", () => {
   it.each([
-    ["a forward slash", "TB-1 / POWER", "TB-1 - POWER"],
-    ["a backslash", "TB-1 \\ POWER", "TB-1 - POWER"],
+    ["a forward slash", "BENCH-2 / POWER", "BENCH-2 - POWER"],
+    ["a backslash", "BENCH-2 \\ POWER", "BENCH-2 - POWER"],
     ["a colon, which is also an NTFS stream marker", "rig:evil", "rig-evil"],
     ["glob wildcards", "rig*?", "rig"],
     ["a quote, which would end the quoted-string", 'say "hi"', "say -hi"],
@@ -138,9 +138,9 @@ describe("REPAIRS -- the filesystem", () => {
 
   it("folds rather than refusing, because a slash in a title is not an attack", () => {
     // The whole reason the refuse/repair split is not uniform. Somebody who
-    // types `TB-1 / POWER` means a slash in their title; refusing their download
+    // types `BENCH-2 / POWER` means a slash in their title; refusing their download
     // over it would be refusing a question we can answer.
-    expect(resolvePackName("TB-1 / POWER").ok).toBe(true);
+    expect(resolvePackName("BENCH-2 / POWER").ok).toBe(true);
   });
 
   it.each([
@@ -408,7 +408,7 @@ describe("determinism", () => {
     // The stem reaches the zip entry names and each plate's `Title`, so it is
     // inside the response's identical-bytes promise rather than beside it.
     for (const raw of [
-      "TB-1 POWER",
+      "BENCH-2 POWER",
       "Café Cluster",
       "ハニカム",
       "Hex \u{1F41D} rig",

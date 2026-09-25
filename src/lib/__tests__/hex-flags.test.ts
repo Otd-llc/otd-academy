@@ -170,7 +170,7 @@ describe("the pack route honours hexPackEnabled", () => {
     const { GET } = await import("@/app/api/printable-pack/route");
     const { HEX_GEOMETRY_RELEASE } = await import("@/lib/hex-geometry");
     const res = await GET(
-      request(`release=${HEX_GEOMETRY_RELEASE}&parts=hex-tb-main`),
+      request(`release=${HEX_GEOMETRY_RELEASE}&parts=hex-main`),
     );
     expect(res.status).toBe(503);
     expect(res.headers.get("Cache-Control")).toBe("no-store");

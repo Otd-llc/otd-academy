@@ -316,15 +316,15 @@ describe("packing", () => {
     // qty-1 test.
     const plates = packPlates(
       [
-        part("hex-tb-main", 2, box(88, 76), "Hex-TB-Main"),
-        part("dovetail-cap-single-f-solid", 1, box(37, 25), "Dovetail-Cap-Single-F-Solid"),
+        part("hex-main", 2, box(88, 76), "HEX-MAIN"),
+        part("hex-cap-edge-solid-f", 1, box(37, 25), "HEX-CAP-EDGE-SOLID-F"),
       ],
       BED,
     );
     expect(plates.flat().map((p) => [p.slug, p.name])).toEqual([
-      ["hex-tb-main", "Hex-TB-Main"],
-      ["hex-tb-main", "Hex-TB-Main"],
-      ["dovetail-cap-single-f-solid", "Dovetail-Cap-Single-F-Solid"],
+      ["hex-main", "HEX-MAIN"],
+      ["hex-main", "HEX-MAIN"],
+      ["hex-cap-edge-solid-f", "HEX-CAP-EDGE-SOLID-F"],
     ]);
   });
 

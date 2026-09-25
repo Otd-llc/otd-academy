@@ -130,8 +130,8 @@ describe("the geometry table", () => {
     // THE INVARIANT THAT TIES THE TWO TOGETHER. The mesh is fetched by the KEY
     // and the object is labelled with the NAME, and the only thing making those
     // the same part is that the generator read them off one filename. Nothing
-    // downstream can check it: `Hex-TB-Main` and `Hex-TB-Spare` are equally
-    // plausible labels on a mesh fetched as `hex-tb-main`, and a plate carrying
+    // downstream can check it: `hex-main` and `hex-main-cover` are equally
+    // plausible labels on a mesh fetched as `hex-main`, and a plate carrying
     // the wrong one opens perfectly and prints the wrong thing.
     //
     // Run through `slug()` from `@/lib/r2` -- the function that actually mints
@@ -142,7 +142,7 @@ describe("the geometry table", () => {
     // the whole server environment to measure a directory of meshes), so a copy
     // is unavoidable and this is what holds it honest.
     //
-    // A re-cut that renamed `Hex-TB-Main.3mf` to `Hex_TB_Main.3mf` keeps the
+    // A re-cut that renamed `Hex-Main.3mf` to `Hex_Main.3mf` keeps the
     // same slug and changes the name -- fine, and this passes. One that paired a
     // name with someone else's row does not.
     for (const [key, name] of Object.entries(HEX_PART_NAME)) {

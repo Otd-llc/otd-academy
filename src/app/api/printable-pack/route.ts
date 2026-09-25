@@ -480,7 +480,7 @@ async function platedPack(
   // single plate of parts that needed no warning came back as a bare `.3mf`.
   // Two independent things killed that branch, and either alone would have.
   //
-  // THE LICENCE HAS TO TRAVEL. Owner, 2026-08-17: "we also have a license file
+  // THE LICENCE HAS TO TRAVEL. Owner, August 2026: "we also have a license file
   // we need to include, so zip is not optional." These are CC BY works and the
   // attribution is the one condition of the licence; a bare plate carried it
   // only as `<metadata>` inside the file, which is real but is not the notice.
@@ -489,13 +489,15 @@ async function platedPack(
   // argued the bare file was "the commonest response" and that only a build
   // containing a spike needed the zip. A calibration sweep -- every published
   // part on one plate, opened in Creality Print, warnings written down -- put
-  // 25 of 53 parts on the support list, including `hex-tb-main`, which is in
-  // very nearly every build anyone assembles. So "everything else still gets
+  // 25 of the 53 v1 parts on the support list, including the v1 main base,
+  // which is in very nearly every build anyone assembles. So "everything else still gets
   // the one file" had quietly become "almost nothing does". Keeping a branch
   // alive for the cases that no longer occur is how a rarely-taken path rots.
   //
   // `multi` and `warned` are still computed: they decide what the README SAYS,
-  // which is a different question from what shape the box is.
+  // which is a different question from what shape the box is. (For v2 the
+  // support data is UNKNOWN until 4.7, so `warned` is false and the README
+  // states that instead; see `hex-support.ts`.)
   const archived = true;
 
   const sources = new Map<string, string>();
@@ -813,7 +815,7 @@ async function looseZip(
       "Content-Length": String(out.byteLength),
       // FILES, not instances, and this is the count the loop above just wrote:
       // one entry per DISTINCT part. Naming the box after the instance total
-      // shipped `?format=stl&parts=hex-tb-main:6` as `hex-cluster-6-parts.zip`
+      // shipped `?format=stl&parts=<one part>:6` as `hex-cluster-6-parts.zip`
       // holding one file, beside a README reading "1 of the published parts" --
       // the filename said six, the README said one, the box held one.
       //

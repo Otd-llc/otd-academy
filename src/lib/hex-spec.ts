@@ -42,7 +42,7 @@ import {
  *  that release. Reading it from there means the id cannot disagree with the
  *  tables: changing it is regenerating them, never editing a string here.
  *
- *  The earlier releases (2026-07-31, 2026-08-03, 2026-08-17) are v1 and are not
+ *  The earlier releases (`HEX_PUBLISHED_RECORD_RELEASES`) are v1 and are not
  *  deleted -- their keys are immutable and carry a one-year cache header. They
  *  are the published record (`hex-published-record.ts`); nothing live reads
  *  them. Which releases `/api/printable` serves is `PUBLISHED_RELEASES`, which
@@ -69,7 +69,7 @@ export { HEX_PART_COUNT } from "@/lib/hex-release-tables";
  *  because the zip is built by the uploader and its exact size is recorded by
  *  the upload dry run (4.9).
  *
- *  `license` is the 2026-08-17 notice, 836 bytes, carried until the v2
+ *  `license` is the last v1 release's notice, 836 bytes, carried until the v2
  *  LICENSE.txt wording lands (6.8) and is measured. */
 export const HEX_RELEASE_FILES = {
   set: {

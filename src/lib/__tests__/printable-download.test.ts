@@ -29,8 +29,8 @@ describe("resolvePrintable — what it serves", () => {
   });
 
   it.each(["3mf", "stl", "step"])("serves a %s mesh", (fmt) => {
-    const r = resolvePrintable([RELEASE, fmt, `hex-tb-main.${fmt}`]);
-    expect(r?.key).toBe(`printables/2026-07-31/${fmt}/hex-tb-main.${fmt}`);
+    const r = resolvePrintable([RELEASE, fmt, `hex-main.${fmt}`]);
+    expect(r?.key).toBe(`printables/2026-07-31/${fmt}/hex-main.${fmt}`);
     expect(r?.ext).toBe(fmt);
   });
 
@@ -54,12 +54,12 @@ describe("resolvePrintable — what it refuses", () => {
     [[RELEASE, "3mf"], "a format with no file"],
     [[RELEASE, "3mf", "a.3mf", "b.3mf"], "an over-long path"],
     [[RELEASE, "sets", "hex-cluster"], "a set with no .zip"],
-    [[RELEASE, "stl", "hex-tb-main.3mf"], "an extension that fights its folder"],
+    [[RELEASE, "stl", "hex-main.3mf"], "an extension that fights its folder"],
     [[RELEASE, "exe", "payload.exe"], "a format we never wrote"],
     [[RELEASE, "license.txt"], "the licence in the wrong case"],
     [["2026-7-31", "LICENSE.txt"], "an unpadded release"],
     [["latest", "LICENSE.txt"], "a non-date release"],
-    [[RELEASE, "3mf", "Hex-TB-Main.3mf"], "an unslugged part name"],
+    [[RELEASE, "3mf", "Hex-Main.3mf"], "an unslugged part name"],
     [[RELEASE, "3mf", "hex_tb_main.3mf"], "underscores in a part name"],
     [[], "an empty path"],
   ])("refuses %j (%s)", (path) => {
@@ -72,7 +72,7 @@ describe("resolvePrintable — what it refuses", () => {
     const probes = [
       [RELEASE, "sets", "hex-cluster.zip"],
       [RELEASE, "LICENSE.txt"],
-      [RELEASE, "stl", "hex-tb-main.stl"],
+      [RELEASE, "stl", "hex-main.stl"],
       ["..", "..", "etc.zip"],
       [RELEASE, "sets", "..zip"],
     ];
@@ -176,7 +176,7 @@ describe("the proxy route serves an object", () => {
 
   it("types a mesh by its format", async () => {
     getBytes.mockResolvedValue(Buffer.from("solid"));
-    const res = await call([RELEASE, "stl", "hex-tb-main.stl"]);
+    const res = await call([RELEASE, "stl", "hex-main.stl"]);
     expect(res.headers.get("content-type")).toBe("model/stl");
   });
 

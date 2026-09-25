@@ -40,7 +40,6 @@ import { ConfiguratorLink } from "@/components/hex/ConfiguratorLink";
 import { HexConfiguratorFrame } from "@/components/hex/HexConfiguratorFrame";
 import { ReleaseNotify } from "@/components/hex/ReleaseNotify";
 import { ThemedLoop } from "@/components/hex/ThemedLoop";
-import { ARRANGEMENTS, HexLattice } from "@/components/hex/HexLattice";
 import { env } from "@/env";
 import {
   INTENT_EVERY_PART,
@@ -132,33 +131,6 @@ function SpecRows({ rows }: { rows: SpecRow[] }) {
         </div>
       ))}
     </dl>
-  );
-}
-
-/** F5b — corner ticks. Four bordered spans rather than an SVG frame, so the
- *  brackets inherit the token colour and flip with the theme for free. */
-function Frame({ children }: { children: React.ReactNode }) {
-  const tick = "absolute h-5 w-5 border-command-gold/70";
-  return (
-    <div className="relative p-6">
-      <span
-        aria-hidden="true"
-        className={`${tick} left-0 top-0 border-l border-t`}
-      />
-      <span
-        aria-hidden="true"
-        className={`${tick} right-0 top-0 border-r border-t`}
-      />
-      <span
-        aria-hidden="true"
-        className={`${tick} bottom-0 left-0 border-b border-l`}
-      />
-      <span
-        aria-hidden="true"
-        className={`${tick} bottom-0 right-0 border-b border-r`}
-      />
-      {children}
-    </div>
   );
 }
 
@@ -319,17 +291,8 @@ export default function HexPage() {
             stop wherever that box ends and read as unfinished. */}
           <div className="lg:border-r lg:border-command-gold/40 lg:pr-12">
             <div className="py-10 lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:justify-center">
-              <Frame>
-                {/* F5b-5 — three engaged tiles at the REAL cell pitch, inner wall
-                  at low opacity for depth. The gap you see between neighbours
-                  is the 0.25 mm design gap scaled up. */}
-                <HexLattice
-                  cells={ARRANGEMENTS.trio}
-                  detail="detail"
-                  className="mx-auto w-full text-command-gold"
-                />
-              </Frame>
-
+              {/* The v1 part-outline lattice stood here. It drew the v1 base,
+                  and v1 is dead; the v2 art is launch readiness 6.4 / 8.1. */}
               {/* P4 — a dimension line, so the number annotates a measurement
                 instead of captioning a picture. */}
               <div className="mt-8">
