@@ -122,6 +122,33 @@ export type Ready = {
    *  promotion of a local bed, and it asks with `promote-bed` instead, so the
    *  condition is settled at the database where it is actually knowable. */
   bed?: Bed;
+  /**
+   * The visitor's c15t `measurement` decision ON THE PARENT, when the parent
+   * knows it. Owner decision 1.14: an embedded configurator shows no banner of
+   * its own -- the academy already asked -- so this is the only way an
+   * embedded visitor is ever counted.
+   *
+   * OPTIONAL, and ABSENT MEANS NOT GRANTED. A parent that predates the field
+   * sends nothing, and the child then tracks nothing: the safe direction for a
+   * consent field to fail in. A late or changed decision arrives as
+   * `set-consent`.
+   *
+   * The academy ALWAYS sends it, as an explicit boolean read from c15t at send
+   * time (`HexConfiguratorFrame`, via `hex-embed-consent.ts`): `true` only when
+   * `measurement` is granted, `false` for denied AND for "not decided yet".
+   */
+  analyticsConsent?: boolean;
+};
+
+/**
+ * Parent -> child: the visitor's `measurement` consent changed on the parent.
+ * `false` is a revocation, and the child opts out and resets.
+ */
+export type SetConsent = {
+  channel: typeof CHANNEL;
+  protocolVersion: number;
+  type: "set-consent";
+  analyticsConsent: boolean;
 };
 
 export type SetTheme = {
@@ -303,6 +330,7 @@ export const CAP_CLOSE = "close";
 
 export type HexMessage =
   | Ready
+  | SetConsent
   | SetTheme
   | SetBed
   | BedChanged
@@ -395,7 +423,13 @@ export function parseMessage(data: unknown): HexMessage | null {
       // other one -- an older child never looks at the field at all.
       if (!isStr(d.parentOrigin) || !isTheme(d.theme)) return null;
       if (d.bed !== undefined && !isBed(d.bed)) return null;
+      // Same rule as the bed: present-and-malformed refuses the handshake.
+      if (d.analyticsConsent !== undefined && typeof d.analyticsConsent !== "boolean") {
+        return null;
+      }
       return d as unknown as Ready;
+    case "set-consent":
+      return typeof d.analyticsConsent === "boolean" ? (d as unknown as SetConsent) : null;
     case "set-theme":
       return isTheme(d.theme) ? (d as unknown as SetTheme) : null;
     case "set-bed":
