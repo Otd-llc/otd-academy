@@ -5,6 +5,7 @@
 import { HEX_PART_SLUGS, isHexPartSlug } from "@/lib/hex-parts";
 import { BED_FLOOR_MM } from "@/lib/hex-release-tables";
 import { PACK_NAME_FALLBACK, resolvePackName } from "@/lib/hex-pack-name";
+import { readHexSource, type HexSource } from "@/lib/hex-attribution";
 
 /** Immutable release segment, e.g. `2026-07-31`. Same grammar as the proxy. */
 const RELEASE = /^\d{4}-\d{2}-\d{2}$/;
@@ -154,6 +155,9 @@ export type PackRequest = {
   bed: Bed;
   /** Where the bed came from, as the enum. Analytics and the canonical URL. */
   bedFrom?: BedSource;
+  /** Where the download was sent from, as the `HexSource` enum (6.6).
+   *  Analytics and the canonical URL; absent when the caller named none. */
+  src?: HexSource;
   /** One-based plate to serve on its own, or absent for the whole pack. */
   plateIndex?: number;
   /** The build's own name, already sanitised into something a filesystem will
@@ -238,6 +242,7 @@ export function resolvePack(input: {
   plate?: string | null;
   name?: string | null;
   bedFrom?: string | null;
+  src?: string | null;
   plateIndex?: string | null;
 }): PackResolution {
   const release = input.release ?? "";
@@ -293,6 +298,7 @@ export function resolvePack(input: {
   parts.sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0));
 
   const bedFrom = readBedSource(input.bedFrom);
+  const src = readHexSource(input.src);
   return {
     ok: true,
     request: {
@@ -302,6 +308,7 @@ export function resolvePack(input: {
       bed,
       stem: name.stem,
       ...(bedFrom === undefined ? {} : { bedFrom }),
+      ...(src === undefined ? {} : { src }),
       ...(plateIndex === undefined ? {} : { plateIndex }),
     },
   };
@@ -331,7 +338,7 @@ function q(value: string): string {
  * Fixed order: `release`, `parts` (sorted, a quantity of one written bare),
  * `plate`, then only when they differ from the default: `format` (only `stl`),
  * `name` (the sanitised stem, omitted when it is the fallback), `bedFrom` (the
- * enum), `plate_index`.
+ * enum), `src` (the enum), `plate_index`.
  */
 export function canonicalPackQuery(req: PackRequest): string {
   const parts = req.parts
@@ -345,6 +352,7 @@ export function canonicalPackQuery(req: PackRequest): string {
   if (req.format !== "3mf") out.push(`format=${req.format}`);
   if (req.stem !== PACK_NAME_FALLBACK) out.push(`name=${q(req.stem)}`);
   if (req.bedFrom !== undefined) out.push(`bedFrom=${req.bedFrom}`);
+  if (req.src !== undefined) out.push(`src=${req.src}`);
   if (req.plateIndex !== undefined) out.push(`plate_index=${req.plateIndex}`);
   return out.join("&");
 }

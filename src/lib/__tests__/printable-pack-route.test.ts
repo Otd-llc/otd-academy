@@ -115,15 +115,25 @@ beforeAll(async () => {
   PART_3MF = await zip.generateAsync({ type: "nodebuffer" });
 });
 
-function request(query: string): NextRequest {
+function request(
+  query: string,
+  cookies: Record<string, string> = {},
+): NextRequest {
   return {
     nextUrl: new URL(
       `https://academy.onethousanddrones.com/api/printable-pack?${query}`,
     ),
-    headers: new Headers(),
-    cookies: { get: () => undefined },
+    headers: new Headers({ referer: "https://example.test/listing" }),
+    cookies: {
+      get: (name: string) =>
+        name in cookies ? { value: cookies[name] } : undefined,
+    },
   } as unknown as NextRequest;
 }
+
+/** The cookies a browser carries after accepting measurement in the c15t banner
+ *  (c15t 2.0 writes a granted category as `1` and omits a denied one). */
+let requestCookies: Record<string, string> = {};
 
 /** One request, exactly as written: no redirect followed. */
 async function callRaw(query: string): Promise<Response> {
@@ -134,7 +144,7 @@ async function callRaw(query: string): Promise<Response> {
   vi.stubEnv("R2_BUCKET", "test-bucket");
   vi.resetModules();
   const { GET } = await import("@/app/api/printable-pack/route");
-  return GET(request(query));
+  return GET(request(query, requestCookies));
 }
 
 /** One request as a BROWSER makes it: a 307 to the canonical URL is followed
@@ -187,6 +197,7 @@ async function plateOf(res: Response): Promise<JSZip> {
 }
 
 beforeEach(() => {
+  requestCookies = {};
   getBytes.mockReset();
   captured.mockReset();
   getBytes.mockImplementation(async (key: string) =>
@@ -1056,5 +1067,59 @@ describe("what the download reports to analytics", () => {
   it("does not fire at all for a refused request", async () => {
     await call(`release=${RELEASE}&parts=hex-cap-edge-1h-f:250&plate=220x220`);
     expect(captured).not.toHaveBeenCalled();
+  });
+});
+
+describe("attribution on the pack event (6.6, 1.14)", () => {
+  const props = () => captured.mock.calls[0][1] as Record<string, unknown>;
+  const GRANTED = "c.measurement:1,c.necessary:1,i.time:1727000000000";
+  const ONE = `release=${RELEASE}&parts=hex-cap-edge-1h-f`;
+
+  it("carries src, otd_src and the referrer with consent", async () => {
+    requestCookies = { c15t: GRANTED, otd_src: "printables" };
+    await call(`${ONE}&src=configurator`);
+    expect(captured).toHaveBeenCalledTimes(1);
+    expect(props()).toMatchObject({
+      src: "configurator",
+      otd_src: "printables",
+      referrer: "https://example.test/listing",
+    });
+  });
+
+  it("maps an unlisted src to unknown, in the URL and the event", async () => {
+    requestCookies = { c15t: GRANTED };
+    const first = await callRaw(`${ONE}&src=etsy`);
+    expect(first.status).toBe(307);
+    expect(first.headers.get("location")).toContain("&src=unknown");
+    await call(`${ONE}&src=etsy`);
+    expect(props().src).toBe("unknown");
+  });
+
+  it("never lets a hostile src reach the event or the redirect", async () => {
+    requestCookies = { c15t: GRANTED, otd_src: "<script>" };
+    const hostile = `<img src=x> ${"A".repeat(3000)}
+X: y`;
+    const first = await callRaw(`${ONE}&src=${encodeURIComponent(hostile)}`);
+    expect(first.headers.get("location")).not.toContain("img");
+    expect(first.headers.get("location")!.length).toBeLessThan(300);
+    await call(`${ONE}&src=${encodeURIComponent(hostile)}`);
+    expect(props()).toMatchObject({ src: "unknown", otd_src: "unknown" });
+    expect(JSON.stringify(captured.mock.calls[0])).not.toMatch(/img|script|AAAA/);
+  });
+
+  it("carries no attribution field without consent, but still counts the download", async () => {
+    requestCookies = { otd_src: "reddit" };
+    await call(`${ONE}&src=configurator`);
+    expect(captured).toHaveBeenCalledTimes(1);
+    expect(props()).not.toHaveProperty("src");
+    expect(props()).not.toHaveProperty("otd_src");
+    expect(props()).not.toHaveProperty("referrer");
+  });
+
+  it("reads a denied c15t cookie as no consent", async () => {
+    requestCookies = { c15t: "c.necessary:1", otd_src: "reddit" };
+    await call(`${ONE}&src=configurator`);
+    expect(props()).not.toHaveProperty("src");
+    expect(props()).not.toHaveProperty("otd_src");
   });
 });

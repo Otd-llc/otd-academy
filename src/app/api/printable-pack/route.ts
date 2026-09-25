@@ -41,6 +41,7 @@ import type { NextRequest } from "next/server";
 import JSZip from "jszip";
 
 import { capture } from "@/lib/analytics";
+import { hexAttribution } from "@/lib/hex-attribution";
 import { env } from "@/env";
 import { getR2ObjectBytes } from "@/lib/part-r2";
 import { HEX_LICENSE } from "@/lib/hex-spec";
@@ -150,6 +151,17 @@ type Tracked = {
 
 function track(req: NextRequest, t: Tracked): void {
   try {
+    // ATTRIBUTION ONLY WITH CONSENT (6.6, 1.14). This event was captured
+    // before consent existed and still is; what consent adds is where the
+    // download came from -- `src`, the first-touch `otd_src`, and the referrer.
+    // Without a c15t measurement grant all three are absent. `src` is read off
+    // the URL being served, which is already the canonical one, and goes
+    // through the enum again anyway: the boundary is here, not upstream.
+    const attribution = hexAttribution(
+      req.nextUrl.searchParams.get("src"),
+      req.cookies,
+    );
+    const consented = attribution.src !== undefined;
     capture(
       "printable_pack_downloaded",
       {
@@ -166,7 +178,10 @@ function track(req: NextRequest, t: Tracked): void {
         bed_source: t.bedSource,
         bytes: t.bytes,
         source_bytes: t.sourceBytes,
-        referrer: req.headers.get("referer") ?? undefined,
+        ...attribution,
+        ...(consented
+          ? { referrer: req.headers.get("referer") ?? undefined }
+          : {}),
       },
       distinctIdFromCookies(req.cookies) ?? undefined,
     );
@@ -237,6 +252,10 @@ export async function GET(req: NextRequest) {
     // `hex-pack-name.ts`; nothing here touches the raw string.
     name: q.get("name"),
     bedFrom: q.get("bedFrom"),
+    // Where the download was sent from (6.6). Read into a closed enum by
+    // `resolvePack`, so the canonical URL -- and the event -- only ever carry a
+    // listed value or `unknown`.
+    src: q.get("src"),
     plateIndex: q.get("plate_index"),
   });
   if (!resolved.ok) {

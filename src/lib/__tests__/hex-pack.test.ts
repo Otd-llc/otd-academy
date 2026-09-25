@@ -586,6 +586,22 @@ describe("the canonical query", () => {
     );
   });
 
+  it("spells src as the closed enum, after bedFrom and before plate_index (6.6)", () => {
+    const listed = resolved({ release: RELEASE, parts: ONE, src: "reddit", bedFrom: "account", plateIndex: "1" });
+    expect(canonicalPackQuery(listed)).toBe(
+      `release=${RELEASE}&parts=${ONE}&plate=220x220&bedFrom=account&src=reddit&plate_index=1`,
+    );
+    for (const hostile of ["Reddit", "<img src=x>", "a".repeat(5000), "hn "]) {
+      const req = resolved({ release: RELEASE, parts: ONE, src: hostile });
+      expect(req.src).toBe("unknown");
+      expect(canonicalPackQuery(req)).toBe(
+        `release=${RELEASE}&parts=${ONE}&plate=220x220&src=unknown`,
+      );
+    }
+    // Absent stays absent: links written before 6.6 are already canonical.
+    expect(resolved({ release: RELEASE, parts: ONE }).src).toBeUndefined();
+  });
+
   it("is a FIXED POINT: resolving the canonical query gives it back", () => {
     // What stops a redirect loop. A browser following the 307 sends these
     // bytes back; if they resolved to a different canonical string, the route
@@ -594,6 +610,8 @@ describe("the canonical query", () => {
       { release: RELEASE, parts: `${TWO},${ONE}:3`, name: "ハニカム / tiles #1?" },
       { release: RELEASE, parts: ONE, name: "a&b=c+d%20", bedFrom: "account" },
       { release: RELEASE, parts: ONE, format: "stl", plate: "1000x300" },
+      { release: RELEASE, parts: ONE, bedFrom: "local", src: "<b>" },
+      { release: RELEASE, parts: ONE, src: "makerworld", plateIndex: "2" },
     ]) {
       const canon = canonicalPackQuery(resolved(input));
       const url = new URL(`https://x.test${PACK_PATH}?${canon}`);
@@ -606,6 +624,7 @@ describe("the canonical query", () => {
         plate: q.get("plate"),
         name: q.get("name"),
         bedFrom: q.get("bedFrom"),
+        src: q.get("src"),
         plateIndex: q.get("plate_index"),
       });
       expect(canonicalPackQuery(again)).toBe(canon);

@@ -207,6 +207,66 @@ describe("the proxy route serves an object", () => {
   });
 });
 
+const captured = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/analytics", () => ({ capture: captured }));
+
+describe("attribution on printable_downloaded (6.6, 1.14)", () => {
+  afterEach(() => {
+    getBytes.mockReset();
+    captured.mockReset();
+    vi.resetModules();
+    vi.unstubAllEnvs();
+  });
+
+  const GRANTED = "c.measurement:1,c.necessary:1";
+
+  async function download(query: string, cookies: Record<string, string>) {
+    vi.stubEnv("R2_ENABLED", "true");
+    vi.stubEnv("R2_BUCKET", "test-bucket");
+    vi.resetModules();
+    getBytes.mockResolvedValue(Buffer.from("PKzip"));
+    const { GET } = await import("@/app/api/printable/[...path]/route");
+    const req = {
+      nextUrl: new URL(
+        `https://academy.onethousanddrones.com/api/printable/${RELEASE}/sets/hex-cluster.zip${query}`,
+      ),
+      headers: new Headers({ referer: "https://example.test/" }),
+      cookies: {
+        get: (n: string) => (n in cookies ? { value: cookies[n] } : undefined),
+      },
+    };
+    const res = await GET(req as never, {
+      params: Promise.resolve({ path: [RELEASE, "sets", "hex-cluster.zip"] }),
+    });
+    expect(res.status).toBe(200);
+    expect(captured).toHaveBeenCalledTimes(1);
+    return captured.mock.calls[0][1] as Record<string, unknown>;
+  }
+
+  it("carries src and otd_src with consent", async () => {
+    const p = await download("?src=hex_page", { c15t: GRANTED, otd_src: "hackaday" });
+    expect(p).toMatchObject({ src: "hex_page", otd_src: "hackaday" });
+  });
+
+  it("maps an unknown or hostile src to unknown", async () => {
+    expect((await download("?src=etsy", { c15t: GRANTED })).src).toBe("unknown");
+    captured.mockReset();
+    const p = await download(`?src=${encodeURIComponent("<b>x</b>")}`, {
+      c15t: GRANTED,
+      otd_src: "x".repeat(2000),
+    });
+    expect(p).toMatchObject({ src: "unknown", otd_src: "unknown" });
+    expect(JSON.stringify(p)).not.toMatch(/<b>|xxxx/);
+  });
+
+  it("carries no attribution field without consent", async () => {
+    const p = await download("?src=hex_page", { otd_src: "hackaday" });
+    expect(p).not.toHaveProperty("src");
+    expect(p).not.toHaveProperty("otd_src");
+    expect(p).not.toHaveProperty("referrer");
+  });
+});
+
 describe("the proxy route is exempt from the auth middleware", () => {
   it("appears in the proxy matcher's negative lookahead", async () => {
     // Without this the route 307s to /sign-in for exactly the signed-out

@@ -14,6 +14,7 @@
 import type { NextRequest } from "next/server";
 
 import { capture } from "@/lib/analytics";
+import { hexAttribution } from "@/lib/hex-attribution";
 import { env } from "@/env";
 import { getR2ObjectBytes } from "@/lib/part-r2";
 import { PRINTABLE_CONTENT_TYPE, resolvePrintable } from "@/lib/printable-key";
@@ -56,6 +57,15 @@ export async function GET(
   // own errors, but the try/catch is the house convention: telemetry must never
   // be able to fail a download.
   try {
+    // ATTRIBUTION ONLY WITH CONSENT (6.6, 1.14): `src` (a closed enum, never
+    // the raw query value), the first-touch `otd_src` and the referrer are all
+    // absent without a c15t measurement grant. The download itself was
+    // counted before consent existed, and still is.
+    const attribution = hexAttribution(
+      req.nextUrl.searchParams.get("src"),
+      req.cookies,
+    );
+    const consented = attribution.src !== undefined;
     capture(
       "printable_downloaded",
       {
@@ -64,7 +74,10 @@ export async function GET(
         kind: resolved.ext,
         filename: resolved.filename,
         bytes: bytes.byteLength,
-        referrer: req.headers.get("referer") ?? undefined,
+        ...attribution,
+        ...(consented
+          ? { referrer: req.headers.get("referer") ?? undefined }
+          : {}),
       },
       distinctIdFromCookies(req.cookies) ?? undefined,
     );
