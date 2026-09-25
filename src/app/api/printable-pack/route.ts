@@ -69,6 +69,7 @@ import {
   type Placement,
 } from "@/lib/hex-plate";
 import { printableKey, printableLicenseKey } from "@/lib/r2";
+import { isPublishedRelease } from "@/lib/printable-releases";
 import { distinctIdFromCookies } from "@/lib/posthog-distinct-id";
 
 const SITE = "https://academy.onethousanddrones.com/hex";
@@ -220,6 +221,13 @@ export async function GET(req: NextRequest) {
   if (!resolved.ok) return new Response("Bad request", { status: 400 });
 
   const { release, format, parts, bed, stem } = resolved.request;
+  // The same allow-list as the single-file route, and for the same reason:
+  // uploading is not publishing. Without it an unlisted release sitting in the
+  // bucket would be served, packed, to anyone who guessed its date. 404, not
+  // 400, and before any R2 read.
+  if (!isPublishedRelease(release)) {
+    return new Response("Not found", { status: 404 });
+  }
   const bedSource = readBedSource(q.get("bedFrom"));
 
   // PLATING IS 3MF-ONLY. An STL is a flat triangle soup: no transforms, no
