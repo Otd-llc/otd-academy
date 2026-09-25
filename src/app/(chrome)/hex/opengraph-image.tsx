@@ -5,11 +5,13 @@
 // pointing at it, so the link travels wherever the geometry does, and until now
 // every one of those shares rendered whatever the site default happened to be.
 //
-// NUMERALS COME FROM `@/lib/hex-spec`, never typed in here. The page's own rule
-// is that a maker must never find two different numbers for the same dimension
-// across the page and the build sheet in their hand, and a share card is one
-// more place that can disagree. HEX_PITCH_MM is itself derived from the
-// circumradius and the gap, so the card cannot drift from the geometry either.
+// NUMERALS COME FROM `@/lib/hex-v2-page`, never typed in here: the page and
+// its share card must never state two different numbers for one dimension.
+// HEX_V2_PITCH_MM is derived from the vars it depends on, so the card cannot
+// drift from the geometry either.
+//
+// TODO(phase-8): item 6.4 wants the OG PNG to be the v2 still at 1200x630.
+// Until that still exists this card stays a composed numeral card.
 //
 // The part count is deliberately absent. hex-spec says in as many words that it
 // is NOT page copy: the published set grows when a part is added, so printing it
@@ -29,11 +31,12 @@ import {
   DefaultFooter,
 } from "@/lib/og/card";
 import { SIZE } from "@/lib/og/tokens";
-import { HEX_LICENSE, HEX_PITCH_MM, HEX_RELEASE } from "@/lib/hex-spec";
+import { HEX_LICENSE } from "@/lib/hex-license";
+import { HEX_V2_PITCH_MM, HEX_V2_RELEASE } from "@/lib/hex-v2-page";
 
 export const size = SIZE;
 export const contentType = "image/png";
-export const alt = `Hex Cluster: a printable hex mounting standard, ${HEX_LICENSE.name}.`;
+export const alt = `Hex Cluster: a printable bench mounting standard, ${HEX_LICENSE.name}.`;
 
 export default function Image() {
   return renderCard(
@@ -47,7 +50,7 @@ export default function Image() {
         </CardTitle>
         <div style={{ display: "flex", marginTop: 28 }}>
           <SairaReadout
-            value={HEX_PITCH_MM.toFixed(2)}
+            value={HEX_V2_PITCH_MM.toFixed(3)}
             unit="mm"
             label="cell pitch, centre to centre"
           />
@@ -55,7 +58,7 @@ export default function Image() {
       </Center>
       {/* The licence rides on the card, because the people most likely to see
           this share arrived from an attribution line in someone else's file. */}
-      <DefaultFooter tagline={`${HEX_LICENSE.name} · Release ${HEX_RELEASE}`} />
+      <DefaultFooter tagline={`${HEX_LICENSE.name} · Release ${HEX_V2_RELEASE}`} />
     </Field>,
   );
 }
