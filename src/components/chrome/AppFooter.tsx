@@ -17,6 +17,9 @@ import {
   LinkedInIcon,
 } from "@/components/icons";
 
+const FOOTER_LINK =
+  "font-mono text-[11px] uppercase tracking-[0.16em] text-muted transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none";
+
 export function AppFooter() {
   return (
     <footer className="relative overflow-hidden border-t border-panel-border/60 bg-deep-space print:hidden">
@@ -91,6 +94,7 @@ export function AppFooter() {
                 ["Verify", "/verify"],
                 ["License", "/license"],
                 ["Privacy", "/privacy"],
+                ["Notices", "/THIRD_PARTY_NOTICES.txt"],
               ],
             },
           ].map((g) => (
@@ -102,15 +106,19 @@ export function AppFooter() {
               <span className="font-display text-sm tracking-[0.1em] text-command-gold">
                 {g.label}
               </span>
-              {g.links.map(([label, href]) => (
-                <Link
-                  key={label}
-                  href={href}
-                  className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none"
-                >
-                  {label}
-                </Link>
-              ))}
+              {g.links.map(([label, href]) =>
+                // A static file (the notices .txt) is not a route: a plain
+                // anchor, so Link does not try to prefetch it as one.
+                /\.[a-z]+$/.test(href) ? (
+                  <a key={label} href={href} className={FOOTER_LINK}>
+                    {label}
+                  </a>
+                ) : (
+                  <Link key={label} href={href} className={FOOTER_LINK}>
+                    {label}
+                  </Link>
+                ),
+              )}
             </nav>
           ))}
           <nav
