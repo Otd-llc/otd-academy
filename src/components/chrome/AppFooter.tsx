@@ -46,6 +46,7 @@ export function AppFooter() {
         </div>
 
         <Link
+          prefetch={false}
           href="/"
           aria-label="One Thousand Drones home"
           className="inline-flex items-center gap-2.5"
@@ -114,7 +115,7 @@ export function AppFooter() {
                     {label}
                   </a>
                 ) : (
-                  <Link key={label} href={href} className={FOOTER_LINK}>
+                  <Link prefetch={false} key={label} href={href} className={FOOTER_LINK}>
                     {label}
                   </Link>
                 ),
