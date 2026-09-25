@@ -1,7 +1,22 @@
 // Package + upload the hex-cluster printables to R2.
 //
-//   pnpm tsx scripts/upload-printables.ts            # DRY RUN (default)
-//   pnpm tsx scripts/upload-printables.ts --write    # actually uploads
+//   pnpm tsx scripts/upload-printables.ts --allow-list <file>           # DRY RUN
+//   pnpm tsx scripts/upload-printables.ts --allow-list <file> --write   # uploads
+//
+// The allow-list (or PRINTABLES_ALLOWLIST) is REQUIRED: it names every source
+// file that may be published and the licence each ships under. Only `cc-by`
+// passes; a `third-party` row, a row with no licence, a file the manifest has but
+// the list does not, or a listed file the manifest lacks each refuse the whole
+// run before anything is written. Format: scripts/lib/printables-allowlist.ts.
+//
+// Every PUT carries `x-amz-meta-sha256` (hex SHA-256 of the bytes) and
+// `Content-Disposition: attachment`. Before writing, every key is HEADed:
+//   absent (404)                 -> uploaded
+//   present, same sha256         -> skipped (this is what makes a rerun resume)
+//   present, other/absent sha256 -> REFUSED, nothing is written
+//   any other HEAD error         -> FATAL, nothing is written
+// There is no `--force`. A published key is immutable; replacing its bytes is a
+// new release segment, never an overwrite.
 //
 // PRINTABLES_EMIT=<dir> makes a dry run WRITE the bytes it would upload, so the
 // zip and its README can be opened before anything is published. Worth doing:
@@ -27,7 +42,13 @@ loadEnv({ path: ".env.local" });
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import JSZip from "jszip";
+import { createHash } from "node:crypto";
 import { HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  checkAgainstAllowList,
+  isManifestPath,
+  loadAllowList,
+} from "./lib/printables-allowlist";
 
 // The print spec, shared with the academy's /hex page. A plain data module with
 // no env dependency, so a static import is safe above the dotenv call below.
@@ -150,26 +171,51 @@ type ManifestPart = {
 };
 type Manifest = { parts: ManifestPart[]; failures: unknown[] };
 
-const write = process.argv.includes("--write");
+// Arguments are parsed STRICTLY. An unknown flag is an error, not a no-op: the
+// old `--force` in particular must fail loudly for anyone whose muscle memory
+// still types it, rather than be silently ignored while they assume it applied.
+function parseArgs(argv: string[]): { write: boolean; allowList?: string } {
+  let write = false;
+  let allowList: string | undefined;
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--write") write = true;
+    else if (a === "--allow-list") {
+      allowList = argv[++i];
+      if (!allowList) throw new Error("--allow-list needs a path");
+    } else if (a.startsWith("--allow-list=")) {
+      allowList = a.slice("--allow-list=".length);
+    } else {
+      throw new Error(
+        `Unknown argument ${JSON.stringify(a)}. Accepted: --allow-list <file>, --write.` +
+          (a === "--force"
+            ? "\n--force was removed: a published key is never overwritten. Cut a new release instead."
+            : ""),
+      );
+    }
+  }
+  return { write, allowList };
+}
+
+let write = false;
 // Where a DRY RUN drops the bytes it would have uploaded, so the archive can be
 // read before it is published. Release keys are immutable and carry a one-year
 // `immutable` cache header, so a wrong README is not editable afterwards -- it
 // costs a whole new release segment. A dry run that only prints key names cannot
 // catch that; one you can open can.
 const emitDir = process.env.PRINTABLES_EMIT;
-// Re-PUT objects that are already present at the right size. Only needed to
-// repair a corrupted upload; the default skip is what makes a run resumable.
-const force = process.argv.includes("--force");
 
 // The publish is ~170 objects and 60 MB over one TLS session, and the first two
 // real runs both died partway with `ssl3_read_bytes: tls alert bad record mac`
 // at different objects. Without a retry AND a skip, every attempt restarts from
 // zero and the publish becomes a coin flip that gets more expensive each throw.
 //
-// Skipping is safe precisely because the keys are IMMUTABLE: a release segment
-// is never overwritten, so a key that exists at the expected size holds the
-// bytes this run would have written. That is what turns "run it again" into
-// "resume", and it is why the check is on size rather than a re-hash.
+// Skipping is safe precisely because the keys are IMMUTABLE and each object
+// carries the SHA-256 of its bytes: a key whose stored hash equals ours holds
+// exactly the bytes this run would write. It used to compare SIZE, which a
+// one-byte edit (a README typo fixed in place) passes -- so a rerun silently
+// kept the old bytes. A key with a DIFFERENT hash is now a refusal, never an
+// overwrite and never a skip.
 const MAX_ATTEMPTS = 5;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -188,68 +234,131 @@ function loadManifest(): Manifest {
 let r2!: R2Mod["r2"];
 let env!: EnvMod["env"];
 
-/** Byte size of an existing object, or null if it is absent (or unreadable). */
-async function existingSize(key: string): Promise<number | null> {
+const sha256 = (b: Buffer) => createHash("sha256").update(b).digest("hex");
+
+type Planned = {
+  key: string;
+  body: Buffer;
+  contentType: string;
+  sha256: string;
+};
+
+function plan(key: string, body: Buffer, contentType: string): Planned {
+  return { key, body, contentType, sha256: sha256(body) };
+}
+
+/** What a HEAD says about a key. Only a 404 means "absent". Every other error
+ *  (403, 5xx, a TLS drop) is FATAL: the old code read ANY failure as "absent"
+ *  and uploaded over whatever was there, so an expired token looked exactly
+ *  like an empty bucket. A stored hash that differs, or no stored hash at all,
+ *  refuses -- neither proves the published bytes are the ones we hold. */
+async function headState(p: Planned): Promise<"absent" | "same"> {
+  let out;
   try {
-    const out = await r2.send(
-      new HeadObjectCommand({ Bucket: env.R2_BUCKET!, Key: key }),
+    out = await r2.send(
+      new HeadObjectCommand({ Bucket: env.R2_BUCKET!, Key: p.key }),
     );
-    return out.ContentLength ?? null;
-  } catch {
-    return null;
+  } catch (err) {
+    const status = (err as { $metadata?: { httpStatusCode?: number } })
+      ?.$metadata?.httpStatusCode;
+    if (status === 404) return "absent";
+    const msg =
+      err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    throw new Error(
+      `HEAD ${p.key} failed (status ${status ?? "none"}; ${msg}). ` +
+        `Only a 404 means absent, so nothing was written.`,
+    );
   }
+  const stored = out.Metadata?.sha256;
+  if (stored === p.sha256) return "same";
+  throw new Error(
+    `${p.key} is already published with ${stored ? `sha256 ${stored}` : "no stored sha256"}, ` +
+      `but this run's bytes hash to ${p.sha256}. Published keys are immutable, so ` +
+      `this refuses and nothing was written. Cut a new release (PRINTABLES_RELEASE) instead.`,
+  );
 }
 
 let skipped = 0;
 let retried = 0;
 
-async function put(key: string, body: Buffer, contentType: string) {
-  const kb = `${(body.length / 1024).toFixed(0)} KB`;
-  if (!write) {
-    if (emitDir) {
-      const dest = join(emitDir, key);
-      mkdirSync(dirname(dest), { recursive: true });
-      writeFileSync(dest, body);
-    }
-    console.log(`  [dry] ${key}  (${kb})`);
-    return;
-  }
-
-  if (!force && (await existingSize(key)) === body.length) {
-    skipped++;
-    console.log(`  [skip] ${key}  (already published, ${kb})`);
-    return;
-  }
-
+async function putObject(p: Planned) {
+  const kb = `${(p.body.length / 1024).toFixed(0)} KB`;
+  const filename = p.key.split("/").pop()!;
   for (let attempt = 1; ; attempt++) {
     try {
       await r2.send(
         new PutObjectCommand({
           Bucket: env.R2_BUCKET!,
-          Key: key,
-          Body: body,
-          ContentType: contentType,
+          Key: p.key,
+          Body: p.body,
+          ContentType: p.contentType,
+          // Every object is a download, never something a browser renders
+          // inline (the LICENSE and a .step are both text a browser would show).
+          ContentDisposition: `attachment; filename="${filename}"`,
+          // Sent as x-amz-meta-sha256. What the next run's HEAD compares.
+          Metadata: { sha256: p.sha256 },
           // Immutable keys (see printableKey) make a long cache safe.
           CacheControl: "public, max-age=31536000, immutable",
         }),
       );
-      console.log(`  [put] ${key}  (${kb})`);
+      console.log(`  [put] ${p.key}  (${kb})`);
       return;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (attempt >= MAX_ATTEMPTS) {
         throw new Error(
-          `${key} failed after ${MAX_ATTEMPTS} attempts: ${msg}\n` +
+          `${p.key} failed after ${MAX_ATTEMPTS} attempts: ${msg}\n` +
             `Re-run the same command; published objects are skipped, so it resumes.`,
         );
       }
       retried++;
       const wait = 400 * 2 ** (attempt - 1);
-      console.log(`  [retry ${attempt}/${MAX_ATTEMPTS - 1}] ${key}: ${msg}`);
+      console.log(`  [retry ${attempt}/${MAX_ATTEMPTS - 1}] ${p.key}: ${msg}`);
       await sleep(wait);
     }
   }
 }
+
+/** Dry run: print (and, with PRINTABLES_EMIT, write out) every object, and make
+ *  NO call to R2 at all, not even a HEAD. Write: HEAD EVERY key first, so a
+ *  conflict or a HEAD error anywhere refuses before the first byte lands, then
+ *  PUT only the absent ones. */
+async function publish(objects: Planned[]) {
+  for (const p of objects) {
+    if (isManifestPath(p.key)) {
+      throw new Error(`Refusing ${p.key}: manifest.json is never uploaded.`);
+    }
+  }
+
+  if (!write) {
+    for (const p of objects) {
+      if (emitDir) {
+        const dest = join(emitDir, p.key);
+        mkdirSync(dirname(dest), { recursive: true });
+        writeFileSync(dest, p.body);
+      }
+      const kb = `${(p.body.length / 1024).toFixed(0)} KB`;
+      console.log(`  [dry] ${p.key}  (${kb}, sha256 ${p.sha256})`);
+    }
+    return;
+  }
+
+  console.log("\n-- preflight: HEAD every key --");
+  const toPut: Planned[] = [];
+  for (const p of objects) {
+    if ((await headState(p)) === "same") {
+      skipped++;
+      console.log(`  [skip] ${p.key}  (already published, same sha256)`);
+    } else {
+      toPut.push(p);
+    }
+  }
+  console.log(`\n-- upload: ${toPut.length} object(s) --`);
+  for (const p of toPut) await putObject(p);
+}
+
+/** The only formats that go inside a set zip (plan 1.3). */
+const ZIP_FORMATS = ["3mf"] as const;
 
 const CONTENT_TYPE: Record<string, string> = {
   "3mf": "model/3mf",
@@ -258,6 +367,10 @@ const CONTENT_TYPE: Record<string, string> = {
 };
 
 async function main() {
+  const args = parseArgs(process.argv.slice(2));
+  write = args.write;
+  const allowListPath = args.allowList || process.env.PRINTABLES_ALLOWLIST;
+
   const r2mod = await import("../src/lib/r2");
   ({ env } = await import("../src/env"));
   r2 = r2mod.r2;
@@ -266,6 +379,12 @@ async function main() {
   if (!env.R2_ENABLED || !env.R2_BUCKET) {
     throw new Error(
       "R2 is not configured (R2_ENABLED / R2_BUCKET). Refusing to run.",
+    );
+  }
+  if (!allowListPath) {
+    throw new Error(
+      "No allow-list. Pass --allow-list <file> (or set PRINTABLES_ALLOWLIST). " +
+        "Nothing is uploaded without one; format in scripts/lib/printables-allowlist.ts.",
     );
   }
 
@@ -281,13 +400,21 @@ async function main() {
   }
 
   const manifest = loadManifest();
+  const allow = loadAllowList(resolve(allowListPath));
   console.log(`source:  ${SOURCE_DIR}`);
   console.log(`release: ${RELEASE}`);
   console.log(`bucket:  ${env.R2_BUCKET}`);
+  console.log(`allow:   ${resolve(allowListPath)} (${allow.files.length} file(s))`);
   console.log(
     `mode:    ${write ? "WRITE (uploads to the real bucket)" : "DRY RUN"}`,
   );
   console.log(`parts:   ${manifest.parts.length}`);
+
+  if (allow.release !== RELEASE) {
+    throw new Error(
+      `Allow-list is for release ${allow.release}, but this run cuts ${RELEASE}. Refusing.`,
+    );
+  }
 
   // A part that failed the watertight gate is absent from the manifest, so it
   // can never reach the bucket by accident. Say so out loud anyway -- a silently
@@ -306,58 +433,97 @@ async function main() {
     );
   }
 
+  // EVERY SOURCE FILE this run would read into the bucket, checked against the
+  // allow-list BEFORE a single object is planned. Refusal is all-or-nothing.
+  const shipped = manifest.parts.filter((p) => !WITHHELD_PARTS.has(p.part));
+  const problems = checkAgainstAllowList(
+    shipped.flatMap((p) =>
+      Object.values(p.files).map((f) => ({ path: f.path, part: p.part })),
+    ),
+    allow,
+  );
+  for (const p of shipped) {
+    for (const fmt of Object.keys(p.files)) {
+      if (!CONTENT_TYPE[fmt]) problems.push(`${p.part}: unknown format "${fmt}"`);
+    }
+  }
+  if (problems.length > 0) {
+    throw new Error(
+      `Refusing: the upload does not match the allow-list (${problems.length} problem(s)):\n` +
+        problems.map((e) => `  - ${e}`).join("\n"),
+    );
+  }
+
+  const objects: Planned[] = [];
+
   // Standalone too, not just inside the zip: anyone grabbing a single .3mf by
   // URL never opens the archive, and CC BY only works if the terms travel.
-  await put(
-    printableLicenseKey(RELEASE),
-    Buffer.from(LICENSE_TXT, "utf8"),
-    "text/plain; charset=utf-8",
+  objects.push(
+    plan(
+      printableLicenseKey(RELEASE),
+      Buffer.from(LICENSE_TXT, "utf8"),
+      "text/plain; charset=utf-8",
+    ),
   );
 
-  console.log("\n-- individual files --");
-  for (const part of manifest.parts) {
-    if (WITHHELD_PARTS.has(part.part)) continue;
+  for (const part of shipped) {
     for (const [format, file] of Object.entries(part.files)) {
       const fmt = format as "3mf" | "stl" | "step";
-      const body = readFileSync(join(SOURCE_DIR, file.path));
-      await put(
-        printableKey(RELEASE, fmt, part.part, fmt),
-        body,
-        CONTENT_TYPE[fmt],
+      objects.push(
+        plan(
+          printableKey(RELEASE, fmt, part.part, fmt),
+          readFileSync(join(SOURCE_DIR, file.path)),
+          CONTENT_TYPE[fmt],
+        ),
       );
     }
   }
 
-  console.log("\n-- set archives --");
+  // A FIXED timestamp on every zip entry. JSZip otherwise stamps "now", so the
+  // same inputs produced a different archive on every run -- harmless while the
+  // skip compared sizes, fatal now that it compares hashes: a rerun after a
+  // dropped connection would find its own half-published zip "changed" and
+  // refuse. Derived from the release id, so a release's archive is reproducible.
+  // `createFolders: false` matters as much as the date: by default JSZip adds a
+  // `3mf/` and `stl/` directory entry for each path, and stamps THOSE with "now"
+  // whatever date the file entry carries. Extractors create the folders from the
+  // file paths regardless, so the entries carry nothing.
+  const zipDate = new Date(`${RELEASE}T00:00:00Z`);
+  const entryDate = Number.isNaN(zipDate.getTime())
+    ? new Date("1980-01-01T00:00:00Z")
+    : zipDate;
+
   for (const [setName, set] of Object.entries(SETS)) {
     const names = set.parts(manifest);
     const zip = new JSZip();
+    const add = (name: string, data: string | Buffer) =>
+      zip.file(name, data, { date: entryDate, createFolders: false });
     // The README describes the parts it actually ships with, so it is handed
     // the manifest rows for exactly those names, not the whole manifest.
     const setParts = manifest.parts.filter((p) => names.includes(p.part));
-    zip.file("README.txt", setReadme(set.label, names, setParts));
-    zip.file("LICENSE.txt", LICENSE_TXT);
+    add("README.txt", setReadme(set.label, names, setParts));
+    add("LICENSE.txt", LICENSE_TXT);
     for (const name of names) {
       const part = manifest.parts.find((p) => p.part === name);
       if (!part) continue;
-      // 3MF + STL only. STEP is the archival/remix format and stays a
-      // per-file download; bundling it would double the zip for no print value.
-      for (const fmt of ["3mf", "stl"] as const) {
+      // 3MF ONLY (owner decision, launch plan 1.3). STL and STEP stay per-part
+      // downloads and never go in the zip: 3MF carries units and part names, and
+      // bundling the fallbacks would double the archive for no print value.
+      for (const fmt of ZIP_FORMATS) {
         const file = part.files[fmt];
         if (!file) continue;
-        zip.file(
-          `${fmt}/${name}.${fmt}`,
-          readFileSync(join(SOURCE_DIR, file.path)),
-        );
+        add(`${fmt}/${name}.${fmt}`, readFileSync(join(SOURCE_DIR, file.path)));
       }
     }
     const body = await zip.generateAsync({
       type: "nodebuffer",
       compression: "DEFLATE",
     });
-    console.log(`  ${setName}: ${names.length} part(s)`);
-    await put(printableSetKey(RELEASE, setName), body, "application/zip");
+    console.log(`  set ${setName}: ${names.length} part(s)`);
+    objects.push(plan(printableSetKey(RELEASE, setName), body, "application/zip"));
   }
+
+  await publish(objects);
 
   const base = env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
   console.log(
@@ -469,8 +635,8 @@ function setReadme(
     "Configure a cluster and generate a build sheet:",
     "  https://demo.onethousanddrones.com/hex",
     "",
-    "Formats: 3mf/ (recommended -- carries units and part names)",
-    "         stl/ (universal fallback)",
+    "Format: 3mf/ (carries units and part names). STL and STEP are",
+    "        separate per-part downloads, not in this archive.",
     "",
     // CORRECTED 2026-08-02. The 2026-07-31 release says "Printed in PLA at
     // 0.2 mm". The material is PETG, and the 0.25 mm design gap is toleranced
@@ -556,7 +722,10 @@ function setReadme(
 // the owner's disclaimer slot.
 const LICENSE_TXT = hexLicenseTxt(RELEASE);
 
-main().catch((err) => {
+// Exported so the test can await the whole run and observe the exit code. A
+// refusal of ANY kind (allow-list, hash conflict, HEAD error) lands here and
+// exits non-zero.
+export const finished = main().catch((err) => {
   console.error(err instanceof Error ? err.message : err);
   process.exit(1);
 });
