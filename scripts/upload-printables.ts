@@ -355,6 +355,9 @@ async function publish(objects: Planned[]) {
   for (const p of toPut) await putObject(p);
 }
 
+/** The only formats that go inside a set zip (plan 1.3). */
+const ZIP_FORMATS = ["3mf"] as const;
+
 const CONTENT_TYPE: Record<string, string> = {
   "3mf": "model/3mf",
   stl: "model/stl",
@@ -490,9 +493,10 @@ async function main() {
     for (const name of names) {
       const part = manifest.parts.find((p) => p.part === name);
       if (!part) continue;
-      // 3MF + STL only. STEP is the archival/remix format and stays a
-      // per-file download; bundling it would double the zip for no print value.
-      for (const fmt of ["3mf", "stl"] as const) {
+      // 3MF ONLY (owner decision, launch plan 1.3). STL and STEP stay per-part
+      // downloads and never go in the zip: 3MF carries units and part names, and
+      // bundling the fallbacks would double the archive for no print value.
+      for (const fmt of ZIP_FORMATS) {
         const file = part.files[fmt];
         if (!file) continue;
         add(`${fmt}/${name}.${fmt}`, readFileSync(join(SOURCE_DIR, file.path)));
@@ -618,8 +622,8 @@ function setReadme(
     "Configure a cluster and generate a build sheet:",
     "  https://demo.onethousanddrones.com/hex",
     "",
-    "Formats: 3mf/ (recommended -- carries units and part names)",
-    "         stl/ (universal fallback)",
+    "Format: 3mf/ (carries units and part names). STL and STEP are",
+    "        separate per-part downloads, not in this archive.",
     "",
     // CORRECTED 2026-08-02. The 2026-07-31 release says "Printed in PLA at
     // 0.2 mm". The material is PETG, and the 0.25 mm design gap is toleranced

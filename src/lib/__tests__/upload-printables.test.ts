@@ -82,17 +82,26 @@ const savedEnv = { ...process.env };
 
 type Row = { path: string; part: string; licence?: string };
 
-function writeFixture(opts: { rows?: Row[]; extraManifestFile?: boolean } = {}) {
+function writeFixture(
+  opts: { rows?: Row[]; extraManifestFile?: boolean; step?: boolean } = {},
+) {
   mkdirSync(join(dir, "3mf"), { recursive: true });
   mkdirSync(join(dir, "stl"), { recursive: true });
+  mkdirSync(join(dir, "step"), { recursive: true });
   const parts = ["hex-a", "hex-b"];
   for (const p of parts) {
     writeFileSync(join(dir, "3mf", `${p}.3mf`), `3mf bytes of ${p}`);
     writeFileSync(join(dir, "stl", `${p}.stl`), `stl bytes of ${p}`);
+    if (opts.step) {
+      writeFileSync(join(dir, "step", `${p}.step`), `step bytes of ${p}`);
+    }
   }
   const files = (p: string) => ({
     "3mf": { path: `3mf/${p}.3mf`, bytes: 1, sha256: "x" },
     stl: { path: `stl/${p}.stl`, bytes: 1, sha256: "x" },
+    ...(opts.step
+      ? { step: { path: `step/${p}.step`, bytes: 1, sha256: "x" } }
+      : {}),
   });
   const manifestParts = parts.map((p) => ({
     part: p,
@@ -120,6 +129,9 @@ function writeFixture(opts: { rows?: Row[]; extraManifestFile?: boolean } = {}) 
     parts.flatMap((p) => [
       { path: `3mf/${p}.3mf`, part: p, licence: "cc-by" },
       { path: `stl/${p}.stl`, part: p, licence: "cc-by" },
+      ...(opts.step
+        ? [{ path: `step/${p}.step`, part: p, licence: "cc-by" }]
+        : []),
     ]);
   writeFileSync(
     join(dir, "allow.json"),
@@ -180,11 +192,12 @@ afterEach(() => {
 
 describe("upload-printables: write path", () => {
   it("PUTs every object with its sha256 metadata and Content-Disposition: attachment, never manifest.json", async () => {
-    writeFixture();
+    writeFixture({ step: true });
     expect(await run(allow(), "--write")).toBe(0);
 
     const p = puts();
-    // LICENSE + 2 parts x 2 formats + 1 set zip.
+    // LICENSE + 2 parts x 3 formats + 1 set zip. STL and STEP DO ship, as
+    // per-part files; they just never go in the zip.
     expect(p.map((c) => c.key).sort()).toEqual(
       [
         `printables/${RELEASE}/LICENSE.txt`,
@@ -192,6 +205,8 @@ describe("upload-printables: write path", () => {
         `printables/${RELEASE}/3mf/hex-b.3mf`,
         `printables/${RELEASE}/stl/hex-a.stl`,
         `printables/${RELEASE}/stl/hex-b.stl`,
+        `printables/${RELEASE}/step/hex-a.step`,
+        `printables/${RELEASE}/step/hex-b.step`,
         `printables/${RELEASE}/sets/hex-cluster.zip`,
       ].sort(),
     );
@@ -201,18 +216,19 @@ describe("upload-printables: write path", () => {
       expect((c.input.Metadata as Record<string, string>).sha256).toBe(sha(body));
       expect(c.key).not.toMatch(/manifest\.json$/i);
     }
-    // The set zip opens and carries the listed files plus README + LICENSE.
+    // The set zip is 3MF-ONLY (plan 1.3): the 3MFs plus README + LICENSE, and
+    // not one .stl, .step or manifest.json, although all of them were on hand.
     const zipPut = p.find((c) => c.key.endsWith("/sets/hex-cluster.zip"))!;
     const zip = await JSZip.loadAsync(zipPut.input.Body as Buffer);
-    expect(Object.keys(zip.files).sort()).toEqual(
-      [
-        "3mf/hex-a.3mf",
-        "3mf/hex-b.3mf",
-        "LICENSE.txt",
-        "README.txt",
-        "stl/hex-a.stl",
-        "stl/hex-b.stl",
-      ].sort(),
+    const entries = Object.keys(zip.files);
+    expect(
+      entries.filter((n) => /\.(stl|step)$|manifest\.json$/i.test(n)),
+    ).toEqual([]);
+    expect(entries.sort()).toEqual(
+      ["3mf/hex-a.3mf", "3mf/hex-b.3mf", "LICENSE.txt", "README.txt"].sort(),
+    );
+    expect(await zip.file("README.txt")!.async("string")).not.toMatch(
+      /^\s*stl\//m,
     );
     expect(await zip.file("3mf/hex-a.3mf")!.async("string")).toBe(
       "3mf bytes of hex-a",
