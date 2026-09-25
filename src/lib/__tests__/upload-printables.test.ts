@@ -12,6 +12,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import JSZip from "jszip";
 
 const bucket = vi.hoisted(() => ({
   store: new Map<string, { body: Buffer; meta: Record<string, string> }>(),
@@ -200,6 +201,22 @@ describe("upload-printables: write path", () => {
       expect((c.input.Metadata as Record<string, string>).sha256).toBe(sha(body));
       expect(c.key).not.toMatch(/manifest\.json$/i);
     }
+    // The set zip opens and carries the listed files plus README + LICENSE.
+    const zipPut = p.find((c) => c.key.endsWith("/sets/hex-cluster.zip"))!;
+    const zip = await JSZip.loadAsync(zipPut.input.Body as Buffer);
+    expect(Object.keys(zip.files).sort()).toEqual(
+      [
+        "3mf/hex-a.3mf",
+        "3mf/hex-b.3mf",
+        "LICENSE.txt",
+        "README.txt",
+        "stl/hex-a.stl",
+        "stl/hex-b.stl",
+      ].sort(),
+    );
+    expect(await zip.file("3mf/hex-a.3mf")!.async("string")).toBe(
+      "3mf bytes of hex-a",
+    );
     // Every PUT was preceded by a HEAD of the same key.
     const heads = bucket.calls.filter((c) => c.op === "head").map((c) => c.key);
     for (const c of p) expect(heads).toContain(c.key);
@@ -207,9 +224,18 @@ describe("upload-printables: write path", () => {
 
   it("a rerun of identical bytes skips everything: zero PUTs (the zip is reproducible)", async () => {
     writeFixture();
-    expect(await run(allow(), "--write")).toBe(0);
-    bucket.calls.length = 0;
-    expect(await run(allow(), "--write")).toBe(0);
+    // Move the clock between runs. A zip entry's default timestamp is "now" at
+    // 2-second DOS resolution, so two back-to-back runs would agree by accident.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2030-01-01T00:00:00Z"));
+      expect(await run(allow(), "--write")).toBe(0);
+      bucket.calls.length = 0;
+      vi.setSystemTime(new Date("2031-06-15T12:34:56Z"));
+      expect(await run(allow(), "--write")).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
     expect(puts()).toHaveLength(0);
   });
 

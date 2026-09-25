@@ -468,6 +468,10 @@ async function main() {
   // skip compared sizes, fatal now that it compares hashes: a rerun after a
   // dropped connection would find its own half-published zip "changed" and
   // refuse. Derived from the release id, so a release's archive is reproducible.
+  // `createFolders: false` matters as much as the date: by default JSZip adds a
+  // `3mf/` and `stl/` directory entry for each path, and stamps THOSE with "now"
+  // whatever date the file entry carries. Extractors create the folders from the
+  // file paths regardless, so the entries carry nothing.
   const zipDate = new Date(`${RELEASE}T00:00:00Z`);
   const entryDate = Number.isNaN(zipDate.getTime())
     ? new Date("1980-01-01T00:00:00Z")
@@ -477,7 +481,7 @@ async function main() {
     const names = set.parts(manifest);
     const zip = new JSZip();
     const add = (name: string, data: string | Buffer) =>
-      zip.file(name, data, { date: entryDate });
+      zip.file(name, data, { date: entryDate, createFolders: false });
     // The README describes the parts it actually ships with, so it is handed
     // the manifest rows for exactly those names, not the whole manifest.
     const setParts = manifest.parts.filter((p) => names.includes(p.part));
