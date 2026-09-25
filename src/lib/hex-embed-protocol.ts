@@ -29,7 +29,7 @@
 //      creates named, quota-bearing rows in the drawing register.
 //        - `bed-changed` writes UNCONDITIONALLY, because it is a choice the
 //          visitor just made in the picker. It is allowed because that write is
-//          bounded by BED_MIN/BED_MAX, idempotent, visible on /account and
+//          bounded by BED_FLOOR_MM/BED_MAX, idempotent, visible on /account and
 //          undoable there -- and because the alternative, a confirmation dialog
 //          for "which printer do you own", is chrome nobody reads.
 //        - `promote-bed` writes CONDITIONALLY: only if BOTH columns are still
@@ -43,14 +43,14 @@
 //      Widen this to anything that creates a row, spends a quota, or touches
 //      another person's data and the rule is not bent, it is gone.
 //
-// THE ONE IMPORT, and the only line the twin cannot share. `BED_MIN`/`BED_MAX`
-// come from the pack endpoint's own module rather than being restated here: a
+// THE ONE IMPORT, and the only line the twin cannot share. `BED_FLOOR_MM`/
+// `BED_MAX` come from the pack endpoint's own module rather than being restated here: a
 // third copy of those numbers drifts, and the symptom is a bed one surface
 // accepts and another refuses with no stated cause. The configurator's copy
 // imports the same two constants from its own bed module, so across the repos
 // the bounds are shared by VALUE, not by module -- which is exactly why the
 // RECEIVER validates rather than trusting the sender's range.
-import { BED_MAX, BED_MIN, type Bed } from "@/lib/hex-pack";
+import { BED_FLOOR_MM, BED_MAX, type Bed } from "@/lib/hex-pack";
 
 export type { Bed };
 
@@ -343,7 +343,7 @@ const isTheme = (v: unknown): v is "dark" | "light" =>
  *
  * INTEGERS, not merely finite numbers. `Number.isInteger` also excludes NaN and
  * both infinities, which is what makes the range comparison below safe --
- * `NaN < BED_MIN` is false, so a bare range check waves NaN straight through.
+ * `NaN < BED_FLOOR_MM` is false, so a bare range check waves NaN straight through.
  * The integer part is not decoration either: `setPrintBed` THROWS on a
  * fractional bed, so accepting 220.5 here would move a refusal from this
  * function, where it is a dropped message, into a handler where it is an
@@ -366,8 +366,8 @@ function isBed(v: unknown): v is Bed {
   if (Object.keys(b).length !== 2) return false;
   if (typeof b.x !== "number" || typeof b.y !== "number") return false;
   if (!Number.isInteger(b.x) || !Number.isInteger(b.y)) return false;
-  if (b.x < BED_MIN || b.x > BED_MAX) return false;
-  if (b.y < BED_MIN || b.y > BED_MAX) return false;
+  if (b.x < BED_FLOOR_MM || b.x > BED_MAX) return false;
+  if (b.y < BED_FLOOR_MM || b.y > BED_MAX) return false;
   return true;
 }
 

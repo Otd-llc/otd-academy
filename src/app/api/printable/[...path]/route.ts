@@ -19,6 +19,10 @@ import { getR2ObjectBytes } from "@/lib/part-r2";
 import { PRINTABLE_CONTENT_TYPE, resolvePrintable } from "@/lib/printable-key";
 import { distinctIdFromCookies } from "@/lib/posthog-distinct-id";
 
+/** A hard ceiling on one download's wall clock (launch readiness 5.5), so a
+ *  stalled R2 read cannot hold a function open for the platform maximum. */
+export const maxDuration = 30;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },

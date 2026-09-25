@@ -36,7 +36,8 @@ import {
   promotePrintBed,
   setPrintBed,
 } from "@/lib/actions/print-bed";
-import { BED_MAX, BED_MIN } from "@/lib/print-bed";
+import { BED_FLOOR_MM, BED_MAX } from "@/lib/print-bed";
+import { BED_MIN } from "@/lib/hex-pack";
 import { HEX_PART_SLUGS } from "@/lib/hex-parts";
 import { HEX_RELEASE } from "@/lib/hex-spec";
 import { resolvePack } from "@/lib/hex-pack";
@@ -85,10 +86,13 @@ describe("setPrintBed", () => {
   });
 
   test("accepts exactly the bounds", async () => {
-    // The inclusive edges. `< BED_MIN` and `<= BED_MIN` differ by one machine,
-    // and a 100 mm bed is a real printer, not a pathological input.
-    await setPrintBed({ x: BED_MIN, y: BED_MIN });
-    expect(await row()).toEqual({ printBedXMm: BED_MIN, printBedYMm: BED_MIN });
+    // The inclusive edges. The low one is the pack endpoint's FLOOR (owner
+    // decision 1.5), so `<` and `<=` differ by a 220 mm printer.
+    await setPrintBed({ x: BED_FLOOR_MM, y: BED_FLOOR_MM });
+    expect(await row()).toEqual({
+      printBedXMm: BED_FLOOR_MM,
+      printBedYMm: BED_FLOOR_MM,
+    });
     await setPrintBed({ x: BED_MAX, y: BED_MAX });
     expect(await row()).toEqual({ printBedXMm: BED_MAX, printBedYMm: BED_MAX });
   });
@@ -96,8 +100,8 @@ describe("setPrintBed", () => {
   test("refuses one millimetre outside either bound, on either axis", async () => {
     const stored = await row();
     for (const bad of [
-      { x: BED_MIN - 1, y: 220 },
-      { x: 220, y: BED_MIN - 1 },
+      { x: BED_FLOOR_MM - 1, y: 220 },
+      { x: 220, y: BED_FLOOR_MM - 1 },
       { x: BED_MAX + 1, y: 220 },
       { x: 220, y: BED_MAX + 1 },
     ]) {
@@ -197,7 +201,7 @@ describe("promotePrintBed — the conditional write", () => {
     // likely, never impossible, because a slow account read is indistinguishable
     // from no account bed at all.
     await setPrintBed({ x: 235, y: 235 });
-    const res = await promotePrintBed({ x: 180, y: 180 });
+    const res = await promotePrintBed({ x: 250, y: 250 });
     expect(res.promoted).toBe(false);
     // Not "did not report success" — DID NOT WRITE. An action that reported a
     // decline and clobbered the column anyway would pass a `promoted` assertion
@@ -237,7 +241,7 @@ describe("promotePrintBed — the conditional write", () => {
     // both read null and both write; a single conditional statement cannot.
     await setPrintBed(null);
     const results = await Promise.all([
-      promotePrintBed({ x: 180, y: 180 }),
+      promotePrintBed({ x: 250, y: 250 }),
       promotePrintBed({ x: 350, y: 350 }),
     ]);
     const won = results.filter((r) => r.promoted);
@@ -258,7 +262,7 @@ describe("promotePrintBed — the conditional write", () => {
     // would be a second, weaker door into the same two columns.
     await setPrintBed(null);
     const bad: unknown[] = [
-      { x: BED_MIN - 1, y: 220 },
+      { x: BED_FLOOR_MM - 1, y: 220 },
       { x: 220, y: BED_MAX + 1 },
       { x: 220.5, y: 220 },
       { x: Number.NaN, y: 220 },
@@ -341,13 +345,12 @@ describe("what is stored is what the endpoint accepts", () => {
 
   test("every bed the action stores resolves on the pack endpoint", async () => {
     const beds = [
-      { x: BED_MIN, y: BED_MIN },
+      { x: BED_FLOOR_MM, y: BED_FLOOR_MM },
       { x: BED_MAX, y: BED_MAX },
-      { x: 180, y: 180 },
       { x: 220, y: 220 },
       { x: 350, y: 350 },
       { x: 300, y: 250 },
-      { x: BED_MIN, y: BED_MAX },
+      { x: BED_FLOOR_MM, y: BED_MAX },
     ];
     for (const bed of beds) {
       const res = await setPrintBed(bed);
@@ -369,6 +372,10 @@ describe("what is stored is what the endpoint accepts", () => {
     // LOOSER than the endpoint -- which is the direction that produces a saved
     // setting and a broken download.
     for (const bed of [
+      // Under the floor but inside the grammar: the endpoint refuses it with a
+      // message, so an account must not be able to store it.
+      { x: 180, y: 180 },
+      { x: BED_FLOOR_MM - 1, y: BED_FLOOR_MM },
       { x: BED_MIN - 1, y: BED_MIN - 1 },
       { x: BED_MAX + 1, y: BED_MAX + 1 },
       { x: 0, y: 0 },

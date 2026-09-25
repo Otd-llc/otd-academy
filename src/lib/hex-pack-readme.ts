@@ -376,10 +376,25 @@ export function plateReadme(opts: {
    *  hold -- which is exactly what a default here would produce the first time a
    *  caller forgot to pass one. */
   stem: string;
+  /** One-based: this archive holds ONLY that plate of the plan (a per-plate
+   *  download). The manifest then lists just the file the archive holds, under
+   *  the same `i-of-N` name the plan gives it. */
+  only?: number;
 }): string {
   const plateCount = opts.plates.length;
-  const instances = opts.plates.reduce((n, p) => n + p.length, 0);
+  const held =
+    opts.only === undefined
+      ? opts.plates.map((plate, i) => ({ plate, n: i + 1 }))
+      : [{ plate: opts.plates[opts.only - 1], n: opts.only }];
+  if (held.some((h) => h.plate === undefined)) {
+    throw new Error(`plate ${opts.only} is not in a plan of ${plateCount}`);
+  }
+  const instances = held.reduce((n, h) => n + h.plate.length, 0);
   const bed = `${opts.bed.x} x ${opts.bed.y} mm`;
+  const scope =
+    opts.only === undefined
+      ? `${plural(instances, "part")} on ${plural(plateCount, "plate")}`
+      : `plate ${opts.only} of ${plateCount}, holding ${plural(instances, "part")}`;
 
   return [
     "Hex Cluster -- packed plates",
@@ -388,8 +403,7 @@ export function plateReadme(opts: {
     ascii(opts.specUrl),
     "",
     ...wrap(
-      `This is a SUBSET: ${plural(instances, "part")} on ` +
-        `${plural(plateCount, "plate")}, packed for a ${bed} bed, as 3MF, ` +
+      `This is a SUBSET: ${scope}, packed for a ${bed} bed, as 3MF, ` +
         `chosen in the configurator. Release ${ascii(opts.release)}. The ` +
         "complete set, every format, and every part individually are at the " +
         "address above.",
@@ -401,9 +415,9 @@ export function plateReadme(opts: {
     // folder holding `plate-1.3mf` is the defect class this feature has already
     // shipped once: a filename disagreeing with its contents passed a green
     // suite, because nothing compared the two.
-    `Plates (${plateCount}):`,
-    ...opts.plates.flatMap((plate, i) => [
-      `  ${platePath(i + 1, plateCount, opts.stem)} -- ${plural(plate.length, "part")}`,
+    `Plates (${held.length === plateCount ? plateCount : `${held.length} of ${plateCount}`}):`,
+    ...held.flatMap(({ plate, n }) => [
+      `  ${platePath(n, plateCount, opts.stem)} -- ${plural(plate.length, "part")}`,
       ...tally(plate).map((r) => `    ${r.qty} x ${ascii(r.name)}`),
     ]),
     "",
@@ -442,7 +456,7 @@ export function plateReadme(opts: {
     // Named by their PUBLISHED spelling, matching the plate manifest above and
     // the slicer's own object list -- the reader is looking at both.
     ...supportLines(
-      opts.plates.flat().map((p) => ({ slug: p.slug, label: p.name })),
+      held.flatMap((h) => h.plate).map((p) => ({ slug: p.slug, label: p.name })),
     ),
     "",
     "Licensed CC BY 4.0 -- see LICENSE.txt.",

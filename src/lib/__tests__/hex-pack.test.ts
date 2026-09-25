@@ -9,9 +9,13 @@ import { describe, expect, it } from "vitest";
 import { HEX_PART_SLUGS, isHexPartSlug } from "@/lib/hex-parts";
 import { HEX_PART_COUNT } from "@/lib/hex-spec";
 import {
+  BED_FLOOR_MM,
   BED_MAX,
   BED_MIN,
   DEFAULT_BED,
+  PACK_PATH,
+  canonicalPackQuery,
+  packPlateLinks,
   MAX_PACK_INSTANCES,
   MAX_PACK_PARTS,
   PART_SLUG_RE,
@@ -435,8 +439,9 @@ describe("the bed", () => {
   it("accepts both ENDS of the range -- the bounds are inclusive", () => {
     // The refusal list below only proves that values well outside the range are
     // refused. A `<=` where a `<` belongs would turn the smallest legitimate bed
-    // into a 400 and still pass every other test here.
-    for (const n of [BED_MIN, BED_MAX]) {
+    // into a 400 and still pass every other test here. The low end is the
+    // FLOOR (owner decision 1.5), not the grammar's `BED_MIN`.
+    for (const n of [BED_FLOOR_MM, BED_MAX]) {
       const r = resolvePack({
         release: RELEASE,
         parts: ONE,
@@ -474,5 +479,134 @@ describe("the bed", () => {
     expect(
       resolvePack({ release: RELEASE, parts: ONE, plate: "40x40" }),
     ).toEqual({ ok: false, problem: "bad-bed" });
+  });
+});
+
+describe("the bed floor (owner decision 1.5: 220 x 220)", () => {
+  it("is 220, and above the grammar's own minimum", () => {
+    expect(BED_FLOOR_MM).toBe(220);
+    expect(BED_FLOOR_MM).toBeGreaterThan(BED_MIN);
+  });
+
+  it("refuses a bed under it on EITHER axis, and says so specifically", () => {
+    for (const plate of ["180x180", "219x220", "220x219", `${BED_MIN}x${BED_MIN}`]) {
+      expect(resolvePack({ release: RELEASE, parts: ONE, plate }), plate).toEqual({
+        ok: false,
+        problem: "below-bed-floor",
+      });
+    }
+  });
+
+  it("CONTROL: under the GRAMMAR is still malformed, not merely small", () => {
+    expect(
+      resolvePack({ release: RELEASE, parts: ONE, plate: `${BED_MIN - 1}x300` }),
+    ).toEqual({ ok: false, problem: "bad-bed" });
+  });
+
+  it("is the default bed, so a link with no bed is never below it", () => {
+    const r = resolvePack({ release: RELEASE, parts: ONE });
+    expect(r.ok && r.request.bed).toEqual({ x: BED_FLOOR_MM, y: BED_FLOOR_MM });
+  });
+});
+
+describe("plate_index", () => {
+  it("reads a one-based plate number", () => {
+    const r = resolvePack({ release: RELEASE, parts: ONE, plateIndex: "12" });
+    expect(r.ok && r.request.plateIndex).toBe(12);
+  });
+
+  it("refuses zero, a sign, a leading zero, a decimal and four digits", () => {
+    for (const v of ["0", "-1", "+1", "01", "1.0", "1000", "", "x"]) {
+      expect(
+        resolvePack({ release: RELEASE, parts: ONE, plateIndex: v }),
+        JSON.stringify(v),
+      ).toEqual({ ok: false, problem: "bad-plate-index" });
+    }
+  });
+
+  it("refuses a plate of an STL request, which has no plates", () => {
+    expect(
+      resolvePack({ release: RELEASE, format: "stl", parts: ONE, plateIndex: "1" }),
+    ).toEqual({ ok: false, problem: "bad-plate-index" });
+  });
+});
+
+describe("the canonical query", () => {
+  const resolved = (input: Parameters<typeof resolvePack>[0]) => {
+    const r = resolvePack(input);
+    if (!r.ok) throw new Error(`did not resolve: ${r.problem}`);
+    return r.request;
+  };
+
+  it("sorts the parts, sums repeats and writes a quantity of one bare", () => {
+    const req = resolved({
+      release: RELEASE,
+      parts: `${TWO}:1,${ONE}:2,${TWO}:2`,
+      plate: "350x350",
+    });
+    expect(req.parts.map((p) => p.slug)).toEqual([ONE, TWO].sort());
+    expect(canonicalPackQuery(req)).toBe(
+      `release=${RELEASE}&parts=${[`${ONE}:2`, `${TWO}:3`].sort().join(",")}&plate=350x350`,
+    );
+  });
+
+  it("states the default bed, and omits every other default", () => {
+    expect(canonicalPackQuery(resolved({ release: RELEASE, parts: ONE }))).toBe(
+      `release=${RELEASE}&parts=${ONE}&plate=220x220`,
+    );
+  });
+
+  it("spells format, name, bedFrom and plate_index in a fixed order", () => {
+    const req = resolved({
+      release: RELEASE,
+      parts: ONE,
+      plate: "256x256",
+      name: "TB-1 POWER",
+      bedFrom: "<img src=x>",
+      plateIndex: "3",
+    });
+    expect(canonicalPackQuery(req)).toBe(
+      `release=${RELEASE}&parts=${ONE}&plate=256x256&name=TB-1%20POWER&bedFrom=unknown&plate_index=3`,
+    );
+    const stl = resolved({ release: RELEASE, parts: ONE, format: "stl" });
+    expect(canonicalPackQuery(stl)).toBe(
+      `release=${RELEASE}&parts=${ONE}&plate=220x220&format=stl`,
+    );
+  });
+
+  it("is a FIXED POINT: resolving the canonical query gives it back", () => {
+    // What stops a redirect loop. A browser following the 307 sends these
+    // bytes back; if they resolved to a different canonical string, the route
+    // would redirect again, forever.
+    for (const input of [
+      { release: RELEASE, parts: `${TWO},${ONE}:3`, name: "ハニカム / tiles #1?" },
+      { release: RELEASE, parts: ONE, name: "a&b=c+d%20", bedFrom: "account" },
+      { release: RELEASE, parts: ONE, format: "stl", plate: "1000x300" },
+    ]) {
+      const canon = canonicalPackQuery(resolved(input));
+      const url = new URL(`https://x.test${PACK_PATH}?${canon}`);
+      expect(url.search, "the URL parser must not respell it").toBe(`?${canon}`);
+      const q = url.searchParams;
+      const again = resolved({
+        release: q.get("release"),
+        format: q.get("format"),
+        parts: q.get("parts"),
+        plate: q.get("plate"),
+        name: q.get("name"),
+        bedFrom: q.get("bedFrom"),
+        plateIndex: q.get("plate_index"),
+      });
+      expect(canonicalPackQuery(again)).toBe(canon);
+    }
+  });
+
+  it("lists one link per plate, each canonical and numbered from 1", () => {
+    const req = resolved({ release: RELEASE, parts: `${ONE}:4`, plate: "300x300" });
+    const links = packPlateLinks(req, 3);
+    expect(links).toHaveLength(3);
+    links.forEach((link, i) => {
+      expect(link).toBe(`${PACK_PATH}?${canonicalPackQuery({ ...req, plateIndex: i + 1 })}`);
+      expect(link.endsWith(`&plate_index=${i + 1}`)).toBe(true);
+    });
   });
 });
