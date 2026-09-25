@@ -263,8 +263,8 @@ export function SaveHexClusterForm({
 
         {phase.kind === "no-payload" && (
           <InlineBanner variant="error">
-            There is no build to save here. Open the configurator, press Export,
-            then Save.
+            There is no build to save here. Open the Hex Cluster configurator,
+            place your cells, then press Export and Save.
           </InlineBanner>
         )}
 
@@ -278,7 +278,7 @@ export function SaveHexClusterForm({
         {phase.kind === "lost-in-signin" && (
           <InlineBanner variant="error">
             Your build could not be carried through sign-in. Go back to the
-            configurator and press Save again — you are signed in now, so it
+            configurator and press Save again. You are signed in now, so it
             will go straight through.
           </InlineBanner>
         )}

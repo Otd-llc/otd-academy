@@ -85,8 +85,8 @@ export default async function AccountPage() {
           ▸ Printing
         </p>
         <p className="mt-1 font-serif text-sm text-muted">
-          The bed your 3D printer has. Hex cluster downloads arrive arranged for it,
-          on as few plates as it takes.
+          Your printer&apos;s bed size. Hex Cluster downloads are laid out for it,
+          on as few plates as it takes. The parts need at least 220 × 220 mm.
         </p>
         <PrintBedSetting
           initialBed={bedFromColumns(user.printBedXMm, user.printBedYMm)}

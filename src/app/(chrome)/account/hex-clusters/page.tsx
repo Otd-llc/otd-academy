@@ -27,7 +27,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const CONFIGURATOR = "https://demo.onethousanddrones.com/hex";
+// The academy's own framed configurator, not the standalone host: `open=1` is
+// the deep link HexConfiguratorFrame reads to open the panel on arrival.
+const CONFIGURATOR = "/hex?open=1";
 
 export default async function HexClustersPage({
   searchParams,
@@ -116,14 +118,14 @@ export default async function HexClustersPage({
               "Nothing archived."
             ) : (
               <>
-                No saved builds yet. Build a cluster in the{" "}
+                No saved builds yet. Open the{" "}
                 <a
                   href={CONFIGURATOR}
                   className="text-command-gold underline underline-offset-4"
                 >
-                  hex configurator
+                  Hex Cluster configurator
                 </a>
-                , press Export, then Save.
+                , place your cells, then press Export and Save.
               </>
             )}
           </p>
