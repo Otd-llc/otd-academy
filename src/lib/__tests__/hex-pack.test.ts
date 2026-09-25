@@ -61,8 +61,11 @@ describe("the published part list", () => {
   });
 
   it("rejects a well-formed slug that is not one of ours", () => {
-    expect(isHexPartSlug("hex-tb-main")).toBe(true);
+    expect(isHexPartSlug("hex-main")).toBe(true);
     expect(isHexPartSlug("not-a-real-part")).toBe(false);
+    // A v1 part is well formed and was published, and is not one of ours any
+    // more: it is the published record, not the release.
+    expect(isHexPartSlug("hex-tb-main")).toBe(false);
   });
 });
 
@@ -545,8 +548,14 @@ describe("the canonical query", () => {
       plate: "350x350",
     });
     expect(req.parts.map((p) => p.slug)).toEqual([ONE, TWO].sort());
+    // Ordered by SLUG, not by the token text: `25mm-ins` sorts before
+    // `25mm-ins-female`, but `25mm-ins:2` sorts after `25mm-ins-female:3`.
+    const qty: Record<string, number> = { [ONE]: 2, [TWO]: 3 };
     expect(canonicalPackQuery(req)).toBe(
-      `release=${RELEASE}&parts=${[`${ONE}:2`, `${TWO}:3`].sort().join(",")}&plate=350x350`,
+      `release=${RELEASE}&parts=${[ONE, TWO]
+        .sort()
+        .map((s) => `${s}:${qty[s]}`)
+        .join(",")}&plate=350x350`,
     );
   });
 

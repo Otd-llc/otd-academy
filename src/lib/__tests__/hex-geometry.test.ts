@@ -1,20 +1,22 @@
-// The generated part geometry table.
+// The generated part geometry table (hex-cluster `tools/gen_release_tables.py`,
+// launch readiness 4.6).
 //
 // A generated file is only as good as the thing that checks it, and this one is
-// checked against three sources it did not come from: the published slug list,
-// the two constants that define the smallest bed we accept, and the release the
-// rest of the app publishes. The generator's own manifest cross-check (against
-// the FreeCAD solid's bounding box) runs at generation time and cannot run here,
-// because the meshes live in a sibling repo that never ships with the app.
+// checked against sources it did not come from: the published slug list, the
+// bed floor and the packer's gap, and the release the rest of the app
+// publishes. The generator's own cross-check (each derived print-pose size
+// against the manifest's `printBboxMm`) runs at generation time and cannot run
+// here, because the manifest lives in a sibling repo that never ships with the
+// app. The file's integrity is `hex-release-tables.test.ts`.
 import { describe, expect, it } from "vitest";
 
 import {
   HEX_GEOMETRY_RELEASE,
   HEX_PART_BOX,
-  HEX_PART_MESH_BOTTOM,
+  HEX_PART_CORNER_INEXACT,
   HEX_PART_NAME,
 } from "@/lib/hex-geometry";
-import { BED_MIN } from "@/lib/hex-pack";
+import { BED_FLOOR_MM } from "@/lib/hex-pack";
 import { HEX_PART_SLUGS } from "@/lib/hex-parts";
 import { PLATE_GAP } from "@/lib/hex-plate";
 import { HEX_RELEASE } from "@/lib/hex-spec";
@@ -44,7 +46,10 @@ import { slug } from "@/lib/r2";
  * red test in the repo doing the bumping, which is the only side that knows it
  * happened. Moving it is the moment to open the configurator's PR.
  */
-const CONFIGURATOR_PINNED_RELEASE = "2026-08-17";
+// Moved deliberately to the v2 release with 4.6 ("CONFIGURATOR_PINNED_RELEASE
+// is updated deliberately"). The configurator's own copy is regenerated on its
+// branch (launch readiness phase 7), not here.
+const CONFIGURATOR_PINNED_RELEASE = "2026-10-01";
 
 describe("the geometry table", () => {
   it("is still the release the configurator pinned its copy to", () => {
@@ -66,26 +71,20 @@ describe("the geometry table", () => {
     }
   });
 
-  it("has no part too large for the smallest bed we accept, margin included", () => {
+  it("has no part too large for the bed floor, margin included", () => {
     // The design leans on this: a bed picker changes the plate COUNT and can
-    // never make a part unprintable. If a future part breaks it, that promise
-    // needs revisiting, not this assertion relaxing.
+    // never make a part unprintable. The pack route refuses any bed under
+    // BED_FLOOR_MM (decision 1.5), so the floor is the smallest bed a part must
+    // fit.
     //
     // The margin is part of the invariant, not decoration. The packer throws
-    // when `size + 2 * PLATE_GAP` exceeds the bed, so a bare `< BED_MIN` check
-    // would pass a 95 mm part and then throw on a 100 mm bed. DERIVED from the
-    // two constants rather than typed as a number, so widening the gap or
-    // lowering the floor is caught here instead of at a stranger's printer.
+    // when `size + 2 * PLATE_GAP` exceeds the bed. DERIVED from the two
+    // constants rather than typed as a number. Both dimensions are held to the
+    // floor because the packer does not rotate parts.
     //
-    // Both dimensions are held to the SMALLER of the two bed limits because a
-    // bed need not be square: 100 x 1000 is an accepted bed, and the packer does
-    // not rotate parts, so a part is only safe if it clears BED_MIN on the axis
-    // it happens to be long in.
-    //
-    // Headroom on the 2026-08-03 set: the largest footprint is hex-tb-main and
-    // the four hex-tb-half-top parts at 87.7572 mm, against a limit of 92, so
-    // 4.2428 mm to spare.
-    const limit = BED_MIN - 2 * PLATE_GAP;
+    // Headroom on the 2026-10-01 tables: the widest part is
+    // hex-jig-tolerance-ladder at 210 mm against a limit of 212.
+    const limit = BED_FLOOR_MM - 2 * PLATE_GAP;
     for (const [slug, box] of Object.entries(HEX_PART_BOX)) {
       expect(Math.max(box.dx, box.dy), `${slug} footprint`).toBeLessThanOrEqual(
         limit,
@@ -151,76 +150,44 @@ describe("the geometry table", () => {
     }
   });
 
-  it("agrees with the mesh text about where every part's floor is", () => {
-    // The generator's own seat gate, repeated here so it also holds for a table
-    // nobody regenerated. `z0` is `HEX_PART_MESH_BOTTOM` parsed; a rounding
-    // introduced in the numeric path, or a value edited by hand into the file
-    // marked "do not edit by hand", breaks the pair. The whole feature rests on
-    // `z0` being the mesh's real minimum, because the writer negates it to seat
-    // the part -- 0.144 instead of 0.144338 is what left one object 3.38e-4 mm
-    // off a bed the rest of the plate sat on.
-    //
-    // Held from BOTH sides first: a floor with no box is a part the writer will
-    // never place, and a box with no floor is one the seat sweep in
-    // `hex-3mf.test.ts` would silently stop covering.
-    expect(Object.keys(HEX_PART_MESH_BOTTOM).sort()).toEqual(
-      Object.keys(HEX_PART_BOX).sort(),
-    );
-    for (const [slug, text] of Object.entries(HEX_PART_MESH_BOTTOM)) {
-      expect(Number(text), `${slug} floor text "${text}"`).toBe(
-        HEX_PART_BOX[slug].z0,
-      );
+  it("seats every part on the bed: z0 is 0", () => {
+    // The v2 exporter drops every part onto Z = 0 before it writes the mesh
+    // (`oriented_for_print` in hex-cluster), so the writer's `-z0` is 0 for
+    // every part. A non-zero value here would be a table describing some other
+    // exporter, and the plate would float that part.
+    for (const [slug, box] of Object.entries(HEX_PART_BOX)) {
+      expect(box.z0, slug).toBe(0);
     }
   });
 
-  it("records the minimum corner unrounded, at the precision the mesh states it", () => {
-    // THE HALF OF THE SEAT INVARIANT THAT NOTHING ELSE IN CI CAN SEE.
+  it("records measured boxes, not rounded or reordered ones", () => {
+    // Pinned measurements from the 2026-09-21 build manifest. Two kinds:
     //
-    // `hex-3mf.test.ts` proves the writer seats a part exactly where the table
-    // says its mesh bottom is. Whether the table is RIGHT about that is a
-    // question only the mesh can answer, and the meshes are a sibling checkout
-    // that never ships with the app. So the two values below are pinned: they
-    // are measurements, taken from release 2026-08-03, recorded here because
-    // this repo has nothing else to compare against.
+    //   hex-main is axis-aligned, so its corner is EXACT: the source box
+    //   (originMm -95.381, -86.603) is the print box, and its size is
+    //   printBboxMm 190.762 x 169.205 x 80.
     //
-    // Both were rounded to 3 dp by the generator until 2026-08-15, and both
-    // spellings are quoted so a regression is obvious rather than arithmetic:
-    //
-    //   z0  Hex-TB-Spike-Ball-Joint.3mf's lowest vertex is verbatim
-    //       `<vertex x="25.5" y="-39.3851" z="0.144338" />`. Stored as 0.144, the
-    //       writer emitted `tz = -0.144` and left that one part 3.38e-4 mm above
-    //       a bed every other object on the plate sat exactly on -- which is what
-    //       made Creality Print offer to fuse the plate into one multi-part
-    //       object. It is the only part whose `z0` is anything but float noise,
-    //       because it is the only one whose upstream drop-to-bed used a slightly
-    //       enlarged OCC bounding box.
-    //
-    //   x0  Hex-TB-Main measures -43.8786 and was stored as -43.879. Independently
-    //       confirmed by the known-good reference plate, which was opened in
-    //       Creality Print V7.2.1 and places it with `tx = 47.8786` from a target
-    //       of 4 mm: 4 - (-43.8786). Nothing on a bed notices 0.4 micron, so this
-    //       one is pinned because it is the same mistake rather than because it
-    //       hurt.
-    //
-    // A re-cut that legitimately changes either number fails here. That is the
-    // intended behaviour: these are facts about a specific mesh set, the release
-    // stamp below is pinned for the same reason, and "re-measure it" is the
-    // correct response to both.
-    expect(HEX_PART_BOX["hex-tb-spike-ball-joint"].z0).toBe(0.144338);
-    expect(HEX_PART_BOX["hex-tb-main"].x0).toBe(-43.8786);
+    //   hex-cap-edge-1h-f is turned X 90 to print, so its source z (0..80)
+    //   becomes -y: y0 is -80. A generator that forgot to rotate the corner
+    //   would carry the source y0, 73.603, and fails here.
+    expect(HEX_PART_BOX["hex-main"]).toEqual({
+      x0: -95.381, y0: -86.603, z0: 0, dx: 190.762, dy: 169.205, dz: 80,
+    });
+    expect(HEX_PART_BOX["hex-cap-edge-1h-f"].y0).toBe(-80);
+    expect(HEX_PART_BOX["hex-cap-edge-1h-f"].dy).toBe(80);
+  });
 
-    // And that the ball joint is still the ONLY part sitting meaningfully off
-    // its own origin. Without this, a re-cut could introduce a second such part
-    // and the pin above would keep passing while the new one went unexamined.
-    // 1e-11 mm separates the exporter's float noise (the largest is
-    // `hex-tb-spike-solid` at 1.90781e-12) from real geometry by two orders of
-    // magnitude on one side and eight on the other; it is a classifier here, NOT
-    // a seat tolerance. The seat tolerance is zero, and it lives in
-    // `hex-3mf.test.ts` with its own argument.
-    const real = Object.entries(HEX_PART_BOX)
-      .filter(([, box]) => Math.abs(box.z0) > 1e-11)
-      .map(([slug]) => slug);
-    expect(real).toEqual(["hex-tb-spike-ball-joint"]);
+  it("estimates a corner only where the pose forces it, and by less than the gap", () => {
+    // A pose that is not axis-aligned (the four male edge caps at Z 60, the two
+    // spikes at Z +-60) has no exact corner in the manifest. The generator emits
+    // the middle of the range the true corner must lie in and records the worst
+    // error. That error must stay inside the packer's gap, or an estimated part
+    // could reach its neighbour.
+    for (const [slug, err] of Object.entries(HEX_PART_CORNER_INEXACT)) {
+      expect(HEX_PART_BOX[slug], slug).toBeDefined();
+      expect(err, slug).toBeGreaterThan(0);
+      expect(err, slug).toBeLessThan(PLATE_GAP);
+    }
   });
 
   it("was regenerated for the release the app publishes", () => {

@@ -19,11 +19,7 @@ import {
 } from "@/lib/hex-3mf";
 import { PRUSA_CONFIG_PATH } from "@/lib/hex-prusa-config";
 import { HEX_LICENSE } from "@/lib/hex-spec";
-import {
-  HEX_PART_BOX,
-  HEX_PART_MESH_BOTTOM,
-  HEX_PART_NAME,
-} from "@/lib/hex-geometry";
+import { HEX_PART_BOX, HEX_PART_NAME } from "@/lib/hex-geometry";
 import type { Placement } from "@/lib/hex-plate";
 
 /** The exact shape every published part ships in -- one `<object id="1"
@@ -201,11 +197,16 @@ const ALL = Object.entries(HEX_PART_BOX).map(([slug, box], i) => ({
   x: 4 + i * 100,
   y: 4,
 }));
+/** Each part's lowest vertex at z = "0": the v2 exporter drops every part onto
+ *  the bed before it writes the mesh, and the table's `z0` is 0 to match. The v1
+ *  tables transcribed each mesh's own lowest-vertex text (`HEX_PART_MESH_BOTTOM`)
+ *  so this sweep could not be circular; the v2 tables come from the manifest,
+ *  which does not carry it. What this still proves is that the WRITER seats a
+ *  part at exactly zero from the table. Whether a v2 mesh's lowest vertex is
+ *  exactly 0 rather than float noise is a property of the upload, checked on
+ *  the published objects, not here. */
 const ALL_SOURCES = new Map(
-  Object.keys(HEX_PART_BOX).map((slug) => [
-    slug,
-    sourceAtZ(HEX_PART_MESH_BOTTOM[slug]),
-  ]),
+  Object.keys(HEX_PART_BOX).map((slug) => [slug, sourceAtZ("0")]),
 );
 
 describe("extractObjectBlock", () => {
@@ -482,24 +483,18 @@ describe("buildPlate3mf", () => {
     //      mesh minimum or the writer quantised the translation -- both real
     //      defects, neither of which has a benign magnitude.
     //
-    // EACH FIXTURE'S LOWEST VERTEX IS THE MESH'S OWN TEXT, not the table's `z0`,
-    // and that is what stops this from being circular. `z0` is that text parsed
-    // by the script that used to round it, so a fixture built from `z0` would sit
-    // at the same wrong height as the translation meant to cancel it, seat
-    // perfectly against itself, and pass -- the real defect would have gone
-    // straight through. Measured rather than reasoned: with both shipped
-    // roundings restored and the fixture reading `box.z0`, this assertion
-    // PASSED. Reading `HEX_PART_MESH_BOTTOM`, it fails.
-    //
-    // The meshes themselves cannot be here -- they are a sibling checkout that
-    // never ships with the app -- so their lowest vertex travels as text
-    // instead, and the generator refuses to write the two if they disagree.
+    // THE FIXTURE IS NO LONGER THE MESH'S OWN TEXT (see ALL_SOURCES): the v1
+    // tables carried each mesh's lowest-vertex text, the v2 tables come from
+    // the manifest and do not. The v1 sweep caught a table that quantised a
+    // mesh minimum; v2 has no per-part minimum to quantise (every `z0` is 0), so
+    // what is left to prove here is the writer's half: every part in the
+    // release, seated at exactly zero.
     const model = await modelOf(await plate3mf(ALL, ALL_SOURCES));
     const placed = seats(model);
     // WHICH PARTS were measured, not how many. `toHaveLength(ALL.length)` reads
     // like a coverage check and is not one -- it compares the fixture against
     // itself, so a fixture narrowed to a single part still satisfies it and the
-    // sweep silently stops covering 52 of the 53. Held to the published NAME
+    // sweep silently stops covering the rest. Held to the published NAME
     // table instead, which is the list this plate is supposed to be.
     expect(placed.map((s) => s.name).sort()).toEqual(Object.values(HEX_PART_NAME).sort());
     expect(placed.filter((s) => s.z !== 0).map((s) => `${s.name} at ${s.z} mm`)).toEqual([]);

@@ -134,8 +134,10 @@ describe("release + configurator constants", () => {
     // release keys are immutable -- bumping it without uploading that cut points
     // every download at objects that do not exist. Pinning it here means the
     // bump is always a conscious edit rather than a constant drifting under the
-    // uploader.
-    expect(HEX_RELEASE).toBe("2026-08-17");
+    // uploader. Since 4.6 the id is the table generator's input and HEX_RELEASE
+    // is read from the generated tables; regenerating for another id fails here
+    // until this line is moved on purpose.
+    expect(HEX_RELEASE).toBe("2026-10-01");
     expect(HEX_CONFIGURATOR_URL).toBe("https://demo.onethousanddrones.com/hex");
   });
 });

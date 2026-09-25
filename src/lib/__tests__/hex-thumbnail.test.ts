@@ -10,16 +10,48 @@
 //
 // The decoder is `sharp`, which is a devDependency and never ships. Using our
 // own encoder to check our own encoder would establish nothing.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import sharp from "sharp";
 import { inflateSync } from "node:zlib";
 
 import { HEX_PART_BOX, HEX_PART_NAME } from "@/lib/hex-geometry";
-import { HEX_PART_FAMILY } from "@/lib/hex-outlines";
-import { HEX_PART_FAMILIES } from "@/lib/hex-parts";
+import {
+  HEX_DISPLAY_FAMILIES,
+  HEX_PART_SLUGS,
+  displayFamilyOf,
+} from "@/lib/hex-parts";
 import { packPlates } from "@/lib/hex-plate";
 import type { Placement } from "@/lib/hex-plate";
 import { THUMBNAIL_REL_TYPE, plateThumbnail } from "@/lib/hex-thumbnail";
+
+/** OUTLINES FOR THE DRAWING CODE, because the v2 outline table is empty.
+ *
+ *  The v1 silhouettes left with the v1 parts (launch readiness 4.6), and the v2
+ *  tables are generated from the release manifest, which has no meshes to trace
+ *  (`hex-outlines.ts`). The silhouette renderer is still live -- it draws the
+ *  moment a v2 table exists -- so the rows about it run on three shapes of the
+ *  kinds it must tell apart, on real v2 slugs and their real boxes:
+ *
+ *    hex-main              a hexagon: no corners, ~75% of its box
+ *    hex-cap-edge-solid-f  a true rectangle: fills its box
+ *    hex-cap-edge-1h-f     the same rectangle with a hole punched through
+ *
+ *  Per-mille of each part's own box, as the real table would carry them. */
+vi.mock("@/lib/hex-outlines", async () => {
+  const actual =
+    await vi.importActual<typeof import("@/lib/hex-outlines")>(
+      "@/lib/hex-outlines",
+    );
+  const rect = [0, 0, 1000, 0, 1000, 1000, 0, 1000];
+  return {
+    ...actual,
+    HEX_PART_OUTLINE: {
+      "hex-main": [[250, 0, 750, 0, 1000, 500, 750, 1000, 250, 1000, 0, 500]],
+      "hex-cap-edge-solid-f": [rect],
+      "hex-cap-edge-1h-f": [rect, [400, 400, 600, 400, 600, 600, 400, 600]],
+    },
+  };
+});
 
 const BED = { x: 220, y: 220 };
 
@@ -28,7 +60,7 @@ const BED = { x: 220, y: 220 };
  *  `"221,172,87"` inline says nothing about which rung that is.
  *
  *  The six family rungs are one gold ladder, evenly spaced at 8 points of CIE L*
- *  and running DARK to LIGHT in `HEX_PART_FAMILIES` order -- which is descending
+ *  and running DARK to LIGHT in `HEX_DISPLAY_FAMILIES` order -- which is descending
  *  part size, so the smallest parts get the most contrast against the bed. */
 const PAGE = "11,18,28";
 const BED_INK = "22,32,46";
@@ -352,7 +384,7 @@ describe("it draws the PART, not the part's bounding box", () => {
     //
     // A hexagon's bounding box has four corners the hexagon does not reach. So:
     // all four corners of the drawn extent are BED, and the middle is not.
-    const hex = await partBounds(plateThumbnail([only("hex-tb-main")], BED));
+    const hex = await partBounds(plateThumbnail([only("hex-main")], BED));
     for (const [cx, cy] of [
       [hex.x0, hex.y0],
       [hex.x1, hex.y0],
@@ -369,7 +401,7 @@ describe("it draws the PART, not the part's bounding box", () => {
     // Without this, "the corners are bed" is satisfied by a renderer that draws
     // everything one size too small, or that lost the placements entirely.
     const cap = await partBounds(
-      plateThumbnail([only("dovetail-cap-single-m-solid")], BED),
+      plateThumbnail([only("hex-cap-edge-solid-f")], BED),
     );
     for (const [cx, cy] of [
       [cap.x0, cap.y0],
@@ -395,17 +427,17 @@ describe("it draws the PART, not the part's bounding box", () => {
       }
       return n;
     };
-    expect(await enclosedBed("dovetail-cap-double-f-3h")).toBeGreaterThan(0);
+    expect(await enclosedBed("hex-cap-edge-1h-f")).toBeGreaterThan(0);
     // CONTROL: its solid twin is the same rectangle with nothing punched out of
     // it, so a renderer that simply leaves gaps everywhere fails here.
-    expect(await enclosedBed("dovetail-cap-double-f-solid")).toBe(0);
+    expect(await enclosedBed("hex-cap-edge-solid-f")).toBe(0);
   });
 
   it("covers LESS of the footprint than a filled box would", async () => {
     // The measurement behind the shape rows: a hex tile's shadow is about 72% of
     // its bounding box, so a renderer that reverted to boxes would show ~100%
     // here. Counted over the drawn extent found from the picture.
-    const b = await partBounds(plateThumbnail([only("hex-tb-main")], BED));
+    const b = await partBounds(plateThumbnail([only("hex-main")], BED));
     let drawn = 0;
     for (let y = b.y0; y <= b.y1; y++) {
       for (let x = b.x0; x <= b.x1; x++) {
@@ -432,10 +464,10 @@ describe("it draws the PART, not the part's bounding box", () => {
     // the silhouette meets its box at a vertex on some parts and along an edge
     // on others, and the keyline eats a pixel differently in the two cases.
     for (const slug of [
-      "dovetail-cap-single-m-solid",
-      "hex-tb-main",
-      "hex-tb-carrier-parts-tray",
-      "hex-tb-spike-solid",
+      "hex-cap-edge-solid-f",
+      "hex-main",
+      "hex-cap-edge-1h-f",
+      "hex-spike-solid",
     ]) {
       const real = only(slug, 8, 8);
       const shape = await partBounds(plateThumbnail([real], BED));
@@ -473,14 +505,25 @@ describe("it fills by part family", () => {
     // A mapping collapsed to one value -- the commonest way this breaks, since
     // every family resolving to the same lookup miss would still draw a
     // perfectly good picture -- is caught by DISTINCTNESS, not by any one row.
+    //
+    // Over the display families the v2 release actually uses: it has no PCB
+    // part, so the `pcb` rung is unused, and that is asserted rather than
+    // skipped over.
     const seen = new Map<string, string>();
-    for (const family of HEX_PART_FAMILIES) {
-      const slug = Object.keys(HEX_PART_FAMILY).find(
-        (s) => HEX_PART_FAMILY[s] === family,
-      );
-      // The ink the part is MOSTLY drawn in, not the ink at its centre: the
-      // centre of `dovetail-cap-double-f-1h` is its fastener hole, and reading a
-      // hole would make this row about the wrong thing.
+    const used = HEX_DISPLAY_FAMILIES.filter((family) =>
+      HEX_PART_SLUGS.some((s) => displayFamilyOf(s) === family),
+    );
+    expect(used).toEqual(["base", "insert", "cap", "spike", "accessory"]);
+    for (const family of used) {
+      // The SMALLEST part of the family, so it fits the bed whatever the family.
+      const slug = HEX_PART_SLUGS.filter((s) => displayFamilyOf(s) === family).sort(
+        (a, b) =>
+          HEX_PART_BOX[a].dx * HEX_PART_BOX[a].dy -
+          HEX_PART_BOX[b].dx * HEX_PART_BOX[b].dy,
+      )[0];
+      // The ink the part is MOSTLY drawn in, not the ink at its centre: a
+      // centre can be a fastener hole, and reading a hole would make this row
+      // about the wrong thing.
       const ink = await dominantInk(plateThumbnail([only(slug!)], BED));
       expect(ink, `${family} (${slug}) was not painted`).toBe(INK[family]);
       expect(
@@ -489,12 +532,12 @@ describe("it fills by part family", () => {
       ).toBe(false);
       seen.set(ink, family);
     }
-    expect(seen.size).toBe(HEX_PART_FAMILIES.length);
+    expect(seen.size).toBe(used.length);
   });
 
   it("runs DARK to LIGHT in family order, so small parts get the contrast", async () => {
     // The ordering is the design, not an accident of which hex string went
-    // where: `HEX_PART_FAMILIES` is descending part size, and the ramp is walked
+    // where: `HEX_DISPLAY_FAMILIES` is descending part size, and the ramp is walked
     // in that order so a spike -- 28 x 7 px on the default bed -- gets the most
     // separation from the bed and a hex tile, which has thousands of pixels to
     // spend, gets the least. Reversing it would hide the spikes.
@@ -509,9 +552,9 @@ describe("it fills by part family", () => {
       const [r, g, b] = rgb.split(",").map(Number);
       return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
     };
-    const ladder = HEX_PART_FAMILIES.map((f) => luminance(INK[f]));
+    const ladder = HEX_DISPLAY_FAMILIES.map((f) => luminance(INK[f]));
     for (let i = 1; i < ladder.length; i++) {
-      expect(ladder[i], `${HEX_PART_FAMILIES[i]}`).toBeGreaterThan(ladder[i - 1]);
+      expect(ladder[i], `${HEX_DISPLAY_FAMILIES[i]}`).toBeGreaterThan(ladder[i - 1]);
     }
     // Every rung clears the bed by at least 3:1 -- the non-text contrast floor --
     // so the DARKEST family is still a shape and not a stain.
@@ -523,7 +566,7 @@ describe("it fills by part family", () => {
     // The composition reading at a glance is the whole point of the fill, and it
     // is a property of a PLATE, not of one part. A tile and a cap together must
     // come out as two inks.
-    const plate = [only("hex-tb-main", 8, 8), only("dovetail-cap-double-f-3h", 8, 100)];
+    const plate = [only("hex-cap-edge-1h-f", 8, 8), only("hex-spike-solid", 100, 8)];
     const p = await pixels(plateThumbnail(plate, BED));
     const inks = new Set<string>();
     for (let y = 0; y < p.h; y++) {
@@ -532,7 +575,7 @@ describe("it fills by part family", () => {
         if (PART_INKS.has(c)) inks.add(c);
       }
     }
-    expect(inks).toEqual(new Set([INK.base, INK.cap]));
+    expect(inks).toEqual(new Set([INK.cap, INK.spike]));
   });
 });
 

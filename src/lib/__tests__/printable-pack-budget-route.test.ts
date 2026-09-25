@@ -2,33 +2,20 @@
 // mocked: one plate per request, a byte budget priced BEFORE any R2 read, the
 // bed floor, the canonical-URL redirect and the year-long plate cache.
 //
-// V2 PARTS, AGAINST THE REAL BYTE TABLE. The byte table (`hex-part-bytes.ts`) is
-// the provisional v2 one and is used as committed. The catalogue and the
-// geometry table in this worktree are still v1 until 4.6 regenerates them, so
-// both are replaced here by a v2 fixture: every byte-table slug is a member, and
-// the parts these rows plate carry their `printBboxMm` from the v2 build
-// manifest. When 4.6 lands, the fixture boxes should be dropped for the real
-// table and these rows should pass unchanged.
+// V2 PARTS, AGAINST THE REAL TABLES. The catalogue, the geometry and the byte
+// table are the generated 4.6 tables (`hex-release-tables.ts`,
+// `hex-part-bytes.ts`), used as committed. The one mock on the catalogue adds a
+// single GHOST slug with no byte row, which is the only way to reach "a member
+// the budget cannot price" once the generator makes the two lists the same.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import JSZip from "jszip";
 import type { NextRequest } from "next/server";
 
 import { HEX_PART_BYTES } from "@/lib/hex-part-bytes";
 import { PACK_BYTE_BUDGET } from "@/lib/hex-pack-budget";
+import { HEX_RELEASE } from "@/lib/hex-spec";
 
-const RELEASE = "2026-10-01";
-
-/** v2 print-orientation footprints, from `printBboxMm` in the hex-cluster
- *  manifest (2026-09-21 build). The corner is zero because the stub mesh below
- *  has no geometry to seat. */
-const BOXES = vi.hoisted(() => ({
-  "hex-main": [190.762, 169.205, 80],
-  "hex-main-cover": [166.684, 144.352, 6],
-  "hex-main-cover-cable": [166.684, 144.352, 6],
-  "hex-cap-edge-1h-f": [80.868, 80, 10],
-  "hex-cap-edge-1h-m": [88.721, 80, 9],
-  "25mm-ins": [29.271, 29.271, 3],
-}));
+const RELEASE = HEX_RELEASE;
 
 /** A member of the catalogue with NO byte row: what "unknown to the budget"
  *  looks like once 4.6 has made the two tables the same list. */
@@ -48,20 +35,6 @@ vi.mock("@/lib/hex-parts", async () => {
     isHexPartSlug: (v: string) => set.has(v),
   };
 });
-
-vi.mock("@/lib/hex-geometry", () => ({
-  HEX_GEOMETRY_RELEASE: "2026-10-01",
-  HEX_PART_BOX: Object.fromEntries(
-    Object.entries(BOXES).map(([slug, [dx, dy, dz]]) => [
-      slug,
-      { x0: 0, y0: 0, z0: 0, dx, dy, dz },
-    ]),
-  ),
-  HEX_PART_NAME: Object.fromEntries(
-    Object.keys(BOXES).map((slug) => [slug, slug]),
-  ),
-  HEX_PART_MESH_BOTTOM: {},
-}));
 
 const flag = vi.hoisted(() => ({ pack: true }));
 vi.mock("@/lib/hex-flags", () => ({
@@ -196,7 +169,7 @@ describe("a 20-cell build is served as one link per plate", () => {
         .async("string");
       objects += model.match(/<object\b/g)?.length ?? 0;
       // ONLY the parts on this plate are read, once each, plus the licence.
-      // The fixture names each object after its slug, so the model says which
+      // Every v2 part is published under its slug, so the model says which
       // parts are on the plate.
       const onPlate = [
         ...new Set([...model.matchAll(/<object\b[^>]*\bname="([^"]+)"/g)].map((m) => m[1])),

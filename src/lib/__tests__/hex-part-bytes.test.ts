@@ -1,5 +1,5 @@
-// The per-part byte table the pack budget runs on, and the contract the 4.6
-// generator has to meet when it replaces the provisional rows.
+// The per-part byte table the pack budget runs on, as the 4.6 generator
+// (hex-cluster `tools/gen_release_tables.py`) writes it.
 import { createHash } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
@@ -53,6 +53,10 @@ describe("the byte table", () => {
       "hex-cover-handle",
       "hex-acc-saddle",
       "hex-acc-saddle-half",
+      // the C-clip parts
+      "hex-acc-hose",
+      "hex-acc-probe",
+      "hex-acc-trellis",
     ]) {
       expect(HEX_PART_BYTES[slug], slug).toBeUndefined();
     }

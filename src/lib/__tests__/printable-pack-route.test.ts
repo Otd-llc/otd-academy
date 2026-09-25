@@ -38,20 +38,32 @@ vi.mock("@/lib/part-r2", () => ({ getR2ObjectBytes: getBytes }));
 const captured = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/analytics", () => ({ capture: captured }));
 
-/** The byte table, for the catalogue THIS file exercises. The committed table is
- *  the provisional v2 one (`hex-part-bytes.ts`), which shares no slug with the
- *  catalogue these rows are written against until 4.6 regenerates both; every
- *  part here is priced small so the budget stays out of the way of what these
- *  rows are about. The budget itself is pinned in
- *  `printable-pack-budget-route.test.ts`, against the real table. */
-const SMALL = vi.hoisted(() => ({ "3mf": 40_000, stl: 100_000 }));
-vi.mock("@/lib/hex-part-bytes", async () => {
-  const { HEX_PART_SLUGS } = await import("@/lib/hex-parts");
+/** ONE SUPPORT ROW, on a v2 part, because the real support table is still v1.
+ *
+ *  `hex-support.ts` is the slicer's answer for the v1 set; its v2 replacement
+ *  is launch readiness 4.7, from the owner's calibration slice (4.4). Until
+ *  then no v2 part is on it, and the rows below are about the ROUTE's handling
+ *  of a part that needs support -- archive it, warn in the README and inside the
+ *  plate -- not about which parts do. So the table is swapped for one row on
+ *  the v2 spike, with the brim-and-support remedy the v1 spike carried. When
+ *  4.7 lands, delete this mock and point SPIKE at a part the real table lists. */
+vi.mock("@/lib/hex-support", async () => {
+  const actual =
+    await vi.importActual<typeof import("@/lib/hex-support")>(
+      "@/lib/hex-support",
+    );
+  const slug = "hex-spike-solid";
+  const note =
+    "rests on a thin line, about 1 sq mm of first layer along its length. A " +
+    "brim is the useful thing here, and supports are optional.";
+  const slugs: ReadonlySet<string> = new Set([slug]);
   return {
-    HEX_PART_BYTES_PROVISIONAL: true,
-    HEX_PART_BYTES_RELEASE: null,
-    HEX_PART_BYTES_HASH: "",
-    HEX_PART_BYTES: Object.fromEntries(HEX_PART_SLUGS.map((s) => [s, SMALL])),
+    ...actual,
+    NEEDS_SUPPORT_NAMES: [slug],
+    NEEDS_SUPPORT_SLUGS: slugs,
+    PART_REMEDY: { [slug]: { support: true, brim: true } },
+    needsSupport: (list: readonly string[]) => list.some((s) => slugs.has(s)),
+    SUPPORT_NOTE: { [slug]: note },
   };
 });
 
@@ -152,7 +164,7 @@ const entriesOf = async (res: Response) =>
  *  EVERY response is a zip. The licence has to travel (owner, 2026-08-17: "zip
  *  is not optional"), and the branch that served a lone plate bare had become
  *  unreachable anyway -- a calibration sweep put 25 of 53 parts on the support
- *  list, `hex-tb-main` among them, and that part is in nearly every build.
+ *  list, `hex-cap-edge-1h-f` among them, and that part is in nearly every build.
  *
  *  Rows about what the PLATE says reach through the box with this rather than
  *  each re-deriving how to open it. It asserts there is exactly ONE, so a row
@@ -180,22 +192,23 @@ afterEach(() => {
 
 describe("price BEFORE read -- the ordering IS the security property", () => {
   // THE CAP IS NOW THE BYTE BUDGET, not the plate count (launch readiness 5.5):
-  // a plan may run to many plates, and each is its own request. Every part here
-  // is priced at 40 KB, so 250 of one part is 10 MB against a budget of 8.
+  // a plan may run to many plates, and each is its own request. Priced from the
+  // real byte table: hex-cap-edge-1h-f is 56,090 bytes of 3MF, so 250 of it is
+  // 14.0 MB against a budget of 8.
   it("refuses an over-budget build having touched R2 zero times", async () => {
     const res = await call(
-      `release=${RELEASE}&parts=hex-tb-main:250&plate=220x220`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f:250&plate=220x220`,
     );
     expect(res.status).toBe(400);
     expect(getBytes).not.toHaveBeenCalled();
   });
 
   it("CONTROL: the same shape UNDER the budget is served, and does read", async () => {
-    // Identical request, one number changed (150 x 40 KB = 6 MB). Without this
-    // row the assertion above passes just as well against a route that never
-    // reads R2 at all, or that 400s everything.
+    // Identical request, one number changed (100 x 56,090 = 5.6 MB). Without
+    // this row the assertion above passes just as well against a route that
+    // never reads R2 at all, or that 400s everything.
     const res = await call(
-      `release=${RELEASE}&parts=hex-tb-main:150&plate=220x220`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f:100&plate=220x220`,
     );
     expect(res.status).toBe(200);
     expect(getBytes.mock.calls.length).toBeGreaterThan(0);
@@ -203,7 +216,7 @@ describe("price BEFORE read -- the ordering IS the security property", () => {
 
   it("says what the caller can do about it, unlike the flat 400", async () => {
     const res = await call(
-      `release=${RELEASE}&parts=hex-tb-main:250&plate=220x220`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f:250&plate=220x220`,
     );
     const text = await res.text();
     expect(text).toContain("one plate at a time");
@@ -213,7 +226,7 @@ describe("price BEFORE read -- the ordering IS the security property", () => {
 
 describe("one plate versus many", () => {
   it("serves ONE plate inside an archive, with the licence beside it", async () => {
-    const res = await call(`release=${RELEASE}&parts=hex-tb-main:3`);
+    const res = await call(`release=${RELEASE}&parts=hex-cap-edge-1h-f:3`);
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("application/zip");
     expect(res.headers.get("content-disposition")).toBe(
@@ -224,7 +237,7 @@ describe("one plate versus many", () => {
     // pack. Two things ended that. The licence has to travel -- these are CC BY
     // works and the notice is the one condition -- and the branch had become
     // unreachable anyway once the calibration sweep put 25 of 53 parts on the
-    // support list, `hex-tb-main` among them, which is in nearly every build.
+    // support list, `hex-cap-edge-1h-f` among them, which is in nearly every build.
     // ONE read of the body, then both questions asked of it. A `Response` body
     // can only be consumed once, so `entriesOf` followed by `plateOf` would
     // hand the second an empty buffer -- the same trap the comment on
@@ -243,11 +256,11 @@ describe("one plate versus many", () => {
   });
 
   it("reads each distinct part ONCE, and the licence exactly once", async () => {
-    await call(`release=${RELEASE}&parts=hex-tb-main:3`);
+    await call(`release=${RELEASE}&parts=hex-cap-edge-1h-f:3`);
     // TWO: the mesh, and the LICENCE that now travels with every download.
     expect(getBytes).toHaveBeenCalledTimes(2);
     expect(getBytes).toHaveBeenCalledWith(
-      `printables/${RELEASE}/3mf/hex-tb-main.3mf`,
+      `printables/${RELEASE}/3mf/hex-cap-edge-1h-f.3mf`,
     );
   });
 
@@ -264,18 +277,18 @@ describe("one plate versus many", () => {
     // notices: the duplicate meshes are byte-identical and deflate to almost
     // nothing (six caps plus a ball joint measured 37.8 KB against 33 KB for
     // two), because the 300 KB figure was always the uncompressed string.
-    const res = await call(`release=${RELEASE}&parts=hex-tb-main:3`);
+    const res = await call(`release=${RELEASE}&parts=hex-cap-edge-1h-f:3`);
     const zip = await plateOf(res);
     const model = await zip.file("3D/3dmodel.model")!.async("string");
     expect(model.match(/<object\b/g)).toHaveLength(3);
     expect(model.match(/<item\b/g)).toHaveLength(3);
     // EVERY copy named, not just the first -- that is the defect this replaces.
-    expect(model.match(/name="Hex-TB-Main"/g)).toHaveLength(3);
+    expect(model.match(/name="hex-cap-edge-1h-f"/g)).toHaveLength(3);
   });
 
   it("serves MORE than one plate as a zip of plates plus the furniture", async () => {
     const res = await call(
-      `release=${RELEASE}&parts=hex-tb-main:5&plate=220x220`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f:5&plate=220x220`,
     );
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("application/zip");
@@ -288,7 +301,7 @@ describe("one plate versus many", () => {
   });
 
   it("reads the published LICENCE for a multi-plate pack", async () => {
-    await call(`release=${RELEASE}&parts=hex-tb-main:5&plate=220x220`);
+    await call(`release=${RELEASE}&parts=hex-cap-edge-1h-f:5&plate=220x220`);
     expect(getBytes).toHaveBeenCalledWith(`printables/${RELEASE}/LICENSE.txt`);
   });
 });
@@ -304,7 +317,7 @@ describe("the download is named after the cluster", () => {
 
   it("names a bare plate after the build, in both parameters", async () => {
     const res = await call(
-      `release=${RELEASE}&parts=hex-tb-main:3&name=${encodeURIComponent(NAME)}`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f:3&name=${encodeURIComponent(NAME)}`,
     );
     expect(res.status).toBe(200);
     // Pinned as a LITERAL here, once, rather than through `disp` -- so this row
@@ -320,7 +333,7 @@ describe("the download is named after the cluster", () => {
     // and onto a desktop -- which is exactly where it loses every other clue
     // about which build it belonged to.
     const res = await call(
-      `release=${RELEASE}&parts=hex-tb-main:5&plate=220x220&name=${encodeURIComponent(NAME)}`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f:5&plate=220x220&name=${encodeURIComponent(NAME)}`,
     );
     expect(res.headers.get("content-disposition")).toBe(
       disp(`${NAME}-5-parts.zip`),
@@ -340,7 +353,7 @@ describe("the download is named after the cluster", () => {
     // The third shape. It is served by a different function, and "the name is
     // on the plated paths" would pass with this one still saying `hex-cluster`.
     const res = await call(
-      `release=${RELEASE}&format=stl&parts=hex-tb-main:6,dovetail-cap-single-m-solid:3&name=${encodeURIComponent(NAME)}`,
+      `release=${RELEASE}&format=stl&parts=hex-cap-edge-1h-f:6,side-connector-single:3&name=${encodeURIComponent(NAME)}`,
     );
     expect(res.headers.get("content-disposition")).toBe(
       disp(`${NAME}-2-parts.zip`),
@@ -349,7 +362,7 @@ describe("the download is named after the cluster", () => {
 
   it("puts the name inside the plate, as its Title", async () => {
     const res = await call(
-      `release=${RELEASE}&parts=hex-tb-main:3&name=${encodeURIComponent(NAME)}`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f:3&name=${encodeURIComponent(NAME)}`,
     );
     const model = await (await plateOf(res))
       .file("3D/3dmodel.model")!
@@ -364,7 +377,7 @@ describe("the download is named after the cluster", () => {
     // the name everywhere AND by one that puts it nowhere, since the fallback
     // rows elsewhere in this file would then be the only evidence either way.
     const res = await call(
-      `release=${RELEASE}&parts=hex-tb-main:5&plate=220x220`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f:5&plate=220x220`,
     );
     expect(res.headers.get("content-disposition")).toBe(
       disp(`${FB}-5-parts.zip`),
@@ -378,7 +391,7 @@ describe("the download is named after the cluster", () => {
     // Not a dropped character and not a bare `-3-parts.3mf`: the ASCII half is
     // the fallback name, because a count with no subject is not a filename.
     const res = await call(
-      `release=${RELEASE}&parts=hex-tb-main:3&name=${encodeURIComponent("ハニカム")}`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f:3&name=${encodeURIComponent("ハニカム")}`,
     );
     const cd = res.headers.get("content-disposition")!;
     expect(cd).toContain(`filename="${FB}-3-parts.zip"`);
@@ -396,7 +409,7 @@ describe("the download is named after the cluster", () => {
     // JSZip flags a non-ASCII entry name UTF-8 (general-purpose bit 11). If it
     // did not, the README would cite a name no unzipper would write.
     const res = await call(
-      `release=${RELEASE}&parts=hex-tb-main:5&plate=220x220&name=${encodeURIComponent("ハニカム")}`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f:5&plate=220x220&name=${encodeURIComponent("ハニカム")}`,
     );
     const zip = await JSZip.loadAsync(await bodyOf(res));
     expect(namesIn(zip)).toContain("plates/ハニカム-plate-1-of-2.3mf");
@@ -409,7 +422,7 @@ describe("the download is named after the cluster", () => {
     // a string scan and never reaches the bucket, exactly like an unknown part
     // name does.
     const res = await call(
-      `release=${RELEASE}&parts=hex-tb-main&name=${encodeURIComponent("a\r\nSet-Cookie: x=1")}`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f&name=${encodeURIComponent("a\r\nSet-Cookie: x=1")}`,
     );
     expect(res.status).toBe(400);
     expect(await res.text()).toBe("Bad request");
@@ -427,7 +440,7 @@ describe("the download is named after the cluster", () => {
       "a".repeat(120),
     ]) {
       const res = await call(
-        `release=${RELEASE}&parts=hex-tb-main&name=${encodeURIComponent(raw)}`,
+        `release=${RELEASE}&parts=hex-cap-edge-1h-f&name=${encodeURIComponent(raw)}`,
       );
       expect(res.status, raw).toBe(200);
       const cd = res.headers.get("content-disposition")!;
@@ -439,7 +452,7 @@ describe("the download is named after the cluster", () => {
 
   it("falls back for a name that sanitises down to nothing", async () => {
     const res = await call(
-      `release=${RELEASE}&parts=hex-tb-main:3&name=${encodeURIComponent("...")}`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f:3&name=${encodeURIComponent("...")}`,
     );
     expect(res.headers.get("content-disposition")).toBe(
       disp(`${FB}-3-parts.zip`),
@@ -452,14 +465,14 @@ describe("the download is named after the cluster", () => {
     // `Title`; two builds with the same parts and different names are two
     // different bodies, so sharing a cache entry would serve one person the
     // other's file.
-    const q = `release=${RELEASE}&parts=hex-tb-main:5&plate=220x220&name=`;
+    const q = `release=${RELEASE}&parts=hex-cap-edge-1h-f:5&plate=220x220&name=`;
     const a = await bodyOf(await call(`${q}ALPHA`));
     const b = await bodyOf(await call(`${q}BETA`));
     expect(Buffer.compare(a, b)).not.toBe(0);
   });
 
   it("is byte-identical for the same URL twice, name included", async () => {
-    const q = `release=${RELEASE}&parts=hex-tb-main:5&plate=220x220&name=${encodeURIComponent(NAME)}`;
+    const q = `release=${RELEASE}&parts=hex-cap-edge-1h-f:5&plate=220x220&name=${encodeURIComponent(NAME)}`;
     const first = await bodyOf(await call(q));
     const second = await bodyOf(await call(q));
     expect(Buffer.compare(first, second)).toBe(0);
@@ -496,7 +509,7 @@ describe("every plate carries a picture of itself", () => {
     );
 
   it("puts one in the plate, related and declared", async () => {
-    const res = await call(`release=${RELEASE}&parts=hex-tb-main:3`);
+    const res = await call(`release=${RELEASE}&parts=hex-cap-edge-1h-f:3`);
     const zip = await plateOf(res);
     const t = await thumbnailOf(zip);
     expect(isPng(t.png)).toBe(true);
@@ -516,7 +529,7 @@ describe("every plate carries a picture of itself", () => {
     // Per plate, not per pack. A plate is its own package and each one is a
     // picture of what is on THAT bed.
     const res = await call(
-      `release=${RELEASE}&parts=hex-tb-main:5&plate=220x220`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f:5&plate=220x220`,
     );
     const zip = await JSZip.loadAsync(await bodyOf(res));
     const plates = Object.values(zip.files).filter(
@@ -531,7 +544,7 @@ describe("every plate carries a picture of itself", () => {
       // The model still reads, which is the thing a broken package would cost.
       const model = await inner.file("3D/3dmodel.model")!.async("string");
       expect(model, entry.name).toContain("<build>");
-      expect(model, entry.name).toContain('name="Hex-TB-Main"');
+      expect(model, entry.name).toContain('name="hex-cap-edge-1h-f"');
     }
   });
 
@@ -543,15 +556,15 @@ describe("every plate carries a picture of itself", () => {
       const zip = await plateOf(await call(q));
       return zip.file("Metadata/thumbnail.png")!.async("nodebuffer");
     };
-    const a = await png(`release=${RELEASE}&parts=hex-tb-main:3&plate=220x220`);
-    const b = await png(`release=${RELEASE}&parts=hex-tb-main:3&plate=350x350`);
+    const a = await png(`release=${RELEASE}&parts=hex-cap-edge-1h-f:3&plate=220x220`);
+    const b = await png(`release=${RELEASE}&parts=hex-cap-edge-1h-f:3&plate=350x350`);
     expect(Buffer.compare(a, b)).not.toBe(0);
   });
 
   it("does not put one in the LOOSE zip, which has no plate to draw", async () => {
     // The loose zip is a folder of published meshes, not a package and not a
     // layout. There is nothing to be a top-down plan OF.
-    const res = await call(`release=${RELEASE}&format=stl&parts=hex-tb-main:6`);
+    const res = await call(`release=${RELEASE}&format=stl&parts=hex-cap-edge-1h-f:6`);
     expect(await entriesOf(res)).not.toContain("Metadata/thumbnail.png");
   });
 
@@ -559,7 +572,7 @@ describe("every plate carries a picture of itself", () => {
     // The thumbnail is inside the determinism promise, not beside it: a clock,
     // a seed or a platform-dependent number in the PNG would break a promise
     // the headers would never show.
-    const q = `release=${RELEASE}&parts=hex-tb-main:3&plate=350x350`;
+    const q = `release=${RELEASE}&parts=hex-cap-edge-1h-f:3&plate=350x350`;
     const first = await bodyOf(await call(q));
     const second = await bodyOf(await call(q));
     expect(Buffer.compare(first, second)).toBe(0);
@@ -573,7 +586,7 @@ describe("the plate states who made it and when", () => {
   it("dates the document from the release in the URL", async () => {
     // Threaded from the request, not hardcoded, and this is the row that proves
     // it: `hex-3mf.test.ts` can only show the writer honours what it is handed.
-    const model = await modelOf(await call(`release=${RELEASE}&parts=hex-tb-main`));
+    const model = await modelOf(await call(`release=${RELEASE}&parts=hex-cap-edge-1h-f`));
     expect(model).toContain(
       `<metadata name="CreationDate">${RELEASE}</metadata>`,
     );
@@ -583,7 +596,7 @@ describe("the plate states who made it and when", () => {
   });
 
   it("names the designer and the copyright holder", async () => {
-    const model = await modelOf(await call(`release=${RELEASE}&parts=hex-tb-main`));
+    const model = await modelOf(await call(`release=${RELEASE}&parts=hex-cap-edge-1h-f`));
     expect(model).toContain('<metadata name="Designer">');
     expect(model).toContain('<metadata name="Copyright">');
     expect(model).toContain("One Thousand Drones, LLC");
@@ -595,7 +608,7 @@ describe("the name on the box matches what is in it", () => {
     // The defect this route already shipped once: a filename saying six, a
     // README saying one, and one mesh in the box. Asserted across all three.
     const res = await call(
-      `release=${RELEASE}&parts=hex-tb-main:5&plate=220x220`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f:5&plate=220x220`,
     );
     expect(res.headers.get("content-disposition")).toBe(
       disp(`${FB}-5-parts.zip`),
@@ -607,7 +620,7 @@ describe("the name on the box matches what is in it", () => {
 
   it("lists in the README exactly the plate files the zip holds", async () => {
     const res = await call(
-      `release=${RELEASE}&parts=hex-tb-main:5&plate=220x220`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f:5&plate=220x220`,
     );
     const zip = await JSZip.loadAsync(await bodyOf(res));
     const readme = await zip.file("README.txt")!.async("string");
@@ -619,9 +632,9 @@ describe("the name on the box matches what is in it", () => {
   });
 
   it("names a single part after itself, with the right extension", async () => {
-    const res = await call(`release=${RELEASE}&parts=hex-tb-main`);
+    const res = await call(`release=${RELEASE}&parts=hex-cap-edge-1h-f`);
     expect(res.headers.get("content-disposition")).toBe(
-      disp(`${FB}-hex-tb-main.zip`),
+      disp(`${FB}-hex-cap-edge-1h-f.zip`),
     );
   });
 
@@ -630,7 +643,7 @@ describe("the name on the box matches what is in it", () => {
   // is how the SAME defect this file was written to prevent shipped a second
   // time on the other path: `packFilename` was changed to count INSTANCES while
   // the loose zip kept writing one entry per DISTINCT part, so
-  // `?format=stl&parts=hex-tb-main:6` came back as `hex-cluster-6-parts.zip`
+  // `?format=stl&parts=hex-cap-edge-1h-f:6` came back as `hex-cluster-6-parts.zip`
   // holding one file, beside a README reading "1 of the published parts".
   //
   // Planned Task B1 makes it routine rather than exotic: it emits `:n`
@@ -649,22 +662,22 @@ describe("the name on the box matches what is in it", () => {
 
     it("names a single part after itself, however many were asked for", async () => {
       const res = await call(
-        `release=${RELEASE}&format=stl&parts=hex-tb-main:6`,
+        `release=${RELEASE}&format=stl&parts=hex-cap-edge-1h-f:6`,
       );
       expect(res.headers.get("content-disposition")).toBe(
-        disp(`${FB}-hex-tb-main.zip`),
+        disp(`${FB}-hex-cap-edge-1h-f.zip`),
       );
       // The box, so the name is checked against it and not against my
       // arithmetic: one mesh, whatever the quantity said.
       const meshes = (await entriesOf(res)).filter((n) =>
         n.startsWith("stl/"),
       );
-      expect(meshes).toEqual(["stl/hex-tb-main.stl"]);
+      expect(meshes).toEqual(["stl/hex-cap-edge-1h-f.stl"]);
     });
 
     it("counts the meshes in the zip, not the instances in the request", async () => {
       const res = await call(
-        `release=${RELEASE}&format=stl&parts=hex-tb-main:6,dovetail-cap-single-m-solid:3`,
+        `release=${RELEASE}&format=stl&parts=hex-cap-edge-1h-f:6,side-connector-single:3`,
       );
       const zip = await JSZip.loadAsync(await bodyOf(res));
       const meshes = namesIn(zip).filter((n) => n.startsWith("stl/"));
@@ -687,7 +700,7 @@ describe("the name on the box matches what is in it", () => {
       // holds nine things; two is the right answer for a box that holds two
       // files; the point is that they differ.
       const res = await call(
-        `release=${RELEASE}&parts=hex-tb-main:6,dovetail-cap-single-m-solid:3`,
+        `release=${RELEASE}&parts=hex-cap-edge-1h-f:6,side-connector-single:3`,
       );
       expect(res.status).toBe(200);
       expect(claimed(res)).toBe(9);
@@ -709,7 +722,7 @@ describe("the name on the box matches what is in it", () => {
 // it -- `<metadata name="Description">` is carried too, but slicers surface
 // metadata inconsistently, so on its own it would be a warning nobody is shown.
 describe("a build that needs supports never ships without the warning", () => {
-  const SPIKE = "hex-tb-spike-solid";
+  const SPIKE = "hex-spike-solid";
 
   it("ships a ONE-plate spike build in an archive, with the README", async () => {
     const res = await call(`release=${RELEASE}&parts=${SPIKE}`);
@@ -722,24 +735,24 @@ describe("a build that needs supports never ships without the warning", () => {
       `plates/${FB}-plate-1-of-1.3mf`,
     ]);
     const readme = await zip.file("README.txt")!.async("string");
-    expect(readme).toContain("Support required -- Hex-TB-Spike-Solid.");
+    expect(readme).toContain("Support required -- hex-spike-solid.");
     // The remedy that fits THIS part. Asserting a generic phrase here is what
     // let the README tell both spikes the same thing for months, including the
     // one a brim cannot hold. See the sibling test in hex-pack-readme.test.ts.
-    expect(flat(readme)).toContain("Hex-TB-Spike-Solid rests on a thin line");
+    expect(flat(readme)).toContain("hex-spike-solid rests on a thin line");
   });
 
   it("warns even when the spike is one part among many", async () => {
     // The realistic build. A cluster is mostly tiles and caps; the spike rides
     // along, and it is exactly the part somebody would not think to check.
-    const res = await call(`release=${RELEASE}&parts=hex-tb-main:2,${SPIKE}`);
+    const res = await call(`release=${RELEASE}&parts=hex-cap-edge-1h-f:2,${SPIKE}`);
     expect(res.headers.get("content-type")).toBe("application/zip");
     const zip = await JSZip.loadAsync(await bodyOf(res));
     // NAMES THE SPIKE, among however many others the sweep put on the list --
-    // `hex-tb-main` is on it now, so the sentence enumerates. What this row is
+    // `hex-cap-edge-1h-f` is on it now, so the sentence enumerates. What this row is
     // about is that the spike is not the one that gets dropped.
     expect(await zip.file("README.txt")!.async("string")).toContain(
-      "Hex-TB-Spike-Solid",
+      "hex-spike-solid",
     );
   });
 
@@ -756,7 +769,7 @@ describe("a build that needs supports never ships without the warning", () => {
       .file("3D/3dmodel.model")!
       .async("string");
     expect(model).toContain('<metadata name="Description">');
-    expect(model).toContain("Support required -- Hex-TB-Spike-Solid.");
+    expect(model).toContain("Support required -- hex-spike-solid.");
     expect(flat(model)).toContain("keep every part flat on the bed");
   });
 
@@ -779,11 +792,11 @@ describe("a build that needs supports never ships without the warning", () => {
     // must SAY so, or "the spike build warns" passes against a route that
     // warns about everything.
     //
-    // The fixture had to move too. `hex-tb-main` was the neutral part in every
+    // The fixture had to move too. `hex-cap-edge-1h-f` was the neutral part in every
     // suite here, and the calibration sweep put the whole `base` family on the
     // support list. A control has to actually be a control.
     const res = await call(
-      `release=${RELEASE}&parts=hex-tb-spike-platform-lrg:3`,
+      `release=${RELEASE}&parts=spike-acc-platform-lrg:3`,
     );
     expect(res.headers.get("content-type")).toBe("application/zip");
     expect(res.headers.get("content-disposition")).toBe(
@@ -797,7 +810,7 @@ describe("a build that needs supports never ships without the warning", () => {
 });
 
 describe("format=stl is untouched by any of this", () => {
-  const QUERY = `release=${RELEASE}&format=stl&parts=hex-tb-main:6,dovetail-cap-single-m-solid&plate=220x220`;
+  const QUERY = `release=${RELEASE}&format=stl&parts=hex-cap-edge-1h-f:6,side-connector-single&plate=220x220`;
 
   it("ships loose files in a zip, one per DISTINCT part", async () => {
     const res = await call(QUERY);
@@ -806,15 +819,15 @@ describe("format=stl is untouched by any of this", () => {
     expect(await entriesOf(res)).toEqual([
       "LICENSE.txt",
       "README.txt",
-      "stl/dovetail-cap-single-m-solid.stl",
-      "stl/hex-tb-main.stl",
+      "stl/hex-cap-edge-1h-f.stl",
+      "stl/side-connector-single.stl",
     ]);
   });
 
   it("reads .stl keys, and never opens what it read", async () => {
     await call(QUERY);
     expect(getBytes).toHaveBeenCalledWith(
-      `printables/${RELEASE}/stl/hex-tb-main.stl`,
+      `printables/${RELEASE}/stl/hex-cap-edge-1h-f.stl`,
     );
   });
 
@@ -825,13 +838,13 @@ describe("format=stl is untouched by any of this", () => {
     // 3MF this is 250 plated copies and over budget; as STL it is ONE file,
     // priced once, so it is served.
     const res = await call(
-      `release=${RELEASE}&format=stl&parts=hex-tb-main:250&plate=220x220`,
+      `release=${RELEASE}&format=stl&parts=hex-cap-edge-1h-f:250&plate=220x220`,
     );
     expect(res.status).toBe(200);
     expect(await entriesOf(res)).toEqual([
       "LICENSE.txt",
       "README.txt",
-      "stl/hex-tb-main.stl",
+      "stl/hex-cap-edge-1h-f.stl",
     ]);
   });
 });
@@ -844,7 +857,7 @@ describe("a release the geometry table was not measured from", () => {
     // request is refused before it can reach the bucket.
     for (const format of ["3mf", "stl"]) {
       const res = await call(
-        `release=${OLD_RELEASE}&parts=hex-tb-main:2&format=${format}`,
+        `release=${OLD_RELEASE}&parts=hex-cap-edge-1h-f:2&format=${format}`,
       );
       expect(res.status, format).toBe(404);
     }
@@ -852,22 +865,22 @@ describe("a release the geometry table was not measured from", () => {
   });
 
   it("CONTROL: the SAME request on the current release IS plated", async () => {
-    const res = await call(`release=${RELEASE}&parts=hex-tb-main:2`);
+    const res = await call(`release=${RELEASE}&parts=hex-cap-edge-1h-f:2`);
     expect(res.headers.get("content-type")).toBe("application/zip");
   });
 });
 
 describe("what a malformed request is told", () => {
   it.each([
-    ["a release that is not a date", `release=latest&parts=hex-tb-main`],
+    ["a release that is not a date", `release=latest&parts=hex-cap-edge-1h-f`],
     ["a name that is not published", `release=${RELEASE}&parts=not-a-part`],
     [
       "a format we do not pack",
-      `release=${RELEASE}&parts=hex-tb-main&format=step`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f&format=step`,
     ],
     [
       "a bed outside the range",
-      `release=${RELEASE}&parts=hex-tb-main&plate=40x40`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f&plate=40x40`,
     ],
     ["no parts at all", `release=${RELEASE}&parts=`],
   ])(
@@ -889,7 +902,7 @@ describe("what a malformed request is told", () => {
 
   it("404s when R2 cannot serve the object, without surfacing the error", async () => {
     getBytes.mockRejectedValue(new Error("NoSuchKey"));
-    const res = await call(`release=${RELEASE}&parts=hex-tb-main`);
+    const res = await call(`release=${RELEASE}&parts=hex-cap-edge-1h-f`);
     expect(res.status).toBe(404);
   });
 
@@ -898,7 +911,7 @@ describe("what a malformed request is told", () => {
     // from the caller's side the pack as asked for does not exist either way,
     // and which of the two it was is not something they could act on.
     getBytes.mockResolvedValue(Buffer.from("not a zip"));
-    const res = await call(`release=${RELEASE}&parts=hex-tb-main`);
+    const res = await call(`release=${RELEASE}&parts=hex-cap-edge-1h-f`);
     expect(res.status).toBe(404);
   });
 
@@ -907,7 +920,7 @@ describe("what a malformed request is told", () => {
     vi.stubEnv("R2_BUCKET", undefined);
     vi.resetModules();
     const { GET } = await import("@/app/api/printable-pack/route");
-    const res = await GET(request(`release=${RELEASE}&parts=hex-tb-main`));
+    const res = await GET(request(`release=${RELEASE}&parts=hex-cap-edge-1h-f`));
     expect(res.status).toBe(404);
     expect(getBytes).not.toHaveBeenCalled();
   });
@@ -938,7 +951,7 @@ describe("every PlatePackFailure reason maps to its intended status", () => {
     const { GET } = await import("@/app/api/printable-pack/route");
     // Canonical, so it is not answered with a redirect before the packer runs.
     const res = await GET(
-      request(`release=${RELEASE}&parts=hex-tb-main&plate=220x220`),
+      request(`release=${RELEASE}&parts=hex-cap-edge-1h-f&plate=220x220`),
     );
     vi.doUnmock("@/lib/hex-plate");
     vi.resetModules();
@@ -985,7 +998,7 @@ describe("what the download reports to analytics", () => {
 
   it("records the bed, its provenance, the plates and the instances", async () => {
     await call(
-      `release=${RELEASE}&parts=hex-tb-main:3&plate=350x350&bedFrom=account`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f:3&plate=350x350&bedFrom=account`,
     );
     expect(captured).toHaveBeenCalledTimes(1);
     expect(props()).toMatchObject({
@@ -1001,14 +1014,14 @@ describe("what the download reports to analytics", () => {
   });
 
   it("counts the plates on a multi-plate pack", async () => {
-    await call(`release=${RELEASE}&parts=hex-tb-main:5&plate=220x220`);
+    await call(`release=${RELEASE}&parts=hex-cap-edge-1h-f:5&plate=220x220`);
     expect(props()).toMatchObject({ plates: 2, instances: 5 });
   });
 
   it("reports NO plate count on a loose zip, rather than zero", async () => {
     // A loose zip has no plates. Reporting 0 would drag every average toward a
     // number that describes nothing.
-    await call(`release=${RELEASE}&format=stl&parts=hex-tb-main:6`);
+    await call(`release=${RELEASE}&format=stl&parts=hex-cap-edge-1h-f:6`);
     expect(props().plates).toBeUndefined();
     expect(props()).toMatchObject({ format: "stl", instances: 6 });
   });
@@ -1018,13 +1031,13 @@ describe("what the download reports to analytics", () => {
     // property of unbounded cardinality: a way to write arbitrary text into the
     // analytics store and to shred a breakdown chart.
     await call(
-      `release=${RELEASE}&parts=hex-tb-main&bedFrom=${encodeURIComponent("<img src=x>")}`,
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f&bedFrom=${encodeURIComponent("<img src=x>")}`,
     );
     expect(props().bed_source).toBe("unknown");
   });
 
   it("omits the provenance entirely when the caller states none", async () => {
-    await call(`release=${RELEASE}&parts=hex-tb-main`);
+    await call(`release=${RELEASE}&parts=hex-cap-edge-1h-f`);
     expect(props().bed_source).toBeUndefined();
     // The bed itself is still reported: it is what we packed for, stated or
     // defaulted.
@@ -1032,7 +1045,7 @@ describe("what the download reports to analytics", () => {
   });
 
   it("does not fire at all for a refused request", async () => {
-    await call(`release=${RELEASE}&parts=hex-tb-main:250&plate=220x220`);
+    await call(`release=${RELEASE}&parts=hex-cap-edge-1h-f:250&plate=220x220`);
     expect(captured).not.toHaveBeenCalled();
   });
 });

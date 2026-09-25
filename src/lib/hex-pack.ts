@@ -3,6 +3,7 @@
 // module may only export the handler names, and this is the part with rules.
 
 import { HEX_PART_SLUGS, isHexPartSlug } from "@/lib/hex-parts";
+import { BED_FLOOR_MM } from "@/lib/hex-release-tables";
 import { PACK_NAME_FALLBACK, resolvePackName } from "@/lib/hex-pack-name";
 
 /** Immutable release segment, e.g. `2026-07-31`. Same grammar as the proxy. */
@@ -107,9 +108,11 @@ export const BED_MAX = 1000;
  *  do not support, so it gets a 400 that SAYS so. `BED_MIN` keeps its old value
  *  because the account setting and the embed protocol validate against it.
  *
- *  The largest v2 part is `hex-main` at 190.8 x 169.2 mm; with the packer's gap
- *  on both sides that is 198.8 mm, which clears 220. */
-export const BED_FLOOR_MM = 220;
+ *  GENERATED with the tables (4.6), so the number and the parts measured
+ *  against it cannot drift: the hex-cluster generator refuses a release with a
+ *  part that does not clear it with the packer's gap on both sides. The widest
+ *  v2 part is `hex-jig-tolerance-ladder` at 210 mm, 218 mm with the gaps. */
+export { BED_FLOOR_MM };
 
 /** Where the configurator got the bed it is asking us to pack for. Analytics
  *  only -- it changes no byte of the response. */

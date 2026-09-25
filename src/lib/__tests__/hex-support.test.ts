@@ -3,7 +3,8 @@
 // the one sentence preventing a failed print.
 import { describe, expect, it } from "vitest";
 
-import { HEX_PART_SLUGS, isHexPartSlug } from "@/lib/hex-parts";
+import { HEX_PART_SLUGS } from "@/lib/hex-parts";
+import { HEX_PUBLISHED_RECORD_SLUGS } from "@/lib/hex-published-record";
 import {
   NEEDS_SUPPORT_NAMES,
   NEEDS_SUPPORT_SLUGS,
@@ -23,12 +24,27 @@ describe("the support set", () => {
     );
   });
 
-  it("names only parts that are actually published", () => {
+  it("names only parts that were actually published", () => {
     // A re-cut that renames or drops a spike leaves this set pointing at
     // nothing, and `needsSupport` would then answer false for a part that still
     // rests on a line. Membership, not shape: the slug grammar would happily
     // accept a name for a part we no longer ship.
-    for (const s of NEEDS_SUPPORT_SLUGS) expect(isHexPartSlug(s)).toBe(true);
+    //
+    // HELD TO THE v1 PUBLISHED RECORD, NOT THE LIVE RELEASE, until launch
+    // readiness 4.7 replaces this table from the v2 calibration slice (4.4).
+    // Every row below is a v1 measurement; the v2 parts have not been sliced.
+    const record = new Set<string>(HEX_PUBLISHED_RECORD_SLUGS);
+    for (const s of NEEDS_SUPPORT_SLUGS) expect(record.has(s), s).toBe(true);
+  });
+
+  it("has NO v2 row yet: 4.7 is still owed, and this says so", () => {
+    // THE GAP, STATED AS A TEST. Until 4.7 lands, no part in the live release
+    // is on the support list, so every v2 README and plate says "No supports
+    // needed" -- including for parts the slicer may well flag. This row fails
+    // the moment the first v2 row arrives, which is when it should be deleted
+    // and the rows above pointed back at HEX_PART_SLUGS.
+    const live = new Set<string>(HEX_PART_SLUGS);
+    expect([...NEEDS_SUPPORT_SLUGS].filter((s) => live.has(s))).toEqual([]);
   });
 
   it("answers yes for a pack containing one, and no for one that does not", () => {
@@ -52,7 +68,8 @@ describe("the support set", () => {
     // row failed without a defect. A count is a proxy for the claim; these are
     // the claim. The parts below are excluded on a MEASURED first layer of 250
     // and 826 sq mm, which is the reason they need nothing, not their name.
-    const spikes = HEX_PART_SLUGS.filter((s) => s.includes("spike"));
+    // Over the v1 record, which is what the rows describe until 4.7.
+    const spikes = HEX_PUBLISHED_RECORD_SLUGS.filter((s) => s.includes("spike"));
     expect(spikes.length).toBeGreaterThan(0);
     for (const stands of [
       "hex-tb-spike-platform-lrg",
