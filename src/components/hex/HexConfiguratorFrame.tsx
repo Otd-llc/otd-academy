@@ -565,6 +565,12 @@ export function HexConfiguratorFrame({
         case "context-lost":
           setContextLost(true);
           break;
+        case "restored":
+          // The child got its graphics context back on its own, so the notice
+          // is stale. Only dismisses; it never reloads the frame (that would
+          // throw away the build).
+          setContextLost(false);
+          break;
         case "bed-changed":
           // The child owns the picker; the academy owns the account. Writing it
           // through here is what makes a bed picked on a laptop true on a phone.

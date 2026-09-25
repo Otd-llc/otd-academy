@@ -196,6 +196,7 @@ describe("parseMessage — the reply half", () => {
   it("accepts the frame-control messages", () => {
     expect(parseMessage({ ...base, type: "close-request" })?.type).toBe("close-request");
     expect(parseMessage({ ...base, type: "context-lost" })?.type).toBe("context-lost");
+    expect(parseMessage({ ...base, type: "restored" })?.type).toBe("restored");
     expect(parseMessage({ ...base, type: "save-cancelled", requestId: "r1" })?.type).toBe(
       "save-cancelled",
     );

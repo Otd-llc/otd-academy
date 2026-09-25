@@ -267,6 +267,18 @@ export type ContextLost = {
 };
 
 /**
+ * Child -> parent: the graphics context came back after a `context-lost`, so the
+ * parent's "context lost" notice can go away without a reload. Additive (see
+ * `PROTOCOL_VERSION`): a parent that predates it drops it and the notice stays
+ * until the visitor reloads, which is what happened before it existed.
+ */
+export type Restored = {
+  channel: typeof CHANNEL;
+  protocolVersion: number;
+  type: "restored";
+};
+
+/**
  * Child -> parent, once, right after it accepts the handshake: what this build
  * of the configurator can do for itself.
  *
@@ -301,6 +313,7 @@ export type HexMessage =
   | SaveCancelled
   | CloseRequest
   | ContextLost
+  | Restored
   | Hello;
 
 const isStr = (v: unknown): v is string => typeof v === "string" && v.length > 0;
@@ -432,6 +445,7 @@ export function parseMessage(data: unknown): HexMessage | null {
         : null;
     case "close-request":
     case "context-lost":
+    case "restored":
       return d as unknown as HexMessage;
     default:
       return null;
