@@ -7,7 +7,14 @@
 // file that may be published and the licence each ships under. Only `cc-by`
 // passes; a `third-party` row, a row with no licence, a file the manifest has but
 // the list does not, or a listed file the manifest lacks each refuse the whole
-// run before anything is written. Format: scripts/lib/printables-allowlist.ts.
+// run before anything is written. A manifest part the list names under
+// `withheld` (with its reason) is SKIPPED and logged, never uploaded; that is
+// the only way a manifest part may be left out. Format:
+// scripts/lib/printables-allowlist.ts.
+//
+// `--write` also refuses while any `[OWNER-WORDING: ...]` placeholder remains in
+// any file it would upload (the LICENSE disclaimer of 6.8, the README safety
+// text of 2.6, or any later one). A dry run emits them, so they can be read.
 //
 // Every PUT carries `x-amz-meta-sha256` (hex SHA-256 of the bytes) and
 // `Content-Disposition: attachment`. Before writing, every key is HEADed:
@@ -66,7 +73,13 @@ import {
   SUPPORT_SLICER_NOTE,
 } from "../src/lib/hex-support";
 // Plain data, no env -- same reasoning again. The per-release LICENSE.txt.
-import { hexLicenseTxt, ownerWordingPending } from "../src/lib/hex-license-txt";
+import { hexLicenseTxt } from "../src/lib/hex-license-txt";
+// Plain data, no env. The README's 2.6 safety slot, and the placeholder scan the
+// --write refusal applies to every file this run would upload.
+import {
+  hexReadmeSafetyLines,
+  ownerWordingIn,
+} from "../src/lib/hex-readme-safety";
 
 /** Hard-wrap for the archive README, which is read in Notepad and in terminals.
  *  Neither reflows, so a long sentence is either cut off at the column or
@@ -144,12 +157,13 @@ const WITHHELD_PARTS = new Set(["TB-1-POWER"]);
 
 const SETS: Record<
   string,
-  { label: string; parts: (m: Manifest) => string[] }
+  { label: string; parts: (shipped: ManifestPart[]) => string[] }
 > = {
   "hex-cluster": {
     label: "Hex Cluster modular tile system -- complete set",
-    parts: (m) =>
-      m.parts.map((p) => p.part).filter((p) => !WITHHELD_PARTS.has(p)),
+    // Handed the parts that SHIP (both withholdings already applied), never the
+    // raw manifest, so a set can only ever hold what passed the allow-list.
+    parts: (shipped) => shipped.map((p) => p.part),
   },
 };
 
@@ -388,17 +402,6 @@ async function main() {
     );
   }
 
-  // The v2 notice carries placeholders for wording only the owner can supply.
-  // A release key is immutable, so publishing one of them is permanent.
-  const pending = ownerWordingPending(LICENSE_TXT);
-  if (write && pending.length) {
-    throw new Error(
-      `LICENSE.txt for ${RELEASE} still carries owner placeholders:\n  ` +
-        pending.join("\n  ") +
-        `\nReplace them in src/lib/hex-license-txt.ts before --write.`,
-    );
-  }
-
   const manifest = loadManifest();
   const allow = loadAllowList(resolve(allowListPath));
   console.log(`source:  ${SOURCE_DIR}`);
@@ -433,9 +436,34 @@ async function main() {
     );
   }
 
+  // The allow-list's own withholdings (decision 1.6 and the licence rule, as the
+  // release-table generator recorded them). Each is skipped BY NAME, with its
+  // reason printed; a part the manifest has and the list neither lists nor
+  // withholds still falls through to the check below and refuses.
+  const listWithheld = new Map(allow.withheld.map((w) => [w.part, w.reason]));
+  const skippedByList = manifest.parts.filter((p) => listWithheld.has(p.part));
+  if (skippedByList.length) {
+    console.log(
+      `\nwithheld by the allow-list (${skippedByList.length}), not uploaded:`,
+    );
+    for (const p of skippedByList) {
+      console.log(`  - ${p.part}: ${listWithheld.get(p.part)}`);
+    }
+  }
+  const absentWithheld = allow.withheld.filter(
+    (w) => !manifest.parts.some((p) => p.part === w.part),
+  );
+  if (absentWithheld.length) {
+    console.log(
+      `withheld names not in this manifest (nothing to skip): ${absentWithheld.map((w) => w.part).join(", ")}`,
+    );
+  }
+
   // EVERY SOURCE FILE this run would read into the bucket, checked against the
   // allow-list BEFORE a single object is planned. Refusal is all-or-nothing.
-  const shipped = manifest.parts.filter((p) => !WITHHELD_PARTS.has(p.part));
+  const shipped = manifest.parts.filter(
+    (p) => !WITHHELD_PARTS.has(p.part) && !listWithheld.has(p.part),
+  );
   const problems = checkAgainstAllowList(
     shipped.flatMap((p) =>
       Object.values(p.files).map((f) => ({ path: f.path, part: p.part })),
@@ -455,6 +483,10 @@ async function main() {
   }
 
   const objects: Planned[] = [];
+  // Everything this run would publish, as the bytes a reader would open: each
+  // standalone object, and each zip ENTRY before compression (a marker inside a
+  // deflated README is not findable in the zip's own bytes).
+  const scan: { name: string; data: Buffer | string }[] = [];
 
   // Standalone too, not just inside the zip: anyone grabbing a single .3mf by
   // URL never opens the archive, and CC BY only works if the terms travel.
@@ -494,10 +526,13 @@ async function main() {
     : zipDate;
 
   for (const [setName, set] of Object.entries(SETS)) {
-    const names = set.parts(manifest);
+    const names = set.parts(shipped);
     const zip = new JSZip();
-    const add = (name: string, data: string | Buffer) =>
+    const zipKey = printableSetKey(RELEASE, setName);
+    const add = (name: string, data: string | Buffer) => {
+      scan.push({ name: `${zipKey} > ${name}`, data });
       zip.file(name, data, { date: entryDate, createFolders: false });
+    };
     // The README describes the parts it actually ships with, so it is handed
     // the manifest rows for exactly those names, not the whole manifest.
     const setParts = manifest.parts.filter((p) => names.includes(p.part));
@@ -520,7 +555,34 @@ async function main() {
       compression: "DEFLATE",
     });
     console.log(`  set ${setName}: ${names.length} part(s)`);
-    objects.push(plan(printableSetKey(RELEASE, setName), body, "application/zip"));
+    objects.push(plan(zipKey, body, "application/zip"));
+  }
+
+  // OWNER PLACEHOLDERS, in ANY file. The LICENSE disclaimer (6.8) and the README
+  // safety text (2.6) are the owner's words, and a release key is immutable, so
+  // publishing a placeholder is permanent. Checked after planning so it sees the
+  // exact bytes, and before publish() so it lands before any R2 call. A dry run
+  // reports them and carries on: it exists so the slots can be read.
+  for (const p of objects) {
+    if (p.contentType !== "application/zip") {
+      scan.push({ name: p.key, data: p.body });
+    }
+  }
+  const pending = scan.flatMap(({ name, data }) =>
+    ownerWordingIn(data).map((m) => `${name}: ${m}`),
+  );
+  if (pending.length) {
+    if (write) {
+      throw new Error(
+        `Refusing --write: the release still carries owner placeholders (${pending.length}):\n  ` +
+          pending.join("\n  ") +
+          `\nReplace them (src/lib/hex-license-txt.ts, src/lib/hex-readme-safety.ts) before --write.`,
+      );
+    }
+    console.log(
+      `\n!! ${pending.length} owner placeholder(s) remain; --write will refuse until they are replaced:\n  ` +
+        pending.join("\n  "),
+    );
   }
 
   await publish(objects);
@@ -581,11 +643,20 @@ function orientationNote(parts: ManifestPart[]): string[] {
       "hand. Check every part sits on a flat face before slicing.",
     );
   } else {
+    // "Except the parts named below" only when a support section follows. It
+    // used to say "the two exceptions below" unconditionally, and the v2 set has
+    // no part in NEEDS_SUPPORT_NAMES, so the sentence pointed at a section that
+    // never rendered. Support data stays unknown until launch item 4.7.
     lines.push(
       "",
-      "Every orientation has been checked: each part rests on a flat face, with",
-      "the two exceptions below. Nobody has printed the set yet, so this is a",
-      "geometric check and not a print-tested one.",
+      ...wrap72(
+        (supportParts(parts).length > 0
+          ? "Every orientation has been checked: each part rests on a flat face, " +
+            "except the parts named below."
+          : "Every orientation has been checked: each part rests on a flat face.") +
+          " Nobody has printed the set yet, so this is a geometric check and not " +
+          "a print-tested one.",
+      ),
     );
   }
 
@@ -596,9 +667,7 @@ function orientationNote(parts: ManifestPart[]): string[] {
   // set to decide whether a single-plate build ships bare or inside an archive --
   // so a re-cut that updated this file and not that one would ship a bare file
   // with no warning in it at all. See that module's header.
-  const present = NEEDS_SUPPORT_NAMES.filter((n) =>
-    parts.some((p) => p.part === n),
-  );
+  const present = supportParts(parts);
   if (present.length > 0) {
     lines.push(
       "",
@@ -621,6 +690,11 @@ function orientationNote(parts: ManifestPart[]): string[] {
   return lines;
 }
 
+/** The shipped parts that need support, in NEEDS_SUPPORT_NAMES order. */
+function supportParts(parts: ManifestPart[]): string[] {
+  return NEEDS_SUPPORT_NAMES.filter((n) => parts.some((p) => p.part === n));
+}
+
 function setReadme(
   label: string,
   names: string[],
@@ -632,8 +706,9 @@ function setReadme(
     "Hex Cluster modular tile system -- One Thousand Drones, LLC",
     "https://academy.onethousanddrones.com/hex",
     "",
+    // Decision 1.10: the configurator's own host, live before any public link.
     "Configure a cluster and generate a build sheet:",
-    "  https://demo.onethousanddrones.com/hex",
+    "  https://hex.onethousanddrones.com",
     "",
     "Format: 3mf/ (carries units and part names). STL and STEP are",
     "        separate per-part downloads, not in this archive.",
@@ -698,6 +773,10 @@ function setReadme(
     // manifest still has printOrientationReviewed = false. Counted from the
     // manifest rather than typed in, so the sentence cannot drift from the set.
     ...orientationNote(parts),
+    "",
+    // Launch item 2.6. The owner's (and a lawyer's) words, not drafted here; a
+    // marked slot until then, and --write refuses while the marker is present.
+    ...hexReadmeSafetyLines(),
     "",
     "Full spec: https://academy.onethousanddrones.com/hex",
     "",

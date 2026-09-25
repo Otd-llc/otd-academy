@@ -105,9 +105,13 @@ describe("the uploader builds its LICENSE.txt from this module", () => {
     expect(src).not.toMatch(/Copyright \(c\)/);
   });
 
+  // The refusal now scans EVERY file the run would upload for any
+  // `[OWNER-WORDING:` marker (LICENSE.txt included), not this notice alone.
+  // Behaviour is proved end to end in upload-printables.test.ts ("owner
+  // wording"); this pins that the scan feeds a --write throw.
   it("refuses --write while an owner placeholder is still in the notice", () => {
     expect(src).toMatch(
-      /const pending = ownerWordingPending\(LICENSE_TXT\);\s*if \(write && pending\.length\) \{\s*throw/,
+      /const pending = scan\.flatMap\([\s\S]*?ownerWordingIn\(data\)[\s\S]*?if \(pending\.length\) \{\s*if \(write\) \{\s*throw/,
     );
   });
 });

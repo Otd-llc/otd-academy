@@ -135,15 +135,17 @@ export function printableProxyPath(release: string, rest: string): string {
 
 /** Decision 1.3: one full-set archive, 3MF only. STL and STEP are per part.
  *
- *  The size is the 4.9 DRY RUN's measurement (2026-09-25): 18,542,887 bytes
- *  for release 2026-10-01, 290 parts, byte-identical across two runs
- *  (docs/plans/2026-09-25-hex-v2-upload-dry-run.md). It replaces the
- *  decision's "~19.5 MB" estimate. It is still NOT a published object, and the
- *  README inside the zip will change before publish (the 2.6 safety text), so
- *  `sizeMeasured` stays false until 10.3 HEADs the real key. Decimal MB. */
+ *  The size is the 4.9 DRY RUN's measurement (2026-09-25), re-run after its
+ *  three defects were fixed: 18,542,930 bytes for release 2026-10-01, 290
+ *  parts, byte-identical across two runs, against the real unfiltered manifest
+ *  (docs/plans/2026-09-25-hex-v2-upload-dry-run.md). It replaces the decision's
+ *  "~19.5 MB" estimate. It is still NOT a published object: the README inside
+ *  the zip carries a placeholder where the 2.6 safety text goes, and the owner's
+ *  text will change the size again, so `sizeMeasured` stays false until 10.3
+ *  HEADs the real key. Decimal MB. */
 export const HEX_V2_SET = {
   name: "hex-cluster",
-  sizeBytes: 18_542_887,
+  sizeBytes: 18_542_930,
   sizeLabel: "~18.5 MB",
   sizeMeasured: false,
 } as const;
