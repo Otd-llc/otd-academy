@@ -18,6 +18,7 @@ import {
   HEX_V2_MALE_BEARINGS,
   HEX_V2_PITCH_MM,
   HEX_V2_PRINT_PROFILE,
+  HEX_V2_SET,
   HEX_V2_SLICERS,
   firstBuildTotals,
   hoursMinutes,
@@ -92,6 +93,17 @@ describe("downloads go through /api/printable", () => {
       );
     }
     expect(HEX_V2_JIGS).toHaveLength(4);
+  });
+
+  it("labels the set zip with the 4.9 dry-run size, still flagged unpublished", () => {
+    // The label must be the byte count rounded to decimal MB, so the two
+    // cannot drift apart when the next measurement replaces them.
+    expect(HEX_V2_SET.sizeLabel).toBe(
+      `~${(HEX_V2_SET.sizeBytes / 1e6).toFixed(1)} MB`,
+    );
+    expect(HEX_V2_SET.sizeLabel).toBe("~18.5 MB");
+    // A dry-run measurement is not a published object (10.3 flips this).
+    expect(HEX_V2_SET.sizeMeasured).toBe(false);
   });
 });
 
