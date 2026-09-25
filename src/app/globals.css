@@ -2628,13 +2628,19 @@ fieldset:has(.qzh-opt[data-st="ok"]) [role="status"] > div > p:last-child {
    ~49 ms after. That gap is the flicker.
 
    Only the active clip carries preload="auto", so mounting both costs one extra
-   poster (~20 kB), not a second 350 kB download. */
-video[data-loop="light"] {
+   poster (~20 kB), not a second 350 kB download.
+
+   HexStill (the static v2 hero) uses the same pair-and-pick with two <img>
+   elements keyed `data-still`, for the same reason. */
+video[data-loop="light"],
+img[data-still="light"] {
   display: none;
 }
-:root[data-theme="light"] video[data-loop="light"] {
+:root[data-theme="light"] video[data-loop="light"],
+:root[data-theme="light"] img[data-still="light"] {
   display: block;
 }
-:root[data-theme="light"] video[data-loop="dark"] {
+:root[data-theme="light"] video[data-loop="dark"],
+:root[data-theme="light"] img[data-still="dark"] {
   display: none;
 }

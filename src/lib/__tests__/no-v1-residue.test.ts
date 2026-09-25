@@ -42,6 +42,13 @@ const PUBLISHED_RECORD_FILES = new Set([
   "src/lib/hex-published-record.ts",
   // The published record's own test: pins the 53 slugs and the 3 releases.
   "src/lib/__tests__/hex-release-tables.test.ts",
+  // The published LICENSE.txt: the three v1 releases' notice, byte-for-byte,
+  // and the test that pins it to the published hash.
+  "src/lib/hex-license-txt.ts",
+  "src/lib/__tests__/hex-license-txt.test.ts",
+  // A GATE, not residue: the /hex page test asserts the page does NOT match
+  // the v1 terms, so the pattern has to be written in it.
+  "src/lib/__tests__/hex-v2-page.test.ts",
 ]);
 
 /** FALSE POSITIVES: the name of the owner's bench PCB project (a curriculum
