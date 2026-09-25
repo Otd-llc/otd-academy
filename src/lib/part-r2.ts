@@ -41,8 +41,14 @@ export async function headVerifySize(key: string, declaredBytes: number, maxByte
  *  `Content-Disposition: attachment` override so the browser DOWNLOADS the file
  *  (with that name) instead of rendering it inline — the `<a download>` attr is
  *  ignored for cross-origin R2 URLs, so the disposition must be signed in here.
- *  Quotes/CR/LF are stripped from the name to prevent header injection. */
-export function presignGet(key: string, downloadFilename?: string) {
+ *  Quotes/CR/LF are stripped from the name to prevent header injection.
+ *  `expiresIn` (seconds) defaults to the short GET TTL; the public printable
+ *  route passes an hour, because a slicer or download manager may retry. */
+export function presignGet(
+  key: string,
+  downloadFilename?: string,
+  expiresIn: number = GET_TTL_SECONDS,
+) {
   const safeName = downloadFilename?.replace(/["\\\r\n]/g, "");
   return getSignedUrl(
     r2,
@@ -53,8 +59,19 @@ export function presignGet(key: string, downloadFilename?: string) {
         ? { ResponseContentDisposition: `attachment; filename="${safeName}"` }
         : {}),
     }),
-    { expiresIn: GET_TTL_SECONDS },
+    { expiresIn },
   );
+}
+
+/** HEAD an object: its metadata, without the body. Throws what the SDK throws;
+ *  a missing key is a `NotFound` (HEAD has no body, so no `NoSuchKey` code). */
+export async function headR2Object(
+  key: string,
+): Promise<{ contentLength?: number }> {
+  const head = await r2.send(
+    new HeadObjectCommand({ Bucket: env.R2_BUCKET!, Key: key }),
+  );
+  return { contentLength: head.ContentLength };
 }
 
 /** Presigned GET WITHOUT a Content-Disposition override → the browser may fetch
