@@ -305,7 +305,8 @@ export type SaveErrCode =
   | "quota-total"
   | "not-found"
   | "cluster-archived"
-  | "rate-limited";
+  | "rate-limited"
+  | "saves-paused";
 
 export type SaveOk = {
   ok: true;
@@ -343,4 +344,5 @@ export const SAVE_ERROR_MESSAGE: Record<SaveErrCode, string> = {
   "not-found": "That drawing could not be found.",
   "cluster-archived": "That drawing is archived.",
   "rate-limited": "Too many saves just now. Try again in a minute.",
+  "saves-paused": "Saving is paused for now. Try again later.",
 };

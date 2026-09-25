@@ -22,6 +22,7 @@ import { currentUserId, requireUser } from "@/lib/auth-helpers";
 import { enforce } from "@/lib/abuse-limit";
 import { hexSaveCheck } from "@/lib/abuse-policy";
 import { defenseEnabled } from "@/lib/abuse-defense-flag";
+import { hexFlag } from "@/lib/hex-flags";
 import { invalidateHexCluster } from "@/lib/cache-invalidate";
 import {
   IDEMPOTENCY_WINDOW_MS,
@@ -76,6 +77,10 @@ async function lockUser(
 
 export async function saveHexCluster(input: SaveInput): Promise<SaveResult> {
   const user = await requireUser();
+
+  // The kill switch (`hexSaveEnabled`), before the rate limiter and before any
+  // query: a paused save touches nothing.
+  if (!(await hexFlag("hexSaveEnabled"))) return fail("saves-paused");
 
   // Burst rate only. enforce() is a sliding-window RATE limiter: it cannot
   // express "50 rows exist", returns ok when KV_REST_API_* is unset (all of

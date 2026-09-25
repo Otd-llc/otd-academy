@@ -70,6 +70,7 @@ import {
 } from "@/lib/hex-plate";
 import { printableKey, printableLicenseKey } from "@/lib/r2";
 import { distinctIdFromCookies } from "@/lib/posthog-distinct-id";
+import { hexFlag } from "@/lib/hex-flags";
 
 const SITE = "https://academy.onethousanddrones.com/hex";
 
@@ -200,6 +201,15 @@ const CACHE = "public, max-age=86400";
 export async function GET(req: NextRequest) {
   if (!env.R2_ENABLED || !env.R2_BUCKET) {
     return new Response("Not found", { status: 404 });
+  }
+
+  // The kill switch (`hexPackEnabled`), checked before any parsing or R2 read.
+  // 503 with no-store so a CDN never pins the refusal past the flip back.
+  if (!(await hexFlag("hexPackEnabled"))) {
+    return new Response("Downloads are paused. Try again later.", {
+      status: 503,
+      headers: { "Cache-Control": "no-store", "Retry-After": "300" },
+    });
   }
 
   const q = req.nextUrl.searchParams;
