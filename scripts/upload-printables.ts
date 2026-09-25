@@ -44,6 +44,8 @@ import {
   SUPPORT_NOTE,
   SUPPORT_SLICER_NOTE,
 } from "../src/lib/hex-support";
+// Plain data, no env -- same reasoning again. The per-release LICENSE.txt.
+import { hexLicenseTxt, ownerWordingPending } from "../src/lib/hex-license-txt";
 
 /** Hard-wrap for the archive README, which is read in Notepad and in terminals.
  *  Neither reflows, so a long sentence is either cut off at the column or
@@ -264,6 +266,17 @@ async function main() {
   if (!env.R2_ENABLED || !env.R2_BUCKET) {
     throw new Error(
       "R2 is not configured (R2_ENABLED / R2_BUCKET). Refusing to run.",
+    );
+  }
+
+  // The v2 notice carries placeholders for wording only the owner can supply.
+  // A release key is immutable, so publishing one of them is permanent.
+  const pending = ownerWordingPending(LICENSE_TXT);
+  if (write && pending.length) {
+    throw new Error(
+      `LICENSE.txt for ${RELEASE} still carries owner placeholders:\n  ` +
+        pending.join("\n  ") +
+        `\nReplace them in src/lib/hex-license-txt.ts before --write.`,
     );
   }
 
@@ -535,30 +548,13 @@ function setReadme(
 // volume that makes a listing rank. Mandated attribution IS the return here.
 //
 // NOTE: this is one-way. Files published under CC BY stay CC BY; only future
-// releases can carry a different license.
-const LICENSE_TXT = [
-  "Hex Cluster modular tile system",
-  "Copyright (c) One Thousand Drones, LLC",
-  "",
-  "This work is licensed under the Creative Commons Attribution 4.0",
-  "International License (CC BY 4.0).",
-  "",
-  "You are free to:",
-  "  Share  -- copy and redistribute in any medium or format",
-  "  Adapt  -- remix, transform, and build upon it, for any purpose,",
-  "            including commercially.",
-  "",
-  "Under the following term:",
-  "  Attribution -- You must give appropriate credit to One Thousand",
-  "  Drones, LLC, provide a link to this license, and indicate if changes",
-  "  were made. You may do so in any reasonable manner, but not in any way",
-  "  that suggests One Thousand Drones endorses you or your use.",
-  "",
-  "Full licence text: https://creativecommons.org/licenses/by/4.0/legalcode",
-  "Summary:           https://creativecommons.org/licenses/by/4.0/",
-  "",
-  "Source: https://academy.onethousanddrones.com/hex",
-].join("\n");
+// releases can carry different terms.
+//
+// The text is chosen PER RELEASE in `src/lib/hex-license-txt.ts`: the three
+// published v1 releases get their published bytes back verbatim (pinned by
+// sha256 in its test), and a later release gets the v2 notice with its year and
+// the owner's disclaimer slot.
+const LICENSE_TXT = hexLicenseTxt(RELEASE);
 
 main().catch((err) => {
   console.error(err instanceof Error ? err.message : err);
