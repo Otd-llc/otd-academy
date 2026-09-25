@@ -24,7 +24,7 @@ export const HEX_PART_BYTES_RELEASE: string | null = "2026-10-01";
 
 /** sha256 of the canonical text of `HEX_PART_BYTES` (see the header). */
 export const HEX_PART_BYTES_HASH =
-  "fbf2bff6efd7845db37dec5f98622fc8cbf7673891667d0deca1ebde9f04d625";
+  "5eb5fd5935feab95b9b0f69e76d40d611db9399d27dad0974a0248fafdee8ecf";
 
 export const HEX_PART_BYTES: Readonly<Record<string, HexPartBytes>> = {
   "25mm-ins": { "3mf": 58856, stl: 281884 },
@@ -43,7 +43,6 @@ export const HEX_PART_BYTES: Readonly<Record<string, HexPartBytes>> = {
   "hex-acc-keyhole": { "3mf": 18382, stl: 100884 },
   "hex-acc-label": { "3mf": 33870, stl: 194284 },
   "hex-acc-rod": { "3mf": 33566, stl: 175884 },
-  "hex-acc-saddle-one": { "3mf": 17539, stl: 99284 },
   "hex-acc-splice": { "3mf": 94163, stl: 508884 },
   "hex-bin-bolt-e-port": { "3mf": 66146, stl: 307884 },
   "hex-bin-bolt-e-port-div3": { "3mf": 72600, stl: 336684 },

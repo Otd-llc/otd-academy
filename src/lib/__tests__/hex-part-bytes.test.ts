@@ -53,6 +53,8 @@ describe("the byte table", () => {
       "hex-cover-handle",
       "hex-acc-saddle",
       "hex-acc-saddle-half",
+      // same 0.245 mm wall as hex-acc-saddle; withheld with it
+      "hex-acc-saddle-one",
       // the C-clip parts
       "hex-acc-hose",
       "hex-acc-probe",

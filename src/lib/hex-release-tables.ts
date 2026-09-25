@@ -14,6 +14,7 @@
 //   hex-acc-probe  (1.6: C-clip part)
 //   hex-acc-saddle  (1.6: under 2 extrusion widths)
 //   hex-acc-saddle-half  (1.6: under 2 extrusion widths)
+//   hex-acc-saddle-one  (1.6 rule: min wall 0.245 mm, same as hex-acc-saddle)
 //   hex-acc-trellis  (1.6: C-clip part)
 //   hex-cover-handle  (1.6: withheld)
 //   pvc-wedge  (1.6: withheld)
@@ -24,7 +25,7 @@ import type { PartBox } from "@/lib/hex-plate";
 export const HEX_TABLES_RELEASE = "2026-10-01";
 
 /** Content hash of this file. See the header. */
-export const HEX_RELEASE_TABLES_HASH = "c529deab8983cc462c972aca0bae21c837748aada640b57b7d0482d6ecbaaa8f";
+export const HEX_RELEASE_TABLES_HASH = "1e529a4f175d7cd82ae1a3067ee5a2a9034943d167d8125ed856de00653866d7";
 
 /** sha256 of the two inputs this file was generated from. */
 export const HEX_TABLES_SOURCE = {
@@ -53,7 +54,6 @@ export const HEX_PART_SLUGS = [
   "hex-acc-keyhole",
   "hex-acc-label",
   "hex-acc-rod",
-  "hex-acc-saddle-one",
   "hex-acc-splice",
   "hex-bin-bolt-e-port",
   "hex-bin-bolt-e-port-div3",
@@ -331,7 +331,7 @@ export const HEX_PART_SLUGS = [
 ] as const;
 
 /** How many parts the release carries. */
-export const HEX_PART_COUNT = 291;
+export const HEX_PART_COUNT = 290;
 
 /** The manifest's own part families, sorted. */
 export const HEX_PART_FAMILIES = [
@@ -369,7 +369,6 @@ export const HEX_PART_FAMILY: Readonly<Record<string, HexReleaseFamily>> = {
   "hex-acc-keyhole": "accessory",
   "hex-acc-label": "accessory",
   "hex-acc-rod": "accessory",
-  "hex-acc-saddle-one": "accessory",
   "hex-acc-splice": "accessory",
   "hex-bin-bolt-e-port": "bin",
   "hex-bin-bolt-e-port-div3": "bin",
@@ -653,8 +652,8 @@ export const HEX_PART_FAMILY: Readonly<Record<string, HexReleaseFamily>> = {
  *  the uploader, and its exact size is recorded by the upload dry run (4.9). */
 export const HEX_RELEASE_FILES = {
   set: {
-    members: 291,
-    contentBytes: 19217751,
+    members: 290,
+    contentBytes: 19200212,
     label: "19.2 MB",
   },
 } as const;
@@ -683,7 +682,6 @@ export const HEX_PART_BOX: Readonly<Record<string, PartBox>> = {
   "hex-acc-keyhole": { x0: -24, y0: -40, z0: 0, dx: 48, dy: 80, dz: 6 },
   "hex-acc-label": { x0: -24, y0: -28, z0: 0, dx: 48, dy: 56, dz: 8.2 },
   "hex-acc-rod": { x0: -24, y0: -38, z0: 0, dx: 48, dy: 76, dz: 46 },
-  "hex-acc-saddle-one": { x0: -24, y0: -28, z0: 0, dx: 48, dy: 56, dz: 28.951 },
   "hex-acc-splice": { x0: -24, y0: -28, z0: 0, dx: 48, dy: 136, dz: 21 },
   "hex-bin-bolt-e-port": { x0: -3.877, y0: -82.353, z0: 0, dx: 96.693, dy: 160.955, dz: 80 },
   "hex-bin-bolt-e-port-div3": { x0: -3.877, y0: -82.353, z0: 0, dx: 96.693, dy: 160.955, dz: 80 },
@@ -991,7 +989,6 @@ export const HEX_PART_NAME: Readonly<Record<string, string>> = {
   "hex-acc-keyhole": "hex-acc-keyhole",
   "hex-acc-label": "hex-acc-label",
   "hex-acc-rod": "hex-acc-rod",
-  "hex-acc-saddle-one": "hex-acc-saddle-one",
   "hex-acc-splice": "hex-acc-splice",
   "hex-bin-bolt-e-port": "hex-bin-bolt-e-port",
   "hex-bin-bolt-e-port-div3": "hex-bin-bolt-e-port-div3",
