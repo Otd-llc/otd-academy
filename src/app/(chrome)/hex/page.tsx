@@ -132,16 +132,6 @@ function SpecRows({ rows }: { rows: SpecRow[] }) {
   );
 }
 
-/** A visible hole in the draft. Rendered on purpose so it cannot be missed in
- *  review; every one must be filled or removed before the page goes public. */
-function Placeholder({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="max-w-xl border border-dashed border-command-gold/60 px-4 py-3 font-mono text-[11px] uppercase leading-relaxed tracking-[0.14em] text-command-gold">
-      {children}
-    </p>
-  );
-}
-
 function Prose({ children }: { children: React.ReactNode }) {
   return (
     <div className="max-w-xl space-y-4 font-serif text-base leading-relaxed text-text">
@@ -698,10 +688,45 @@ export default function HexPage() {
             </Section>
 
             <Section id="accessibility" title="Accessibility">
-              {/* TODO-owner: link the approved statement (decision 1.11). */}
-              <Placeholder>
-                TODO-owner: accessibility statement link (1.11)
-              </Placeholder>
+              {/* Decision 1.11. The drafted statement, published as drafted by
+                  the owner's call (2026-09-28), with every claim tried in a
+                  browser first (Tab order, [ and ], the live regions, the
+                  sheet dialog's Escape and focus return, reduced motion). No
+                  screen reader has been run against it, so it claims none. */}
+              <p className="max-w-xl font-serif text-base leading-relaxed text-text">
+                This statement covers what in Hex Cluster works from a keyboard
+                today, and where it falls short.
+              </p>
+              <p className="mt-4 max-w-xl font-serif text-base leading-relaxed text-text">
+                <strong>What works.</strong> The /hex page, the downloads, the
+                build sheet and the saved-build pages are ordinary web pages you
+                can use from a keyboard, with their text in the page. In the
+                configurator, the menus and buttons can be reached with Tab,
+                the build sheet opens with Enter and closes with Escape, the
+                keys [ and ] cycle the part families, status messages are
+                written to live regions that screen readers can announce, and
+                animation is reduced when your system asks for reduced motion.
+              </p>
+              <p className="mt-4 max-w-xl font-serif text-base leading-relaxed text-text">
+                <strong>What does not, yet.</strong> Placing and moving parts in
+                the 3D view needs a mouse, trackpad or touch screen. There is no
+                keyboard way to place a part today. It is on our list, and we
+                have not set a date. The 3D view is a picture a screen reader
+                cannot describe; the build sheet lists every part in text.
+              </p>
+              <p className="mt-4 max-w-xl font-serif text-base leading-relaxed text-text">
+                <strong>Tell us.</strong> If something blocks you, email{" "}
+                <a href={`mailto:${HEX_V2_SUPPORT_EMAIL}`} className={LINK}>
+                  {HEX_V2_SUPPORT_EMAIL}
+                </a>{" "}
+                with what you were trying to do. We aim to reply within{" "}
+                {HEX_V2_SUPPORT_REPLY_HOURS} hours, and we can send the parts
+                list or files for a build you describe.
+              </p>
+              <p className="mt-4 max-w-xl font-serif text-sm leading-relaxed text-muted">
+                We aim for WCAG 2.2 level AA on the web pages. This statement was
+                written on 28 September 2026, by us, without an outside audit.
+              </p>
             </Section>
           </div>
         </div>
