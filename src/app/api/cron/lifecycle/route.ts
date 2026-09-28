@@ -17,7 +17,7 @@ import { sendLifecycleEmail } from "@/lib/lifecycle-send";
 import { drainDunningPending } from "@/lib/dunning-retry";
 import { notifyWaitlist } from "@/lib/waitlist-notify";
 import { sendReviewDueNudges } from "@/lib/review-nudge";
-import { capture } from "@/lib/analytics";
+import { capture, errorNameOf } from "@/lib/analytics";
 import {
   type AudienceUser,
   ENTRY_BOARD_SLUG,
@@ -218,7 +218,11 @@ export async function GET(req: Request): Promise<Response> {
         // The JSON body below is unread in practice (Vercel cron discards it);
         // PostHog is the only place a failed send is actually visible. The
         // claim was released (lifecycle-send), so the next tick retries.
-        capture("lifecycle_send_failed", { sequence, detail }, user.id);
+        // The message goes to the server log only: it is free text (a Resend
+        // body can echo the address), so PostHog gets the sequence and the
+        // error NAME, under no person (class (a), `@/lib/analytics`).
+        console.error(`[lifecycle] ${sequence} send failed: ${detail}`);
+        capture("lifecycle_send_failed", { sequence, errorName: errorNameOf(e) });
       }
       if (++batched % BATCH === 0) await sleep(BATCH_PAUSE_MS);
     }

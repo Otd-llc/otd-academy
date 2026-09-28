@@ -409,11 +409,13 @@ describe("attribution on printable_downloaded (6.6, 1.14)", () => {
     expect(JSON.stringify(p)).not.toMatch(/xxxx/);
   });
 
-  it("carries no attribution field, and no referrer, without consent", async () => {
+  it("hands attribution to capture() unconditionally: the consent gate is capture's, not the route's", async () => {
+    // `capture` is mocked in this file, so this proves only that the route
+    // builds no second gate. That the whole event is DROPPED without consent is
+    // proven through the real choke point in hex-download-consent-gate.test.ts.
     const p = await download("?src=hex_page", { otd_src: "hackaday" });
-    expect(p).not.toHaveProperty("src");
-    expect(p).not.toHaveProperty("otd_src");
-    expect(p).not.toHaveProperty("referrer");
+    expect(p).toMatchObject({ src: "hex_page", otd_src: "hackaday" });
+    expect(p).toHaveProperty("referrer", "https://example.test/");
   });
 
   it.each([

@@ -152,17 +152,17 @@ type Tracked = {
 
 function track(req: NextRequest, t: Tracked): void {
   try {
-    // ATTRIBUTION ONLY WITH CONSENT (6.6, 1.14). This event was captured
-    // before consent existed and still is; what consent adds is where the
-    // download came from -- `src`, the first-touch `otd_src`, and the referrer.
-    // Without a c15t measurement grant all three are absent. `src` is read off
-    // the URL being served, which is already the canonical one, and goes
-    // through the enum again anyway: the boundary is here, not upstream.
+    // ATTRIBUTION ONLY WITH CONSENT (6.6, 1.14): `src` (a closed enum, never
+    // the raw query value), the first-touch `otd_src` and the referrer. This
+    // is a class (b) event, so `capture()` drops ALL of it -- the download and
+    // its attribution -- without a c15t measurement grant. That one choke point
+    // is the consent gate; there is deliberately no second one here.
+    // `src` is read off the URL being served, which is already the canonical
+    // one, and goes through the enum again anyway: the boundary is here.
     const attribution = hexAttribution(
       req.nextUrl.searchParams.get("src"),
       req.cookies,
     );
-    const consented = attribution.src !== undefined;
     capture(
       "printable_pack_downloaded",
       {
@@ -180,9 +180,7 @@ function track(req: NextRequest, t: Tracked): void {
         bytes: t.bytes,
         source_bytes: t.sourceBytes,
         ...attribution,
-        ...(consented
-          ? { referrer: req.headers.get("referer") ?? undefined }
-          : {}),
+        referrer: req.headers.get("referer") ?? undefined,
       },
       distinctIdFromCookies(req.cookies) ?? undefined,
     );

@@ -9,7 +9,7 @@ import { questionKey } from "@/lib/logbook/question-key";
 import { quizQuestions } from "@/lib/logbook/lesson-content";
 import { libraryReviewItemId } from "@/lib/logbook/review-schedule";
 import { seedReviewItem } from "@/lib/logbook/review-seed";
-import { capture } from "@/lib/analytics";
+import { capture, errorNameOf } from "@/lib/analytics";
 import { awardXp } from "@/lib/logbook/award";
 import { milestonesFor } from "@/lib/logbook/milestones";
 import { earnBadge, isUniqueViolation } from "@/lib/logbook/badge";
@@ -80,11 +80,8 @@ export async function recordQuizAnswer(
         now,
       }).catch((e) => {
         console.error("[review] library seed failed", e);
-        capture(
-          "review_seed_failed",
-          { surface: "library", detail: e instanceof Error ? e.message : String(e) },
-          userId,
-        );
+        // No person, no message: class (a) (`@/lib/analytics`).
+        capture("review_seed_failed", { surface: "library", errorName: errorNameOf(e) });
       });
     }
   }

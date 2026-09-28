@@ -19,7 +19,7 @@ import {
 } from "@/lib/logbook/review-schedule";
 import { seedReviewItem } from "@/lib/logbook/review-seed";
 import { loadStageCard } from "@/lib/logbook/stage-card-load";
-import { capture } from "@/lib/analytics";
+import { capture, errorNameOf } from "@/lib/analytics";
 import {
   academyDate,
   academyDay,
@@ -210,11 +210,9 @@ export async function recordStageQuizAnswer(
     // Telemetry, not just console: a silent seed failure means this question
     // never enters the deck, invisible in unwatched Vercel logs.
     console.error("[review] seed failed", e);
-    capture(
-      "review_seed_failed",
-      { surface: "guide", detail: e instanceof Error ? e.message : String(e) },
-      userId,
-    );
+    // No person, no message: class (a) (`@/lib/analytics`). The error itself
+    // is in the console.error above.
+    capture("review_seed_failed", { surface: "guide", errorName: errorNameOf(e) });
   });
 
   // Reward the FIRST answer of the day for this question (right or wrong), once,

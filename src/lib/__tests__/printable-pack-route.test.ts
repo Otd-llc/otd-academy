@@ -1164,19 +1164,17 @@ X: y`;
     expect(JSON.stringify(captured.mock.calls[0])).not.toMatch(/img|script|AAAA/);
   });
 
-  it("carries no attribution field without consent, but still counts the download", async () => {
-    requestCookies = { otd_src: "reddit" };
-    await call(`${ONE}&src=configurator`);
-    expect(captured).toHaveBeenCalledTimes(1);
-    expect(props()).not.toHaveProperty("src");
-    expect(props()).not.toHaveProperty("otd_src");
-    expect(props()).not.toHaveProperty("referrer");
-  });
-
-  it("reads a denied c15t cookie as no consent", async () => {
-    requestCookies = { c15t: "c.necessary:1", otd_src: "reddit" };
-    await call(`${ONE}&src=configurator`);
-    expect(props()).not.toHaveProperty("src");
-    expect(props()).not.toHaveProperty("otd_src");
+  it("hands attribution to capture() whatever the c15t cookie says: the gate is capture's", async () => {
+    // `capture` is mocked in this file, so this proves only that the route
+    // builds no SECOND consent gate. The download event is class (b): the one
+    // choke point in @/lib/analytics drops it whole without a measurement grant,
+    // proven through the real gate in hex-download-consent-gate.test.ts.
+    for (const c15t of [undefined, "c.necessary:1"]) {
+      captured.mockReset();
+      requestCookies = { ...(c15t ? { c15t } : {}), otd_src: "reddit" };
+      await call(`${ONE}&src=configurator`);
+      expect(captured).toHaveBeenCalledTimes(1);
+      expect(props()).toMatchObject({ src: "configurator", otd_src: "reddit" });
+    }
   });
 });

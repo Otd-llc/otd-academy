@@ -20,9 +20,12 @@
 // `measurement` category and nothing else:
 //   - `otd_src` is WRITTEN only while measurement is granted, and deleted on
 //     revoke (`ConsentBridge`).
-//   - Both fields are REPORTED only when the request carries a c15t cookie that
-//     grants measurement. Without it the download event (which the routes
-//     already captured before 6.6) goes out with no attribution field at all.
+//   - Both fields are REPORTED only on a download event, and a download event
+//     is class (b) under THE CONSENT RULE in `@/lib/analytics`: without a
+//     measurement grant the WHOLE event is dropped at that one choke point, so
+//     no attribution field can leave without consent. This module reads no
+//     consent itself; there is ONE server consent reader
+//     (`@/lib/server-consent`), and a second would be a second rule to drift.
 //   - `ph_did` is never consent, and neither is a `src` in the URL.
 //   - There is no `on_reject` counting: a denial is not an event.
 //
@@ -54,9 +57,6 @@ export const OTD_SRC_COOKIE = "otd_src";
 /** How long the first touch is remembered: 90 days. */
 export const OTD_SRC_MAX_AGE_S = 90 * 24 * 60 * 60;
 
-/** The cookie c15t writes its decision into (its default `storageKey`). */
-export const C15T_COOKIE = "c15t";
-
 /**
  * Read a raw `src` into the enum, never passing the string through.
  *
@@ -75,48 +75,25 @@ export function readHexSource(
     : "unknown";
 }
 
-/**
- * Does a raw c15t cookie value grant `measurement`?
- *
- * c15t (2.0 rc) writes `c15t=c.measurement:1,c.necessary:1,i.time:...`:
- * `consents` shortened to `c`, a granted category as `1`, a denied one OMITTED.
- * Only a literal `c.measurement:1` pair is a grant. Absent, `0`, malformed,
- * or a legacy JSON shape all read as denied. Consent fails CLOSED or it is not
- * consent -- the same reading as `measurementGranted` in `hex-embed-consent.ts`.
- */
-export function measurementGrantedByCookie(
-  cookieValue: string | undefined | null,
-): boolean {
-  if (!cookieValue) return false;
-  let raw = cookieValue;
-  try {
-    raw = decodeURIComponent(cookieValue);
-  } catch {
-    // Malformed percent-encoding: read the value as written.
-  }
-  return raw.split(",").some((pair) => pair.trim() === "c.measurement:1");
-}
-
 type CookieJar = { get(name: string): { value: string } | undefined };
 
-/** What a download event may say about where it came from. EMPTY without
- *  consent, so spreading it into the event adds nothing. */
+/** What a download event may say about where it came from. Reaches PostHog
+ *  only inside a class (b) event, i.e. only with consent. */
 export type HexAttribution = { src?: HexSource; otd_src?: HexSource };
 
 /**
  * The attribution properties for a download event.
  *
- * Without a measurement grant this is `{}`: the event is still sent (it was
- * before 6.6) but carries no attribution. With one, `src` is the enum value of
- * the query parameter -- `unknown` when the caller named none, so the property
- * is always there to break down on -- and `otd_src` is the enum value of the
- * first-touch cookie when one is set.
+ * `src` is the enum value of the query parameter -- `unknown` when the caller
+ * named none, so the property is always there to break down on -- and `otd_src`
+ * is the enum value of the first-touch cookie when one is set. No consent is
+ * read here: the event these are spread into is class (b), and `capture()`
+ * drops it whole without a measurement grant.
  */
 export function hexAttribution(
   srcParam: string | null | undefined,
   cookies: CookieJar,
 ): HexAttribution {
-  if (!measurementGrantedByCookie(cookies.get(C15T_COOKIE)?.value)) return {};
   const out: HexAttribution = { src: readHexSource(srcParam) ?? "unknown" };
   const first = readHexSource(cookies.get(OTD_SRC_COOKIE)?.value);
   if (first !== undefined) out.otd_src = first;

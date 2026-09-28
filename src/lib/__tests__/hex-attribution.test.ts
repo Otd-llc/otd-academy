@@ -1,20 +1,19 @@
 // Attribution on a Hex download (launch readiness 6.6, decision 1.14): `src` is
-// a closed enum, and neither it nor the first-touch `otd_src` is reported or
-// stored without a c15t measurement grant.
+// a closed enum, and the first-touch `otd_src` is stored only with a c15t
+// measurement grant. REPORTING is gated at the one choke point, not here: the
+// download events are class (b) in `@/lib/analytics`, proven end to end in
+// `hex-download-consent-gate.test.ts`.
 import { describe, expect, it } from "vitest";
 
 import {
-  C15T_COOKIE,
   HEX_SOURCES,
   OTD_SRC_COOKIE,
   hexAttribution,
-  measurementGrantedByCookie,
   otdSrcCookieWrite,
   readHexSource,
 } from "@/lib/hex-attribution";
 
-/** A c15t cookie as c15t 2.0 writes it: denied categories are OMITTED. */
-const GRANTED = "c.measurement:1,c.necessary:1,i.time:1727000000000,i.id:abc";
+/** A c15t cookie as c15t writes it: denied categories are OMITTED. */
 const DENIED = "c.necessary:1,i.time:1727000000000,i.id:abc";
 
 function jar(values: Record<string, string>) {
@@ -74,60 +73,27 @@ describe("readHexSource: a closed enum", () => {
   });
 });
 
-describe("measurementGrantedByCookie: fails closed", () => {
-  it("grants only on a literal c.measurement:1", () => {
-    expect(measurementGrantedByCookie(GRANTED)).toBe(true);
-    expect(measurementGrantedByCookie(encodeURIComponent(GRANTED))).toBe(true);
-  });
-
-  it.each([
-    ["absent", undefined],
-    ["empty", ""],
-    ["denied (omitted)", DENIED],
-    ["explicit zero", "c.measurement:0,c.necessary:1"],
-    ["another category", "c.marketing:1,c.necessary:1"],
-    ["a lookalike key", "xc.measurement:1"],
-    ["a truthy non-1", "c.measurement:true"],
-    ["legacy JSON", '{"consents":{"measurement":true}}'],
-    ["bad encoding", "%E0%A4%A"],
-  ])("denies %s", (_label, value) => {
-    expect(measurementGrantedByCookie(value)).toBe(false);
-  });
-});
-
 describe("hexAttribution: what the download event may carry", () => {
-  it("carries NOTHING without consent, even with a src and an otd_src", () => {
+  it("carries src and otd_src", () => {
     expect(
-      hexAttribution("printables", jar({ [OTD_SRC_COOKIE]: "reddit" })),
-    ).toEqual({});
-    expect(
-      hexAttribution(
-        "printables",
-        jar({ [C15T_COOKIE]: DENIED, [OTD_SRC_COOKIE]: "reddit" }),
-      ),
-    ).toEqual({});
-  });
-
-  it("carries src and otd_src with consent", () => {
-    expect(
-      hexAttribution(
-        "configurator",
-        jar({ [C15T_COOKIE]: GRANTED, [OTD_SRC_COOKIE]: "hn" }),
-      ),
+      hexAttribution("configurator", jar({ [OTD_SRC_COOKIE]: "hn" })),
     ).toEqual({ src: "configurator", otd_src: "hn" });
   });
 
+  it("reads NO consent itself: the choke point in @/lib/analytics is the one gate", () => {
+    // A refused c15t cookie changes nothing here. The event these fields ride
+    // in is class (b), so without a grant it never leaves at all.
+    expect(
+      hexAttribution("printables", jar({ c15t: DENIED, [OTD_SRC_COOKIE]: "reddit" })),
+    ).toEqual({ src: "printables", otd_src: "reddit" });
+  });
+
   it("reports src as unknown when the caller named none, and omits an absent otd_src", () => {
-    expect(hexAttribution(null, jar({ [C15T_COOKIE]: GRANTED }))).toEqual({
-      src: "unknown",
-    });
+    expect(hexAttribution(null, jar({}))).toEqual({ src: "unknown" });
   });
 
   it.each(HOSTILE)("never lets a hostile src or otd_src through: %j", (raw) => {
-    const out = hexAttribution(
-      raw,
-      jar({ [C15T_COOKIE]: GRANTED, [OTD_SRC_COOKIE]: raw }),
-    );
+    const out = hexAttribution(raw, jar({ [OTD_SRC_COOKIE]: raw }));
     expect(out).toEqual({ src: "unknown", otd_src: "unknown" });
   });
 });

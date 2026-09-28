@@ -67,7 +67,8 @@ export async function drainDunningPending(
       });
       sent++;
     } else {
-      capture("dunning_send_failed", { stage: "retry", sequence: row.sequence }, row.userId);
+      // No person (class (a), `@/lib/analytics`).
+      capture("dunning_send_failed", { stage: "retry", sequence: row.sequence });
       failed++;
     }
   }
