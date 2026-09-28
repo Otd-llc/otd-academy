@@ -99,10 +99,8 @@ describe("the generated release tables", () => {
     for (const slug of [
       "pvc-wedge",
       "hex-cover-handle",
-      "hex-acc-saddle",
-      "hex-acc-saddle-half",
       // pipe cut from a bought stick, never a print (owner, 2026-09-28).
-      // hex-acc-saddle-one is RELEASED the same day: its wall reason was stale.
+      // All three saddles are RELEASED the same day: their wall reasons were stale.
       "pvc-section-single",
       "pvc-section-double",
       // the C-clip parts

@@ -143,8 +143,8 @@ export function printableProxyPath(release: string, rest: string): string {
  *  put the support/brim section and "where the rest lives" into the README
  *  (18,543,877 bytes), and again after hex-cluster stamped every print pose
  *  reviewed, which turned the README's orientation note from "NOT reviewed"
- *  to "checked": 18,543,876 bytes for release 2026-10-01, 290 parts. (Now 289:
- *  saddle-one released and the two PVC stubs withheld, 2026-09-28; the size is
+ *  to "checked": 18,543,876 bytes for release 2026-10-01, 290 parts. (Now 291:
+ *  the three saddles released and the two PVC stubs withheld, 2026-09-28; the size is
  *  re-measured at 10.3.) It
  *  replaces the decision's "~19.5 MB"
  *  estimate. It is still NOT a published object, so `sizeMeasured` stays false
