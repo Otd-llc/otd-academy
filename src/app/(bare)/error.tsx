@@ -21,13 +21,22 @@
 // this does not have to inline its styles. Reads no session and no database, so
 // it cannot fail for the same reason the page did.
 import Link from "next/link";
+import { useEffect } from "react";
+
+import { reportClientError } from "@/lib/error-beacon";
 
 export default function BareError({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Reported once per fault, server-side via the beacon (@/lib/error-beacon).
+  useEffect(() => {
+    reportClientError(error, "bare");
+  }, [error]);
+
   return (
     <main className="mx-auto flex min-h-svh max-w-xl flex-col items-center justify-center px-4 py-16 text-center">
       <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-command-gold">

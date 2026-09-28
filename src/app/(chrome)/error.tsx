@@ -6,13 +6,22 @@
 // (only the page segment is replaced), so token classes are available — unlike
 // global-error.tsx, which must inline everything. Reads no session/DB.
 import Link from "next/link";
+import { useEffect } from "react";
+
+import { reportClientError } from "@/lib/error-beacon";
 
 export default function ChromeError({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Reported once per fault, server-side via the beacon (@/lib/error-beacon).
+  useEffect(() => {
+    reportClientError(error, "chrome");
+  }, [error]);
+
   return (
     <main className="mx-auto flex min-h-[60svh] max-w-xl flex-col items-center justify-center px-4 py-16 text-center">
       <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-command-gold">

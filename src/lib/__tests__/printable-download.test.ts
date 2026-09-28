@@ -133,16 +133,36 @@ describe("printable URL helper", () => {
   });
 });
 
-// The handler itself, with R2 mocked. The bucket is empty until the owner runs
-// the uploader with --write, so a live probe can only ever show 404 and cannot
-// tell "valid path, absent object" from "rejected path". This is what proves the
-// serving half: the headers a downloader actually depends on.
-const getBytes = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/part-r2", () => ({ getR2ObjectBytes: getBytes }));
+// The handler itself, with R2 and analytics mocked. What a downloader depends
+// on is the ORDER of the refusals (nothing unpublished ever reaches R2) and the
+// shape of the redirect (signed from the validated key, never cached).
+const r2 = vi.hoisted(() => ({
+  headR2Object: vi.fn(),
+  presignGet: vi.fn(),
+}));
+const captureMock = vi.hoisted(() => vi.fn());
+// `@/lib/r2-errors` (the 404-vs-503 classifier) is NOT mocked: that split is
+// part of what is under test.
+vi.mock("@/lib/part-r2", () => ({
+  headR2Object: r2.headR2Object,
+  presignGet: r2.presignGet,
+}));
+vi.mock("@/lib/analytics", () => ({ capture: captureMock }));
 
-describe("the proxy route serves an object", () => {
+const SIGNED = "https://r2.example.test/signed?X-Amz-Signature=abc";
+
+function sdkError(name: string, status: number): Error {
+  const e = new Error(name) as Error & { $metadata: { httpStatusCode: number } };
+  e.name = name;
+  e.$metadata = { httpStatusCode: status };
+  return e;
+}
+
+describe("the download route", () => {
   afterEach(() => {
-    getBytes.mockReset();
+    r2.headR2Object.mockReset();
+    r2.presignGet.mockReset();
+    captureMock.mockReset();
     vi.resetModules();
     vi.unstubAllEnvs();
   });
@@ -151,45 +171,157 @@ describe("the proxy route serves an object", () => {
   // R2_ENABLED/R2_BUCKET are unset there and the route 404s before it resolves
   // anything — which passed locally and went red in CI on the first run. A test
   // that only holds on a developer's machine is not a test.
-  async function call(path: string[]) {
+  async function load() {
     vi.stubEnv("R2_ENABLED", "true");
     vi.stubEnv("R2_BUCKET", "test-bucket");
     vi.resetModules();
-    const { GET } = await import("@/app/api/printable/[...path]/route");
-    return GET({} as never, { params: Promise.resolve({ path }) });
+    const { NextRequest } = await import("next/server");
+    const mod = await import("@/app/api/printable/[...path]/route");
+    return (method: "GET" | "HEAD", path: string[], query = "") => {
+      const req = new NextRequest(
+        `https://academy.example.test/api/printable/${path.join("/")}${query}`,
+        { method },
+      );
+      return mod[method](req, { params: Promise.resolve({ path }) });
+    };
   }
 
-  it("returns the bytes as an attachment with an immutable cache", async () => {
-    getBytes.mockResolvedValue(Buffer.from("PKzip"));
-    const res = await call([RELEASE, "sets", "hex-cluster.zip"]);
+  function stubFound() {
+    r2.headR2Object.mockResolvedValue({ contentLength: 1234 });
+    r2.presignGet.mockResolvedValue(SIGNED);
+  }
+
+  it("an unpublished release 404s and never reaches R2", async () => {
+    // 2026-08-20 passes the date grammar; only the allow-list refuses it.
+    const call = await load();
+    stubFound();
+    for (const method of ["GET", "HEAD"] as const) {
+      const res = await call(method, ["2026-08-20", "LICENSE.txt"]);
+      expect(res.status).toBe(404);
+    }
+    expect(r2.headR2Object).not.toHaveBeenCalled();
+    expect(r2.presignGet).not.toHaveBeenCalled();
+    expect(captureMock).not.toHaveBeenCalled();
+  });
+
+  it("a listed release 302s to a URL signed from the validated key, uncached", async () => {
+    const call = await load();
+    stubFound();
+    const res = await call("GET", [RELEASE, "sets", "hex-cluster.zip"]);
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(SIGNED);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(r2.headR2Object).toHaveBeenCalledWith(
+      "printables/2026-07-31/sets/hex-cluster.zip",
+    );
+    // Attachment filename + an hour's expiry.
+    expect(r2.presignGet).toHaveBeenCalledWith(
+      "printables/2026-07-31/sets/hex-cluster.zip",
+      "hex-cluster.zip",
+      3600,
+    );
+  });
+
+  it.each(["2026-07-31", "2026-08-03", "2026-08-17"])(
+    "serves published release %s",
+    async (release) => {
+      const call = await load();
+      stubFound();
+      const res = await call("GET", [release, "3mf", "hex-tb-main.3mf"]);
+      expect(res.status).toBe(302);
+    },
+  );
+
+  it("two GETs record two downloads", async () => {
+    const call = await load();
+    stubFound();
+    await call("GET", [RELEASE, "stl", "hex-tb-main.stl"]);
+    await call("GET", [RELEASE, "stl", "hex-tb-main.stl"]);
+    const downloads = captureMock.mock.calls.filter(
+      (c) => c[0] === "printable_downloaded",
+    );
+    expect(downloads).toHaveLength(2);
+    expect(downloads[0]![1]).toMatchObject({
+      key: "printables/2026-07-31/stl/hex-tb-main.stl",
+      release: RELEASE,
+      kind: "stl",
+      bytes: 1234,
+    });
+  });
+
+  it("HEAD answers with headers, reads nothing from R2 and records nothing", async () => {
+    const call = await load();
+    stubFound();
+    const res = await call("HEAD", [RELEASE, "sets", "hex-cluster.zip"]);
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("application/zip");
-    // Attachment, or the browser renders a .txt and "downloads" nothing.
     expect(res.headers.get("content-disposition")).toBe(
       'attachment; filename="hex-cluster.zip"',
     );
-    expect(res.headers.get("cache-control")).toContain("immutable");
-    expect(getBytes).toHaveBeenCalledWith(
-      "printables/2026-07-31/sets/hex-cluster.zip",
-    );
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(r2.headR2Object).not.toHaveBeenCalled();
+    expect(r2.presignGet).not.toHaveBeenCalled();
+    expect(captureMock).not.toHaveBeenCalled();
   });
 
-  it("types a mesh by its format", async () => {
-    getBytes.mockResolvedValue(Buffer.from("solid"));
-    const res = await call([RELEASE, "stl", "hex-tb-main.stl"]);
-    expect(res.headers.get("content-type")).toBe("model/stl");
-  });
-
-  it("404s an absent object instead of surfacing the R2 error", async () => {
-    getBytes.mockRejectedValue(new Error("NoSuchKey"));
-    const res = await call([RELEASE, "LICENSE.txt"]);
+  it.each([
+    ["NoSuchKey", 404],
+    ["NotFound", 404],
+  ])("an absent object (%s) is a 404, not counted", async (name, status) => {
+    const call = await load();
+    r2.headR2Object.mockRejectedValue(sdkError(name, status));
+    const res = await call("GET", [RELEASE, "LICENSE.txt"]);
     expect(res.status).toBe(404);
+    expect(r2.presignGet).not.toHaveBeenCalled();
+    expect(captureMock).not.toHaveBeenCalled();
   });
+
+  it("any other R2 error is a 503 no-store, recorded as r2_error and not as a download", async () => {
+    const call = await load();
+    r2.headR2Object.mockRejectedValue(sdkError("AccessDenied", 403));
+    const res = await call("GET", [RELEASE, "LICENSE.txt"]);
+    expect(res.status).toBe(503);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(captureMock).toHaveBeenCalledTimes(1);
+    expect(captureMock.mock.calls[0]![0]).toBe("r2_error");
+  });
+
+  it("a network-level R2 failure (no status) is a 503 too", async () => {
+    const call = await load();
+    r2.headR2Object.mockRejectedValue(new Error("socket hang up"));
+    const res = await call("GET", [RELEASE, "LICENSE.txt"]);
+    expect(res.status).toBe(503);
+  });
+
+  it("a presign failure is a 503, not a download", async () => {
+    const call = await load();
+    r2.headR2Object.mockResolvedValue({ contentLength: 1 });
+    r2.presignGet.mockRejectedValue(new Error("no credentials"));
+    const res = await call("GET", [RELEASE, "LICENSE.txt"]);
+    expect(res.status).toBe(503);
+    expect(captureMock.mock.calls.map((c) => c[0])).toEqual(["r2_error"]);
+  });
+
+  it.each(["GET", "HEAD"] as const)(
+    "%s with any query string 307s to the bare path, before R2",
+    async (method) => {
+      const call = await load();
+      stubFound();
+      const res = await call(method, [RELEASE, "LICENSE.txt"], "?utm_source=x");
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toBe(
+        "/api/printable/2026-07-31/LICENSE.txt",
+      );
+      expect(r2.headR2Object).not.toHaveBeenCalled();
+      expect(captureMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("never reaches R2 for a rejected path", async () => {
-    const res = await call(["..", "avatars", "x.webp"]);
+    const call = await load();
+    const res = await call("GET", ["..", "avatars", "x.webp"]);
     expect(res.status).toBe(404);
-    expect(getBytes).not.toHaveBeenCalled();
+    expect(r2.headR2Object).not.toHaveBeenCalled();
   });
 
   it("404s with R2 switched off, without touching the bucket", async () => {
@@ -198,12 +330,27 @@ describe("the proxy route serves an object", () => {
     vi.stubEnv("R2_ENABLED", "false");
     vi.stubEnv("R2_BUCKET", undefined);
     vi.resetModules();
+    const { NextRequest } = await import("next/server");
     const { GET } = await import("@/app/api/printable/[...path]/route");
-    const res = await GET({} as never, {
-      params: Promise.resolve({ path: [RELEASE, "LICENSE.txt"] }),
-    });
+    const res = await GET(
+      new NextRequest(
+        `https://academy.example.test/api/printable/${RELEASE}/LICENSE.txt`,
+      ),
+      { params: Promise.resolve({ path: [RELEASE, "LICENSE.txt"] }) },
+    );
     expect(res.status).toBe(404);
-    expect(getBytes).not.toHaveBeenCalled();
+    expect(r2.headR2Object).not.toHaveBeenCalled();
+  });
+});
+
+describe("PUBLISHED_RELEASES", () => {
+  it("is exactly the three launch releases", async () => {
+    const { PUBLISHED_RELEASES } = await import("@/lib/printable-releases");
+    expect([...PUBLISHED_RELEASES].sort()).toEqual([
+      "2026-07-31",
+      "2026-08-03",
+      "2026-08-17",
+    ]);
   });
 });
 

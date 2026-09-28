@@ -29,6 +29,10 @@ describe("resolveRouteGate", () => {
       expect(resolveRouteGate(null, "/parts")).toBeNull();
       expect(resolveRouteGate(null, "/")).toBeNull();
     });
+    it("lets a signed-out visitor read /about while /account stays gated", () => {
+      expect(resolveRouteGate(null, "/about")).toBeNull();
+      expect(resolveRouteGate(null, "/account")).toBe("/sign-in");
+    });
   });
 
   describe("a rejected-config session (truthy, no user) — the fail-open bug", () => {

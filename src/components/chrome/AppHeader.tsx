@@ -62,6 +62,7 @@ export function AppHeader() {
     // what lets a sandbox render this header at a real width inside a box.
     <header className="app-shell-header group/header @container sticky top-0 z-40 flex items-center gap-x-6 border-b border-panel-border bg-deep-space px-4 py-2 print:hidden sm:px-6">
       <Link
+        prefetch={false}
         href="/"
         aria-label="One Thousand Drones Academy home"
         className="group flex shrink-0 items-center gap-2"

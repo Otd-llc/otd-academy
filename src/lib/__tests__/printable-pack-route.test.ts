@@ -179,6 +179,22 @@ describe("pack BEFORE read -- the ordering IS the security property", () => {
   });
 });
 
+describe("only published releases are packed", () => {
+  it("404s an unlisted release having touched R2 zero times", async () => {
+    // A well-formed date that is not in PUBLISHED_RELEASES: exactly what a
+    // release uploaded but not yet published looks like from outside.
+    const res = await call(`release=2026-08-20&parts=hex-tb-main:3`);
+    expect(res.status).toBe(404);
+    expect(getBytes).not.toHaveBeenCalled();
+  });
+
+  it("the loose-zip path is gated too, not only plating", async () => {
+    const res = await call(`release=2026-08-20&format=stl&parts=hex-tb-main:3`);
+    expect(res.status).toBe(404);
+    expect(getBytes).not.toHaveBeenCalled();
+  });
+});
+
 describe("one plate versus many", () => {
   it("serves ONE plate inside an archive, with the licence beside it", async () => {
     const res = await call(`release=${RELEASE}&parts=hex-tb-main:3`);

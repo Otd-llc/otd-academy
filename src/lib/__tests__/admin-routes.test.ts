@@ -119,6 +119,12 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/privacy")).toBe(true);
   });
 
+  it("admits the /about page (footer-linked; must render signed-out)", () => {
+    expect(isPublicPath("/about")).toBe(true);
+    // The account area it sits beside in the footer stays gated.
+    expect(isPublicPath("/account")).toBe(false);
+  });
+
   it("does NOT admit other learner routes (board, exam, complete)", () => {
     expect(isPublicPath("/learn/l1-01")).toBe(false);
     expect(isPublicPath("/learn/l1-01/exam")).toBe(false);

@@ -43,7 +43,20 @@ async function clean() {
 beforeEach(clean);
 afterAll(clean);
 
+describe("notifyOnHexRelease — closed by default", () => {
+  test("with the env var unset it refuses and writes nothing", async () => {
+    vi.stubEnv("HEX_RELEASE_NOTIFY_OPEN", "");
+    const res = await notifyOnHexRelease({ email: EMAIL, release: RELEASE });
+    expect(res.ok).toBe(false);
+    expect(await db.hexReleaseNotify.count({ where: { email: EMAIL } })).toBe(0);
+    vi.unstubAllEnvs();
+  });
+});
+
 describe("notifyOnHexRelease", () => {
+  beforeEach(() => vi.stubEnv("HEX_RELEASE_NOTIFY_OPEN", "1"));
+  afterAll(() => vi.unstubAllEnvs());
+
   test("an anonymous submit creates one row carrying the release", async () => {
     const res = await notifyOnHexRelease({ email: EMAIL, release: RELEASE });
     expect(res).toEqual({ ok: true });

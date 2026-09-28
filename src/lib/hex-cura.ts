@@ -41,7 +41,17 @@
 // KEYS AND TYPES — Cura's own `resources/definitions/fdmprinter.def.json`, not
 // documentation. Only settings flagged `settable_per_mesh` can apply per object:
 //
-//     infill_pattern         enum   per_mesh TRUE    `gyroid` is a valid option
+//     infill_pattern         enum   per_mesh TRUE    see below -- NOT Orca's enum
+//
+// THE INFILL ENUM IS CURA'S OWN AND DOES NOT OVERLAP ORCA'S WHERE IT MATTERS.
+// Every other key here differs from Orca in NAME while agreeing in value; this
+// one differs in the value set. Cura has no `adaptivecubic`. Its keys are:
+// lines, trihexagon, cubicsubdiv, tetrahedral, quarter_cubic, concentric,
+// zigzag, cross, cross_3d, gyroid, lightning, honeycomb, octagon, grid, cubic,
+// triangles. So the table maps our adaptive cubic onto `cubicsubdiv` (Cubic
+// Subdivision), which grades density toward walls the same way and is a
+// different algorithm -- the nearest thing Cura has, not a translation. Copying
+// the Orca literal across would fail the enum and fall back silently.
 //     infill_sparse_density  float  per_mesh TRUE    percent, NO `%` sign
 //     wall_line_count        int    per_mesh TRUE
 //     support_enable         bool   per_mesh TRUE    `True`, Python-cased

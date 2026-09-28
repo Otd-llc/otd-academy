@@ -328,8 +328,11 @@ export type PlateMeta = {
  * Orca-family dialect.
  *
  * WHAT IT BUYS. The alpha reports were that nobody reads the README and nobody
- * picks the infill, and gyroid on these parts is structural. Settings written
- * here arrive without being read. See `hex-print-intent.ts` for what survives
+ * picks the infill. Settings written here arrive without being read.
+ *
+ * (This said "and gyroid on these parts is structural". The pattern is now
+ * adaptive cubic, chosen on a measured time surface; the claim that the old one
+ * was structural never had a test behind it. See `hex-print-intent.ts`.) See `hex-print-intent.ts` for what survives
  * which load path and what was measured rather than assumed.
  *
  * `extruder` IS WRITTEN even though every plate is single-material, because it

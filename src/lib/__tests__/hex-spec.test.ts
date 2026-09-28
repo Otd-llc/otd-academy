@@ -68,7 +68,7 @@ describe("the slicer band matches the build sheet's PARAMS", () => {
     ["Bed", "70–85 °C"],
     ["Layer", "0.20 mm"],
     ["Perimeters", "4"],
-    ["Infill", "30% gyroid"],
+    ["Infill", "30% adaptive cubic"],
     ["Speed", "40–50 mm/s"],
     ["Cooling", "~30%"],
     ["Filament", "dry before use"],

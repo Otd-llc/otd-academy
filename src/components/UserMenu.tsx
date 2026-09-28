@@ -199,22 +199,22 @@ export function UserMenu({
           </div>
         </div>
 
-        <Link href="/learn" onClick={close} className={ROW}>
+        <Link prefetch={false} href="/learn" onClick={close} className={ROW}>
           <span className="text-muted group-hover:text-gold-light">{BOOK}</span>
           <span>My learning</span>
           <span aria-hidden className="ml-auto text-gray-3">›</span>
         </Link>
-        <Link href="/logbook" onClick={close} className={ROW}>
+        <Link prefetch={false} href="/logbook" onClick={close} className={ROW}>
           <span className="text-muted group-hover:text-gold-light">{WINGS}</span>
           <span>Logbook</span>
           <span aria-hidden className="ml-auto text-gray-3">›</span>
         </Link>
-        <Link href="/review" onClick={close} className={ROW}>
+        <Link prefetch={false} href="/review" onClick={close} className={ROW}>
           <span className="text-muted group-hover:text-gold-light">{CARDS}</span>
           <span>Review</span>
           <span aria-hidden className="ml-auto text-gray-3">›</span>
         </Link>
-        <Link href="/courses" onClick={close} className={ROW}>
+        <Link prefetch={false} href="/courses" onClick={close} className={ROW}>
           <span className="text-muted">{HEX}</span>
           <span>Courses</span>
           <span aria-hidden className="ml-auto text-gray-3">›</span>
@@ -234,12 +234,12 @@ export function UserMenu({
             An icon is a symbol, not a drawing of the part. If this row should
             say "hex cluster" rather than "honeycomb", the answer is a mark
             DRAWN for icon scale, not the CAD projection shrunk. */}
-        <Link href="/account/hex-clusters" onClick={close} className={ROW}>
+        <Link prefetch={false} href="/account/hex-clusters" onClick={close} className={ROW}>
           <span className="text-muted">{HEX}</span>
           <span>Saved builds</span>
           <span aria-hidden className="ml-auto text-gray-3">›</span>
         </Link>
-        <Link href="/account" onClick={close} className={ROW}>
+        <Link prefetch={false} href="/account" onClick={close} className={ROW}>
           <span className="text-muted">{GEAR}</span>
           <span>Account</span>
           <span aria-hidden className="ml-auto text-gray-3">›</span>
@@ -248,6 +248,7 @@ export function UserMenu({
         {role === "ADMIN"
           ? ADMIN_LINKS.map((link) => (
               <Link
+                prefetch={false}
                 key={link.href}
                 href={link.href}
                 onClick={close}
