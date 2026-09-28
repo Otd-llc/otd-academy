@@ -30,6 +30,9 @@ export const MAX_DIMS_CHARS = 40;
 export const MAX_STORED_SUMMARY_BYTES = 12_288;
 /** More BOM lines than any real build has; bounds the table a bad row can draw. */
 export const MAX_BOM_LINES = 200;
+/** A pipe buy line, warning or duty note. The longest real one (the potable
+ *  note) is ~200 characters. */
+export const MAX_PIPE_TEXT_CHARS = 240;
 
 /**
  * Make untrusted text safe to render as one line.
@@ -96,6 +99,37 @@ function readSummary(value: unknown): BuildSummaryWire | null {
       letter: sanitiseDisplayText(d.letter, 4),
       caption: sanitiseDisplayText(d.caption, MAX_LABEL_CHARS),
     })),
+    // The rest of the build (decision 9). Absent on a row saved before them,
+    // and kept absent: the page shows a section only when the row has one.
+    ...(s.hubHalves
+      ? {
+          hubHalves: s.hubHalves.map((l) => ({
+            ...l,
+            label: sanitiseDisplayText(l.label, MAX_LABEL_CHARS),
+            sourceFile: sanitiseDisplayText(l.sourceFile, MAX_LABEL_CHARS),
+          })),
+        }
+      : {}),
+    ...(s.hardware
+      ? {
+          hardware: s.hardware.map((l) => ({
+            ...l,
+            label: sanitiseDisplayText(l.label, MAX_LABEL_CHARS),
+          })),
+        }
+      : {}),
+    ...(s.pipe !== undefined
+      ? {
+          pipe: s.pipe && {
+            buy: s.pipe.buy.map((t) => sanitiseDisplayText(t, MAX_PIPE_TEXT_CHARS)),
+            sticks: s.pipe.sticks,
+            warnings: s.pipe.warnings.map((t) =>
+              sanitiseDisplayText(t, MAX_PIPE_TEXT_CHARS),
+            ),
+            notes: s.pipe.notes.map((t) => sanitiseDisplayText(t, MAX_PIPE_TEXT_CHARS)),
+          },
+        }
+      : {}),
   };
 }
 

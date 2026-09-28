@@ -180,9 +180,38 @@ export interface SummaryBOMLine {
   sourceFile: string;
 }
 
+/** A printed part the drawing cannot balloon: a PVC hub half. */
+export interface SummaryHubHalfLine {
+  item: number;
+  qty: number;
+  label: string;
+  sourceFile: string;
+}
+
+/** Something bought: a bolt, a nut, an insert, a fitting, flexible hose. */
+export interface SummaryHardwareLine {
+  item: number;
+  qty: number;
+  label: string;
+}
+
+/** The PVC cut list as the build sheet draws it. Lengths in whole mm. `sticks`
+ *  is empty when the configurator shed it to stay under the summary cap. */
+export interface SummaryPipe {
+  buy: string[];
+  sticks: Array<{ cuts: number[]; offcutMm: number; flex: boolean }>;
+  warnings: string[];
+  notes: string[];
+}
+
 /** The WIRE shape: design §4.1 minus `nameAtSave`, which the academy stamps in
  *  from the name the user confirms. A schema built from §4.1 verbatim would
- *  reject every save. */
+ *  reject every save.
+ *
+ *  `hubHalves`, `hardware` and `pipe` are the rest of the build beside the
+ *  ballooned `bom` (owner decision 9, 2026-09-28). OPTIONAL: every row saved
+ *  before them has none, and the configurator drops them rather than refuse a
+ *  save that would not fit the cap with them. Absent stays absent. */
 export interface BuildSummaryWire {
   cells: number;
   caps: number;
@@ -194,7 +223,17 @@ export interface BuildSummaryWire {
   } | null;
   bom: SummaryBOMLine[];
   details: Array<{ letter: string; caption: string }>;
+  hubHalves?: SummaryHubHalfLine[];
+  hardware?: SummaryHardwareLine[];
+  pipe?: SummaryPipe | null;
 }
+
+/** Bounds on the supply sections, far above any real build. They cap what a
+ *  crafted summary can make the page draw; the byte cap still applies. */
+export const MAX_SUMMARY_SUPPLY_LINES = 200;
+export const MAX_SUMMARY_STICKS = 500;
+export const MAX_SUMMARY_CUTS_PER_STICK = 64;
+export const MAX_SUMMARY_PIPE_TEXT_LINES = 16;
 
 export type StoredSummary = BuildSummaryWire & { nameAtSave: string };
 
@@ -208,6 +247,75 @@ function isTriple(v: unknown): v is [number, number, number] {
 
 function isNonNegInt(v: unknown): v is number {
   return typeof v === "number" && Number.isInteger(v) && v >= 0;
+}
+
+function isNonNegFinite(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v) && v >= 0;
+}
+
+/** An array of strings, at most `max` long, or null. */
+function stringList(v: unknown, max: number): string[] | null {
+  if (!Array.isArray(v) || v.length > max) return null;
+  if (!v.every((x) => typeof x === "string")) return null;
+  return [...(v as string[])];
+}
+
+/** `hubHalves`: rebuilt line by line, or null for any bad line. */
+function readHubHalves(v: unknown): SummaryHubHalfLine[] | null {
+  if (!Array.isArray(v) || v.length > MAX_SUMMARY_SUPPLY_LINES) return null;
+  const out: SummaryHubHalfLine[] = [];
+  for (const raw of v) {
+    if (typeof raw !== "object" || raw === null) return null;
+    const l = raw as Record<string, unknown>;
+    if (!isNonNegInt(l.item) || !isNonNegInt(l.qty)) return null;
+    if (typeof l.label !== "string" || typeof l.sourceFile !== "string")
+      return null;
+    out.push({ item: l.item, qty: l.qty, label: l.label, sourceFile: l.sourceFile });
+  }
+  return out;
+}
+
+/** `hardware`: rebuilt line by line, or null for any bad line. */
+function readHardware(v: unknown): SummaryHardwareLine[] | null {
+  if (!Array.isArray(v) || v.length > MAX_SUMMARY_SUPPLY_LINES) return null;
+  const out: SummaryHardwareLine[] = [];
+  for (const raw of v) {
+    if (typeof raw !== "object" || raw === null) return null;
+    const l = raw as Record<string, unknown>;
+    if (!isNonNegInt(l.item) || !isNonNegInt(l.qty)) return null;
+    if (typeof l.label !== "string") return null;
+    out.push({ item: l.item, qty: l.qty, label: l.label });
+  }
+  return out;
+}
+
+/** `pipe`: null stays null; an object is rebuilt, or the whole thing refused. */
+function readPipe(v: unknown): SummaryPipe | null | undefined {
+  if (v === null) return null;
+  if (typeof v !== "object" || Array.isArray(v)) return undefined;
+  const p = v as Record<string, unknown>;
+  const buy = stringList(p.buy, MAX_SUMMARY_PIPE_TEXT_LINES);
+  const warnings = stringList(p.warnings, MAX_SUMMARY_PIPE_TEXT_LINES);
+  const notes = stringList(p.notes, MAX_SUMMARY_PIPE_TEXT_LINES);
+  if (!buy || !warnings || !notes) return undefined;
+  if (!Array.isArray(p.sticks) || p.sticks.length > MAX_SUMMARY_STICKS)
+    return undefined;
+  const sticks: SummaryPipe["sticks"] = [];
+  for (const raw of p.sticks) {
+    if (typeof raw !== "object" || raw === null) return undefined;
+    const st = raw as Record<string, unknown>;
+    if (!Array.isArray(st.cuts) || st.cuts.length > MAX_SUMMARY_CUTS_PER_STICK)
+      return undefined;
+    if (!st.cuts.every(isNonNegFinite)) return undefined;
+    if (!isNonNegFinite(st.offcutMm) || typeof st.flex !== "boolean")
+      return undefined;
+    sticks.push({
+      cuts: [...(st.cuts as number[])],
+      offcutMm: st.offcutMm,
+      flex: st.flex,
+    });
+  }
+  return { buy, sticks, warnings, notes };
 }
 
 /**
@@ -276,6 +384,27 @@ export function validateSummaryWire(value: unknown): BuildSummaryWire | null {
     bom,
     details,
   };
+
+  // THE REST OF THE BUILD (decision 9). Each section is optional -- a summary
+  // saved before them has none, and absent stays absent so an old row reads
+  // back byte for byte -- but a section that IS present is checked as strictly
+  // as `bom`, and a bad one refuses the summary rather than being dropped: a
+  // /c/ page quietly missing the bolts is the defect this exists to fix.
+  if ("hubHalves" in s) {
+    const hubHalves = readHubHalves(s.hubHalves);
+    if (!hubHalves) return null;
+    out.hubHalves = hubHalves;
+  }
+  if ("hardware" in s) {
+    const hardware = readHardware(s.hardware);
+    if (!hardware) return null;
+    out.hardware = hardware;
+  }
+  if ("pipe" in s) {
+    const pipe = readPipe(s.pipe);
+    if (pipe === undefined) return null;
+    out.pipe = pipe;
+  }
 
   // Bounded AFTER rebuilding, so unknown keys the caller sent do not count and
   // do not reach the row either.
