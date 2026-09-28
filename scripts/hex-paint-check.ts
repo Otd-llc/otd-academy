@@ -5,8 +5,8 @@
 // WHY THIS IS A SCRIPT AND NOT A UNIT TEST. The check has to run against the
 // REAL published meshes, which live outside this repo (`../hex-cluster/build`).
 // A unit test can only use fixtures, and a fixture cannot tell you that
-// `Hex-TB-Corner-F-Solid` -- re-oriented in the 2026-08-17 cut -- still has an
-// upward-facing facet to paint. `hex-3mf.ts` degrades SILENTLY when it finds
+// `hex-half-w` -- a support part whose print pose the owner reviewed -- still
+// has an upward-facing facet to paint after the next re-cut. `hex-3mf.ts` degrades SILENTLY when it finds
 // none, which is the right call at request time (a missing tripwire must not
 // cost someone their download) and exactly why it needs a loud check somewhere.
 //

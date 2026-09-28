@@ -50,10 +50,12 @@ const OUT = process.argv[2] ?? "c:\\zzz\\probes";
 const MESH_DIR =
   process.env.PRINTABLES_DIR ?? "c:\\zzz\\hex-cluster\\build\\printables";
 
-/** The fixture. Smallest published mesh (420 triangles), so the emitted probe is
- *  a few KB and the object list is trivially readable. It is also the part
- *  probe-5 used, which keeps this comparable to the measurement on record. */
-const SLUG = "dovetail-cap-single-m-solid";
+/** The fixture. The solid spike: a small v2 mesh (428 triangles), so the
+ *  emitted probe is a few KB and the object list is trivially readable -- the
+ *  same reasons probe-5 chose its cap, whose part is no longer released. A
+ *  plain solid rather than the smaller jigs and platforms, so its most upward
+ *  facet is an ordinary top face. */
+const SLUG = "hex-spike-solid";
 
 type Tri = { a: number; b: number; c: number };
 type Vert = { x: number; y: number; z: number };

@@ -227,7 +227,7 @@ export function packPlates(
   // byte-different files, and each spelling would hold its own cache entry.
   //
   // Broken on the SLUG, not on the display name, and the two are not the same
-  // order: `dovetail-cap-single-f-solid` and `Dovetail-Cap-Single-F-Solid` sort
+  // order: `hex-cap-edge-solid-f` and a display name `Hex-Cap-Edge-Solid-F` sort
   // together only by accident, and a capital letter precedes every lowercase one
   // by code unit. Sorting on the name would reorder every plate the day a re-cut
   // renamed a file without changing its slug -- and the slug is what identifies

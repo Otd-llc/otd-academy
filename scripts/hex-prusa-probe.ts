@@ -69,9 +69,10 @@ const OUT = process.argv[2] ?? "c:\\zzz\\probes";
 const MESH_DIR =
   process.env.PRINTABLES_DIR ?? "c:\\zzz\\hex-cluster\\build\\printables";
 
-/** 170 x 170 so file A fits one plate on any common bed, including a Mini --
- *  it has to be sliceable, not merely loadable. */
-const BED = { x: 170, y: 170 };
+/** 220 x 220, the bed most people have (the sample pack's), so file A fits one
+ *  plate -- it has to be sliceable, not merely loadable. The v1 caps fit 170;
+ *  the v2 edge caps side by side do not (89 + 81 mm plus the plate gaps). */
+const BED = { x: 220, y: 220 };
 
 async function meshOf(slug: string): Promise<string> {
   const zip = await JSZip.loadAsync(
@@ -140,17 +141,23 @@ async function main(): Promise<void> {
   // The geometry comparator is therefore two DIFFERENT caps rather than the same
   // mesh twice -- identical meshes would give identical names and be
   // indistinguishable in the list. They are the male and female halves of the
-  // same cap, 420 and 404 triangles, adjacent on the bed: if a config block
-  // deletes geometry, the CONFIGURED one is missing and its unconfigured
+  // same edge cap, 4748 and 4732 triangles, adjacent on the bed: if a config
+  // block deletes geometry, the CONFIGURED one is missing and its unconfigured
   // neighbour is not, which is still the only asymmetry on the plate.
-  const CONFIGURED = "dovetail-cap-single-m-solid";
-  const UNCONFIGURED = "dovetail-cap-single-f-solid";
+  //
+  // Then one part per remedy the measured v2 data holds: a BRIM-only part and a
+  // SUPPORT-only part. The v2 slice raised no part needing both (5 support,
+  // 3 brim, 0 both -- `hex-support-data.ts`), so the plate carries no "both"
+  // object; the cross pattern of the two below is the per-object proof.
+  const CONFIGURED = "hex-cap-edge-solid-m";
+  const UNCONFIGURED = "hex-cap-edge-solid-f";
+  const BRIM_ONLY = "pvc-section-single";
+  const SUPPORT_ONLY = "25mm-ins-zip";
   const aLines: Line[] = [
     { slug: CONFIGURED, label: HEX_PART_NAME[CONFIGURED] },
     { slug: UNCONFIGURED, label: HEX_PART_NAME[UNCONFIGURED] },
-    { slug: "hex-tb-spike-ball-zip-single", label: HEX_PART_NAME["hex-tb-spike-ball-zip-single"] },
-    { slug: "hex-tb-spike-ball-joint", label: HEX_PART_NAME["hex-tb-spike-ball-joint"] },
-    { slug: "hex-tb-spike-solid", label: HEX_PART_NAME["hex-tb-spike-solid"] },
+    { slug: BRIM_ONLY, label: HEX_PART_NAME[BRIM_ONLY] },
+    { slug: SUPPORT_ONLY, label: HEX_PART_NAME[SUPPORT_ONLY] },
   ];
   const a = await buildPlate(aLines);
   const aObjs = objectsFromModel(a.model);
@@ -171,23 +178,25 @@ async function main(): Promise<void> {
   }
 
   const full = prusaModelConfig(prusa);
-  // P2 loses its whole block -- the geometry comparator.
+  // The unconfigured cap loses its whole block -- the geometry comparator.
   const p2 = prusa.find((o) => o.name === HEX_PART_NAME[UNCONFIGURED])!;
   const aCfg = full.replace(
     new RegExp(`\\s*<object id="${p2.id}"[\\s\\S]*?</object>`),
     "",
   );
-  if (aCfg === full) throw new Error("failed to strip P2's config block");
+  if (aCfg === full) throw new Error("failed to strip the comparator's config block");
   await writeWith("prusa-A-plate.3mf", a.buf, aCfg);
 
   // ---------------------------------------------------------------- FILE B
   const bLines: Line[] = [
     // File B is a measuring instrument, never a stand-in for a download: three
     // copies of ONE mesh whose only difference is a deliberately wrong range.
-    // These keep tags because the whole point is telling them apart.
-    { slug: "dovetail-cap-single-m-solid", label: "Q1-FULL-RANGE" },
-    { slug: "dovetail-cap-single-m-solid", label: "Q2-HALF-RANGE" },
-    { slug: "dovetail-cap-single-m-solid", label: "Q3-SHORT-BY-ONE" },
+    // These keep tags because the whole point is telling them apart. The solid
+    // spike: a small released mesh (428 triangles), and three copies share
+    // one plate where three edge caps would not.
+    { slug: "hex-spike-solid", label: "Q1-FULL-RANGE" },
+    { slug: "hex-spike-solid", label: "Q2-HALF-RANGE" },
+    { slug: "hex-spike-solid", label: "Q3-SHORT-BY-ONE" },
   ];
   const b = await buildPlate(bLines);
   const bObjs = objectsFromModel(b.model);
@@ -211,8 +220,8 @@ async function main(): Promise<void> {
   bCfg = setLast(bCfg, q3.id, q3.count - 2);
   console.log(
     `\nFILE B -- range instrument (all ${bObjs[0].count} triangles)` +
-      `\n  Q1 lastid ${bObjs.find((o) => o.name.startsWith("Q1"))!.count - 1}  (correct -- a whole cap)` +
-      `\n  Q2 lastid ${Math.floor(q2.count / 2) - 1}  (half -- must LOOK like half a cap)` +
+      `\n  Q1 lastid ${bObjs.find((o) => o.name.startsWith("Q1"))!.count - 1}  (correct -- a whole spike)` +
+      `\n  Q2 lastid ${Math.floor(q2.count / 2) - 1}  (half -- must LOOK like half a spike)` +
       `\n  Q3 lastid ${q3.count - 2}  (short by one -- is it even visible?)`,
   );
   await writeWith("prusa-B-range-control.3mf", b.buf, bCfg);
@@ -237,20 +246,22 @@ C FIRST. prusa-C-dupid-EXPECT-FAIL.3mf must be REFUSED. If it loads clean,
   PrusaSlicer is not reading our config at all and every other result on
   this page is meaningless.
 
-A  prusa-A-plate.3mf -- must load, all 5 objects present and named.
-     P1 vs P2 is the geometry comparator: same-size caps, adjacent. If a
-     config block deletes geometry, P1 vanishes and P2 stays.
-     Slice it: brim under exactly P3 and P5, support under exactly P4 and
-     P5. That 2x2 pattern cannot come from an inherited profile, so it is
-     the per-object proof and needs no settings-panel archaeology.
+A  prusa-A-plate.3mf -- must load, all 4 objects present and named.
+     The two caps are the geometry comparator: same size, adjacent. If a
+     config block deletes geometry, ${HEX_PART_NAME[CONFIGURED]} vanishes
+     and ${HEX_PART_NAME[UNCONFIGURED]} stays.
+     Slice it: brim under exactly ${HEX_PART_NAME[BRIM_ONLY]}, support
+     under exactly ${HEX_PART_NAME[SUPPORT_ONLY]}, neither under the caps. That cross
+     pattern cannot come from an inherited profile, so it is the
+     per-object proof and needs no settings-panel archaeology.
 
 B  prusa-B-range-control.3mf -- do NOT slice (Q2/Q3 are deliberately
      non-manifold and may trigger repair prompts that mask the numbers).
-     Look at Q2: it must be visibly HALF a cap. Then compare Q3 to Q1 in
+     Look at Q2: it must be visibly HALF a spike. Then compare Q3 to Q1 in
      the Info box's facet count.
 
 THEN A ONCE MORE, IN CREALITY PRINT 7.2.1 -- the regression check that the
-  old probe never covered: 5 objects, names intact, geometry intact, and
+  old probe never covered: 4 objects, names intact, geometry intact, and
   the Orca settings (gyroid / 30% / 4) still applied.
 =========================================================================`);
 }

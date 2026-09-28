@@ -18,11 +18,11 @@
 // ===========================================================================
 // THE PLATE: three objects, and the third is the control
 // ===========================================================================
-//   Dovetail-Cap-Single-M-Solid   configured, NOT on the support list
+//   hex-cap-edge-solid-m          configured, NOT on the support list
 //                                 -> gyroid, 30%, 4 walls, support OFF
-//   Hex-TB-Spike-Solid            configured, ON the support list
+//   25mm-ins-zip                  configured, ON the support list
 //                                 -> gyroid, 30%, 4 walls, support ON
-//   Dovetail-Cap-Single-F-Solid   THE CONTROL: its `<metadatagroup>` is stripped
+//   hex-cap-edge-solid-f          THE CONTROL: its `<metadatagroup>` is stripped
 //                                 -> whatever the profile says (Cura ships grid,
 //                                    20%, 2 walls, support off)
 //
@@ -31,9 +31,11 @@
 // nothing to do with each other. With it, any DIFFERENCE between the first two
 // and the third came from our file and from nowhere else.
 //
-// The two caps are the male and female halves of the same part, so they sit
+// The two caps are the male and female halves of the same edge cap, so they sit
 // side by side at nearly the same size -- easy to compare, and impossible to
-// confuse with each other in the object list because their names differ.
+// confuse with each other in the object list because their names differ. The
+// support part is the insert zip: on the measured support list (the slicer
+// reports floating regions) and small enough to share the caps' plate.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -49,11 +51,13 @@ const OUT = process.argv[2] ?? "c:\\zzz\\probes";
 const MESH_DIR =
   process.env.PRINTABLES_DIR ?? "c:\\zzz\\hex-cluster\\build\\printables";
 
-const CONFIGURED_PLAIN = "dovetail-cap-single-m-solid";
-const CONFIGURED_SUPPORT = "hex-tb-spike-solid";
-const CONTROL = "dovetail-cap-single-f-solid";
+const CONFIGURED_PLAIN = "hex-cap-edge-solid-m";
+const CONFIGURED_SUPPORT = "25mm-ins-zip";
+const CONTROL = "hex-cap-edge-solid-f";
 
-const BED = { x: 170, y: 170 };
+/** 220 x 220, the bed most people have: the two v2 edge caps side by side
+ *  (89 + 81 mm plus the plate gaps) do not fit one 170 mm plate. */
+const BED = { x: 220, y: 220 };
 
 async function meshOf(slug: string): Promise<string> {
   const zip = await JSZip.loadAsync(
@@ -143,26 +147,26 @@ WHAT TO CHECK IN CURA
 Open cura-probe.3mf normally. Cura applies per-object settings on an ORDINARY
 import -- there is no open-as-project distinction here, unlike the Orca family.
 
-1. OBJECT LIST -- three objects, named Dovetail-Cap-Single-M-Solid,
-   Hex-TB-Spike-Solid and Dovetail-Cap-Single-F-Solid.
+1. OBJECT LIST -- three objects, named ${HEX_PART_NAME[CONFIGURED_PLAIN]},
+   ${HEX_PART_NAME[CONFIGURED_SUPPORT]} and ${HEX_PART_NAME[CONTROL]}.
 
 2. PER-OBJECT OVERRIDES. Select an object, then the per-model settings tool in
    the left toolbar (the wrench / slider icon). For the two CONFIGURED objects it
-   should list our settings; for Dovetail-Cap-Single-F-Solid -- THE CONTROL -- it
+   should list our settings; for ${HEX_PART_NAME[CONTROL]} -- THE CONTROL -- it
    should list NOTHING.
      Infill Pattern      Gyroid
      Infill Density      30
      Wall Line Count     4
-     Generate Support    on   <- Hex-TB-Spike-Solid ONLY
+     Generate Support    on   <- ${HEX_PART_NAME[CONFIGURED_SUPPORT]} ONLY
    The control is what makes this mean anything: if all three look the same, the
    values came from your profile and not from our file.
 
-3. SLICE IT. Support under Hex-TB-Spike-Solid and NOTHING under either cap. That
+3. SLICE IT. Support under ${HEX_PART_NAME[CONFIGURED_SUPPORT]} and NOTHING under either cap. That
    difference cannot come from a profile -- a profile applies to the whole plate.
 
 4. WORTH A GLANCE: the control should visibly differ. Cura ships grid infill at
    20% with 2 walls, so in the layer view the two configured objects should look
-   denser and thicker-walled than Dovetail-Cap-Single-F-Solid.
+   denser and thicker-walled than ${HEX_PART_NAME[CONTROL]}.
 
 WHAT I EXPECT TO BE WRONG, if anything: the density. Cura types it as a FLOAT and
 we write a bare "30" -- if it shows 3000% or 0.3%, the format is wrong and I need
@@ -171,7 +175,7 @@ parked in node metadata and never applied, so it would show as the setting simpl
 not appearing in the list.
 
 FOUR ANSWERS: (1) three objects named right, (2) overrides on the two and NONE on
-the control, (3) support on the spike only, (4) density reads 30.
+the control, (3) support on the zip only, (4) density reads 30.
 =========================================================================`);
 }
 
