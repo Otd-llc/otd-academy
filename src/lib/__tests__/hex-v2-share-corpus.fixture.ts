@@ -716,5 +716,35 @@ export const FROZEN_V2_PAYLOADS: readonly FrozenV2Build[] = [
         "0#0,0#3~hex-bin-bolt-edge-f-solid"
       ]
     }
+  },
+  {
+    "name": "coverNoMagnets",
+    "v2s": "v2s=dY6xDsIwDET_5eYMYU2_AX4AdQjFhYjgBMfNUvXfUaoCXVisd9b5zjMq3MGgwM3IgQYqcOcZLzhrIOuMVCmuVL0EzwqHcYoRS29Q2Od20jCHB208pErSGNZYY7vm7y5JNT1h9jtNGc3_TQlcSHQTd8_X-MtkpkGTbFom_lAoJPvmUzr6G5P--aBfljc",
+    "v2u": "v2u=%7B%22v%22%3A1%2C%22s%22%3A%7B%22pieces%22%3A%5B%7B%22q%22%3A0%2C%22r%22%3A0%2C%22level%22%3A0%2C%22variant%22%3A%22full%22%7D%5D%2C%22snaps%22%3A%5B%5D%2C%22spikes%22%3A%5B%5D%2C%22covers%22%3A%5B%220%2C0%2C0%3Bfull%3Bbottom%22%2C%220%2C0%2C0%3Bfull%3Btop%22%5D%2C%22caps%22%3A%5B%5D%2C%22inserts%22%3A%5B%5D%2C%22handles%22%3A%5B%5D%2C%22connectors%22%3A%5B%5D%2C%22runs%22%3A%5B%5D%2C%22risers%22%3A%5B%5D%2C%22coverNoMagnets%22%3A%5B%220%2C0%2C0%3Bfull%3Bbottom%22%5D%7D%7D",
+    "state": {
+      "pieces": [
+        {
+          "q": 0,
+          "r": 0,
+          "level": 0,
+          "variant": "full"
+        }
+      ],
+      "snaps": [],
+      "spikes": [],
+      "covers": [
+        "0,0,0;full;bottom",
+        "0,0,0;full;top"
+      ],
+      "caps": [],
+      "inserts": [],
+      "handles": [],
+      "connectors": [],
+      "runs": [],
+      "risers": [],
+      "coverNoMagnets": [
+        "0,0,0;full;bottom"
+      ]
+    }
   }
 ];

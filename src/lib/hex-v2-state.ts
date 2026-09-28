@@ -98,6 +98,10 @@ export const V2_CORE_STRING_FAMILIES = [
 /** Present ONLY when non-empty (the configurator keeps their absence). */
 export const V2_OPTIONAL_STRING_FAMILIES = [
   "coverHubs",
+  // Covers fitted with their magnets OFF (2026-09-28). Absent while every
+  // cover carries them, which is the default -- so every older build decodes
+  // exactly as before.
+  "coverNoMagnets",
   "accessories",
   "bins",
   "ports",

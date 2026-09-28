@@ -49,7 +49,14 @@ const ALWAYS = [
   "runs",
   "risers",
 ];
-const SOMETIMES = ["coverHubs", "accessories", "bins", "ports", "binBolts"];
+const SOMETIMES = [
+  "coverHubs",
+  "coverNoMagnets",
+  "accessories",
+  "bins",
+  "ports",
+  "binBolts",
+];
 
 function inGrammar(v: unknown): boolean {
   if (typeof v !== "object" || v === null || Array.isArray(v)) return false;
@@ -134,8 +141,8 @@ function assertSafe(input: unknown, where: string): ReturnType<typeof decodeV2St
 // ── The configurator's own links ────────────────────────────────────────────
 
 describe("decodeV2State opens every frozen configurator link", () => {
-  it("has the whole corpus (20 builds)", () => {
-    expect(FROZEN_V2_PAYLOADS.length).toBe(20);
+  it("has the whole corpus (21 builds)", () => {
+    expect(FROZEN_V2_PAYLOADS.length).toBe(21);
   });
   for (const b of FROZEN_V2_PAYLOADS) {
     it(b.name, () => {
