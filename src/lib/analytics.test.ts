@@ -2,8 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // `vi.mock` factories are hoisted above the module body, so the shared spies +
 // env stub must be created via `vi.hoisted` to be available inside them.
-const { captureSpy, ctorSpy, envMock } = vi.hoisted(() => ({
+const { captureSpy, captureImmediateSpy, ctorSpy, envMock } = vi.hoisted(() => ({
   captureSpy: vi.fn(),
+  captureImmediateSpy: vi.fn(async (..._args: unknown[]) => {}),
   ctorSpy: vi.fn(),
   envMock: {
     NEXT_PUBLIC_POSTHOG_KEY: undefined as string | undefined,
@@ -22,6 +23,9 @@ vi.mock("posthog-node", () => ({
     capture(...args: unknown[]) {
       captureSpy(...args);
     }
+    captureImmediate(...args: unknown[]) {
+      return captureImmediateSpy(...args);
+    }
   },
 }));
 
@@ -29,10 +33,18 @@ vi.mock("posthog-node", () => ({
 // without tripping @t3-oss runtime validation.
 vi.mock("@/env", () => ({ env: envMock }));
 
-import { capture, getClient, __resetAnalyticsClientForTests } from "@/lib/analytics";
+import {
+  capture,
+  captureNow,
+  CAPTURE_NOW_TIMEOUT_MS,
+  getClient,
+  __resetAnalyticsClientForTests,
+} from "@/lib/analytics";
 
 beforeEach(() => {
   captureSpy.mockClear();
+  captureImmediateSpy.mockReset();
+  captureImmediateSpy.mockImplementation(async () => {});
   ctorSpy.mockClear();
   __resetAnalyticsClientForTests();
 });
@@ -94,5 +106,62 @@ describe("analytics capture — enabled path", () => {
     expect(idA).not.toBe("anonymous-server");
     expect(idA).not.toBe(idB);
     expect(idA.length).toBeGreaterThanOrEqual(16);
+  });
+});
+
+describe("captureNow — the awaited, bounded capture", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("is a no-op when the key is unset", async () => {
+    envMock.NEXT_PUBLIC_POSTHOG_KEY = undefined;
+    await captureNow("server_error", { path: "/x" });
+    expect(ctorSpy).not.toHaveBeenCalled();
+    expect(captureImmediateSpy).not.toHaveBeenCalled();
+  });
+
+  it("sends immediately, under the given server identity, with no person profile", async () => {
+    envMock.NEXT_PUBLIC_POSTHOG_KEY = "phc_test_key";
+    await captureNow("magic_link_send_failed", { status: 429 }, "server:auth");
+    expect(captureImmediateSpy).toHaveBeenCalledTimes(1);
+    expect(captureImmediateSpy).toHaveBeenCalledWith({
+      distinctId: "server:auth",
+      event: "magic_link_send_failed",
+      properties: { status: 429, $process_person_profile: false },
+    });
+    expect(captureSpy).not.toHaveBeenCalled();
+  });
+
+  it("never waits longer than the timeout on a hung PostHog", async () => {
+    vi.useFakeTimers();
+    envMock.NEXT_PUBLIC_POSTHOG_KEY = "phc_test_key";
+    captureImmediateSpy.mockImplementation(() => new Promise(() => {}));
+    let settled = false;
+    const p = captureNow("server_error").then(() => {
+      settled = true;
+    });
+    await vi.advanceTimersByTimeAsync(CAPTURE_NOW_TIMEOUT_MS - 1);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await p;
+    expect(settled).toBe(true);
+    expect(CAPTURE_NOW_TIMEOUT_MS).toBeLessThanOrEqual(2000);
+  });
+
+  it("swallows a rejected send", async () => {
+    envMock.NEXT_PUBLIC_POSTHOG_KEY = "phc_test_key";
+    captureImmediateSpy.mockImplementation(async () => {
+      throw new Error("posthog down");
+    });
+    await expect(captureNow("server_error")).resolves.toBeUndefined();
+  });
+
+  it("swallows a synchronous throw from the SDK", async () => {
+    envMock.NEXT_PUBLIC_POSTHOG_KEY = "phc_test_key";
+    captureImmediateSpy.mockImplementation(() => {
+      throw new Error("sdk bug");
+    });
+    await expect(captureNow("server_error")).resolves.toBeUndefined();
   });
 });

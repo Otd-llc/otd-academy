@@ -148,9 +148,16 @@ describe("the values, where being wrong is silent", () => {
     const row = PRINT_INTENT_TABLE.find(
       (r) => r.key === "sparse_infill_pattern",
     )!;
-    expect(row.cura).toEqual({ key: "infill_pattern", value: "gyroid" });
-    // Verified against `fdmprinter.def.json`: `gyroid` is a valid option, and
-    // lowercase is how the option is spelled.
+    expect(row.cura).toEqual({ key: "infill_pattern", value: "cubicsubdiv" });
+    // THE ONE ROW WHERE CURA DIVERGES IN KIND. Verified against Cura's own
+    // `fdmprinter.def.json`, whose `infill_pattern` keys are lines, trihexagon,
+    // cubicsubdiv, tetrahedral, quarter_cubic, concentric, zigzag, cross,
+    // cross_3d, gyroid, lightning, honeycomb, octagon, grid, cubic, triangles.
+    // There is no `adaptivecubic`, so copying the Orca literal across would
+    // fail the enum and fall back silently. `cubicsubdiv` (Cubic Subdivision)
+    // grades density toward walls the same way and is the nearest thing Cura
+    // has -- a substitution, not a translation.
+    expect(row.cura!.value).not.toBe(row.value);
     expect(row.cura!.value).toBe(row.cura!.value.toLowerCase());
   });
 });

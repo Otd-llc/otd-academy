@@ -68,6 +68,53 @@ export function capture(
   }
 }
 
+/** How long `captureNow` will wait on PostHog before giving up. */
+export const CAPTURE_NOW_TIMEOUT_MS = 1500;
+
+/**
+ * Emit an operational event and WAIT for it to be sent, for the paths where the
+ * batched `capture()` would be lost: a function that is about to throw (a failed
+ * magic-link send) or that is reporting its own failure (`onRequestError`). A
+ * serverless invocation can be frozen the moment it returns, and the batch never
+ * flushes.
+ *
+ * Bounded and inert by construction. NO-OP without a key. Never throws, and never
+ * waits longer than CAPTURE_NOW_TIMEOUT_MS: a slow or unreachable PostHog costs a
+ * failing request at most that, and cannot hang it.
+ *
+ * `distinctId` is a fixed server identity, not a person, and
+ * `$process_person_profile: false` keeps PostHog from minting a profile for it.
+ * Callers pass no PII in `properties`.
+ */
+export async function captureNow(
+  event: string,
+  properties?: Record<string, unknown>,
+  distinctId = "server",
+): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const ph = getClient();
+    if (!ph) return;
+    const send = ph.captureImmediate({
+      distinctId,
+      event,
+      properties: { ...properties, $process_person_profile: false },
+    });
+    // A late rejection after the timeout wins must not surface as unhandled.
+    send.catch(() => {});
+    await Promise.race([
+      send,
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, CAPTURE_NOW_TIMEOUT_MS);
+      }),
+    ]);
+  } catch {
+    // Telemetry must never block or break the caller.
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 /**
  * Reset the cached singleton. TEST-ONLY: lets a test toggle the env key and get
  * a fresh client decision. Not used in production code paths.

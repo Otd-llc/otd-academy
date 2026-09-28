@@ -61,7 +61,7 @@ describe("the table is the only place a value is written", () => {
   // to either turns red instead of drifting. Deriving these from the module
   // under test would produce a pin that agrees with itself forever.
   it.each([
-    ["sparse_infill_pattern", "gyroid"],
+    ["sparse_infill_pattern", "adaptivecubic"],
     ["sparse_infill_density", "30%"],
     ["wall_loops", "4"],
     ["enable_support", "1"],
@@ -102,7 +102,7 @@ describe("the table is the only place a value is written", () => {
 describe("what a reader is shown", () => {
   it("shows the every-part rows, in table order", () => {
     expect([...PRINT_INTENT_FACTS]).toEqual([
-      { label: "infill", value: "gyroid" },
+      { label: "infill", value: "adaptive cubic" },
       { label: "density", value: "30%" },
       { label: "perimeters", value: "4" },
     ]);

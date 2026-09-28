@@ -173,6 +173,19 @@ export function isPublicPath(pathname: string): boolean {
   // 22-char token in the path is the gate; the page is noindex and shows the
   // cluster's name, never the owner's.
   if (top === "c") return true;
+  // The client error beacon (POST /api/beacon/error). An error boundary reports
+  // from any page, signed-in or not, and a 307 to /sign-in would drop exactly
+  // the signed-out faults. Admitted HERE rather than excluded from the proxy
+  // matcher, so the proxy still runs over it; the matcher is never narrowed.
+  // EXACTLY this path: one endpoint, not an /api/beacon prefix.
+  if (
+    segments.length === 3 &&
+    top === "api" &&
+    segments[1] === "beacon" &&
+    segments[2] === "error"
+  ) {
+    return true;
+  }
   // The save page (/account/hex-clusters/save) is public-ELIGIBLE and gates
   // itself INSIDE the page with its own redirect, carrying the search string.
   // It has to be this way round: middleware would redirect before any page JS
