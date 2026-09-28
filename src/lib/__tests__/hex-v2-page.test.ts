@@ -145,3 +145,12 @@ describe("/hex copy rules", () => {
     expect(PAGE).not.toMatch(/licensed CC BY 4\.0\. Source:/);
   });
 });
+
+describe("the release the page links to", () => {
+  it("is the generated release id, a real date, never a placeholder", async () => {
+    const { HEX_V2_RELEASE } = await import("@/lib/hex-v2-page");
+    const { HEX_RELEASE } = await import("@/lib/hex-spec");
+    expect(HEX_V2_RELEASE).toBe(HEX_RELEASE);
+    expect(HEX_V2_RELEASE).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});

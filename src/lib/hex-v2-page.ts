@@ -20,12 +20,13 @@
 //   hex-cluster  tools/parts-copy.json        jig titles and uses
 //   launch readiness decisions 1.3, 1.4, 1.5, 1.12, 1.13, 1.21
 
-/** Release segment of the v2 mesh set.
- *
- *  PLACEHOLDER. Set at publish (launch Phase 10) to the immutable release date
- *  the uploader stamps. Until then every download link on the page resolves to
- *  a 404 from `/api/printable`, which rejects a segment that is not a date. */
-export const HEX_V2_RELEASE = "TODO-v2-release";
+import { HEX_RELEASE } from "@/lib/hex-spec";
+
+/** Release segment of the v2 mesh set: the id the generated release tables
+ *  were built for (launch item 4.6, decision 1 of 2026-09-28: `2026-10-01`).
+ *  The page links to it now; `/api/printable` keeps answering 404 for it until
+ *  the go-public merge adds it to `PUBLISHED_RELEASES` (launch step 10.4). */
+export const HEX_V2_RELEASE: string = HEX_RELEASE;
 
 // -- geometry ----------------------------------------------------------------
 
