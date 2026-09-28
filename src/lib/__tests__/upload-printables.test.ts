@@ -20,26 +20,26 @@ const bucket = vi.hoisted(() => ({
   headError: null as null | (Error & { $metadata?: { httpStatusCode?: number } }),
 }));
 
-// Owner wording (launch item 6.8). A v2 release's LICENSE.txt carries an
-// OWNER-WORDING placeholder, and the uploader refuses `--write` while one is
-// present. The fixture release here is v2, so without a stand-in every write
-// test below would stop at THAT refusal and never reach the guard it names --
-// green for the wrong reason. So by default the placeholder is swapped for
-// stand-in text; the detection itself (`ownerWordingPending`) stays the real one,
-// and the "owner wording" block turns the stand-in off to prove the refusal.
+// Owner wording (launch items 2.6 and 6.8). The owner approved the LICENSE
+// disclaimer and the README safety text on 2026-09-28, so by default both
+// modules run REAL and the release carries no placeholder. The refusal must
+// still hold if a placeholder ever comes back, so each switch below turns ON a
+// reintroduced `[OWNER-WORDING: ...]` marker in its file (a mutation of the real
+// text), and the "owner wording" block proves `--write` refuses on it. The scan
+// (`ownerWordingIn`) is always the real one.
 const licence = vi.hoisted(() => ({ ownerSigned: true, readmeSigned: true }));
+const README_MARK =
+  "[OWNER-WORDING: safety and warranty text (launch readiness 2.6)]";
+const LICENSE_MARK = "[OWNER-WORDING: disclaimer (reintroduced, test only)]";
 
-// The same for the README's 2.6 safety slot, with its own switch so each
-// placeholder's refusal is proved on its own. The scan (`ownerWordingIn`) stays
-// the real one.
 vi.mock("@/lib/hex-readme-safety", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/lib/hex-readme-safety")>();
   return {
     ...real,
     hexReadmeSafetyLines: () =>
       licence.readmeSigned
-        ? ["Safety and warranty:", "  Stand-in safety text (test only)."]
-        : real.hexReadmeSafetyLines(),
+        ? real.hexReadmeSafetyLines()
+        : ["Safety:", `  ${README_MARK}`],
   };
 });
 
@@ -49,11 +49,9 @@ vi.mock("@/lib/hex-license-txt", async (importOriginal) => {
     ...real,
     hexLicenseTxt: (release: string) => {
       const txt = real.hexLicenseTxt(release);
-      if (!licence.ownerSigned) return txt;
-      let out = txt;
-      for (const ph of Object.values(real.HEX_LICENSE_OWNER_WORDING)) {
-        out = out.split(ph).join("Stand-in owner wording (test only).");
-      }
+      if (licence.ownerSigned) return txt;
+      const out = txt.replace(/^These files are provided as is.*$/m, LICENSE_MARK);
+      if (out === txt) throw new Error("test mutation matched nothing");
       return out;
     },
   };
@@ -531,7 +529,7 @@ describe("upload-printables: owner wording (6.8)", () => {
     expect(bucket.calls).toHaveLength(0);
     const err = errors.join(" | ");
     expect(err).toMatch(/still carries owner placeholders/);
-    expect(err).toMatch(/OWNER-WORDING/);
+    expect(err).toMatch(/LICENSE\.txt: \[OWNER-WORDING: disclaimer \(reintroduced, test only\)\]/);
   });
 
   it("--write refuses while the README carries the 2.6 safety placeholder, before any R2 call", async () => {
@@ -552,9 +550,8 @@ describe("upload-printables: owner wording (6.8)", () => {
     expect(errors.join(" | ")).toMatch(/step\/hex-a\.step: \[OWNER-WORDING: stray\]/);
   });
 
-  it("the dry-run README carries the safety slot, the configurator host, and no dangling exception", async () => {
+  it("the dry-run README carries the approved safety text, the configurator host, and no dangling exception", async () => {
     writeFixture({ reviewed: true });
-    licence.readmeSigned = false;
     const emit = join(dir, "emit");
     process.env.PRINTABLES_EMIT = emit;
     expect(await run(allow())).toBe(0);
@@ -562,9 +559,11 @@ describe("upload-printables: owner wording (6.8)", () => {
       readFileSync(join(emit, `printables/${RELEASE}/sets/hex-cluster.zip`)),
     );
     const readme = await zip.file("README.txt")!.async("string");
-    expect(readme).toMatch(
-      /\[OWNER-WORDING: safety and warranty text \(launch readiness 2\.6\)\]/,
-    );
+    expect(readme).not.toMatch(/OWNER-WORDING/);
+    expect(readme).toMatch(/^Safety:$/m);
+    expect(readme).toMatch(/^  - Designed and tested for PETG only; other materials are untested\.$/m);
+    expect(readme).toMatch(/PETG softens around 70 °C\./);
+    expect(readme).toMatch(/NSF\/ANSI 61/);
     expect(readme).toMatch(/^  https:\/\/hex\.onethousanddrones\.com$/m);
     expect(readme).not.toMatch(/demo\.onethousanddrones\.com/);
     expect(readme).toMatch(/Every orientation has been checked/);
@@ -572,7 +571,7 @@ describe("upload-printables: owner wording (6.8)", () => {
     expect(readme).not.toMatch(/\u2014/);
   });
 
-  it("a dry run still runs, and emits the placeholder where the owner's text will go", async () => {
+  it("a dry run still runs with a reintroduced placeholder, and emits it where it sits", async () => {
     writeFixture();
     licence.ownerSigned = false;
     const emit = join(dir, "emit");
@@ -581,7 +580,14 @@ describe("upload-printables: owner wording (6.8)", () => {
     expect(bucket.calls).toHaveLength(0);
     expect(
       readFileSync(join(emit, `printables/${RELEASE}/LICENSE.txt`), "utf8"),
-    ).toMatch(/\[OWNER-WORDING: /);
+    ).toContain(LICENSE_MARK);
+  });
+
+  it("with the owner's approved texts in, --write passes the owner-wording guard", async () => {
+    writeFixture();
+    expect(await run(allow(), "--write")).toBe(0);
+    expect(errors.join(" | ")).not.toMatch(/owner placeholders/);
+    expect(puts().length).toBeGreaterThan(0);
   });
 });
 

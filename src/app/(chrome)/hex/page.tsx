@@ -25,6 +25,7 @@ import { HexConfiguratorFrame } from "@/components/hex/HexConfiguratorFrame";
 import { HexStill } from "@/components/hex/HexStill";
 import { env } from "@/env";
 import { HEX_LICENSE } from "@/lib/hex-license";
+import { HEX_SAFETY_LINES } from "@/lib/hex-readme-safety";
 import { HEX_CONFIGURATOR_URL } from "@/lib/hex-spec";
 import {
   HEX_V2_APOTHEM_MM,
@@ -625,11 +626,13 @@ export default function HexPage() {
             </Section>
 
             <Section id="safety" title="Safety">
-              {/* OWNER-WRITES: decision 2.6. Do not draft this text. */}
-              <Placeholder>
-                OWNER WRITES: safety text (item 2.6). Not load-rated (1.8);
-                potable-water disclaimer (1.7).
-              </Placeholder>
+              {/* Decision 2.6: the owner's approved words (2026-09-28). The
+                  set-zip README reads the same constant, so the two agree. */}
+              <ul className="ml-5 max-w-xl list-disc space-y-1.5 font-serif text-base leading-relaxed text-text marker:text-command-gold">
+                {HEX_SAFETY_LINES.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
             </Section>
 
             <Section id="release-notes" title="Release notes">
@@ -689,7 +692,7 @@ export default function HexPage() {
             </Section>
 
             <Section id="support" title="Support">
-              {/* OWNER-REVIEW; TODO-owner: the alias must exist before launch. */}
+              {/* OWNER-REVIEW */}
               <p className="max-w-xl font-serif text-base leading-relaxed text-text">
                 Questions about a print or a fit go to{" "}
                 <a href={`mailto:${HEX_V2_SUPPORT_EMAIL}`} className={LINK}>
@@ -697,11 +700,6 @@ export default function HexPage() {
                 </a>
                 . We aim to reply within {HEX_V2_SUPPORT_REPLY_HOURS} hours.
               </p>
-              <div className="mt-4">
-                <Placeholder>
-                  TODO-owner: create the {HEX_V2_SUPPORT_EMAIL} alias (1.13)
-                </Placeholder>
-              </div>
             </Section>
 
             <Section id="accessibility" title="Accessibility">

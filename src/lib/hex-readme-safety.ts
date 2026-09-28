@@ -1,30 +1,61 @@
-// The safety and warranty block in the Hex Cluster set-zip README, and the one
-// test for owner placeholders the uploader applies to every file it publishes.
+// The Hex Cluster safety text, in ONE place, and the one test for owner
+// placeholders the uploader applies to every file it publishes.
 //
-// WHY A PLACEHOLDER AND NOT TEXT. The safety and warranty wording is launch item
-// 2.6, and it goes past a lawyer: magnet ingestion, the PETG heat limit, UV and
-// freeze, printed parts never in a wetted path, no load ratings, potable use.
-// None of that is an agent's to draft. Until it exists the README carries a
-// marked slot, so the gap is visible in every dry run instead of being silence
-// nobody notices.
+// THE WORDS ARE THE OWNER'S. Launch item 2.6, approved verbatim 2026-09-28.
+// They ride in two places, the set-zip README and the /hex page Safety
+// section, and both read `HEX_SAFETY_LINES` so the two can never say different
+// things. Do not reword them here; a change is the owner's call.
 //
-// WHY IT MATTERS AT PUBLISH. The README is PUT under an immutable release key.
-// A README published without its safety text cannot be corrected in place; it
+// The README keeps the degree sign in "70 °C" as the owner wrote it (the
+// README is UTF-8), rather than the uploader's usual `ascii()` fold to "deg".
+//
+// WHY THE GUARD STAYS. The README is PUT under an immutable release key; a
+// README published with a placeholder in it cannot be corrected in place, it
 // costs a new release segment. So `upload-printables.ts --write` refuses while
 // ANY `[OWNER-WORDING: ...]` marker remains in ANY file it would upload
-// (`ownerWordingIn`), not only the ones this module or the LICENSE module knows
-// about. A new placeholder added anywhere is covered without touching the guard.
+// (`ownerWordingIn`). A new placeholder added anywhere is covered without
+// touching the guard.
 //
-// Plain data, no env: the uploader imports it statically above its dotenv call.
+// Plain data, no env: the uploader imports it statically above its dotenv call,
+// and the /hex page imports it too.
 
-/** Every string in the README that the owner must replace before a publish. */
-export const HEX_README_OWNER_WORDING = {
-  safety: "[OWNER-WORDING: safety and warranty text (launch readiness 2.6)]",
-} as const;
+/** The approved safety text (launch item 2.6), one statement per entry. */
+export const HEX_SAFETY_LINES = [
+  "Designed and tested for PETG only; other materials are untested.",
+  "PETG softens around 70 °C. Keep parts out of heat and direct sun.",
+  "Not load-rated. Do not hang or support anything whose failure could hurt someone.",
+  "Magnets: keep away from children; swallowed magnets are dangerous.",
+  "Heat-set inserts are installed hot.",
+  "Use PVC primer and cement with ventilation, per their labels.",
+  "Printed parts are not for drinking water unless every wetted part is NSF/ANSI 61 certified and lead-free, with backflow prevention.",
+] as const;
 
-/** The README's safety section, as lines. Today it is the placeholder alone. */
+/** Greedy word wrap for the plain-text files. Words are never split or
+ *  changed, so joining the lines with single spaces gives the input back. */
+export function wrapWords(text: string, width: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(" ")) {
+    if (line && line.length + 1 + word.length > width) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = line ? `${line} ${word}` : word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+/** The README's safety section, as lines: each statement a "- " bullet,
+ *  wrapped at 76 columns with a hanging indent. */
 export function hexReadmeSafetyLines(): string[] {
-  return ["Safety and warranty:", `  ${HEX_README_OWNER_WORDING.safety}`];
+  return [
+    "Safety:",
+    ...HEX_SAFETY_LINES.flatMap((s) =>
+      wrapWords(s, 72).map((l, i) => (i === 0 ? `  - ${l}` : `    ${l}`)),
+    ),
+  ];
 }
 
 /** The marker every owner placeholder starts with, in any file. */

@@ -13,8 +13,9 @@
 // scripts/lib/printables-allowlist.ts.
 //
 // `--write` also refuses while any `[OWNER-WORDING: ...]` placeholder remains in
-// any file it would upload (the LICENSE disclaimer of 6.8, the README safety
-// text of 2.6, or any later one). A dry run emits them, so they can be read.
+// any file it would upload. The 6.8 LICENSE disclaimer and the 2.6 README safety
+// text are filled (owner-approved 2026-09-28); the guard stays for any later
+// one. A dry run emits them, so they can be read.
 //
 // Every PUT carries `x-amz-meta-sha256` (hex SHA-256 of the bytes) and
 // `Content-Disposition: attachment`. Before writing, every key is HEADed:
@@ -774,8 +775,8 @@ function setReadme(
     // manifest rather than typed in, so the sentence cannot drift from the set.
     ...orientationNote(parts),
     "",
-    // Launch item 2.6. The owner's (and a lawyer's) words, not drafted here; a
-    // marked slot until then, and --write refuses while the marker is present.
+    // Launch item 2.6. The owner's approved words (2026-09-28), shared with the
+    // /hex page; --write would still refuse if a placeholder came back.
     ...hexReadmeSafetyLines(),
     "",
     "Full spec: https://academy.onethousanddrones.com/hex",

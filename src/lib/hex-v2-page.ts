@@ -135,17 +135,16 @@ export function printableProxyPath(release: string, rest: string): string {
 
 /** Decision 1.3: one full-set archive, 3MF only. STL and STEP are per part.
  *
- *  The size is the 4.9 DRY RUN's measurement (2026-09-25), re-run after its
- *  three defects were fixed: 18,542,930 bytes for release 2026-10-01, 290
- *  parts, byte-identical across two runs, against the real unfiltered manifest
- *  (docs/plans/2026-09-25-hex-v2-upload-dry-run.md). It replaces the decision's
- *  "~19.5 MB" estimate. It is still NOT a published object: the README inside
- *  the zip carries a placeholder where the 2.6 safety text goes, and the owner's
- *  text will change the size again, so `sizeMeasured` stays false until 10.3
- *  HEADs the real key. Decimal MB. */
+ *  The size is the 4.9 DRY RUN's measurement against the real unfiltered
+ *  manifest (docs/plans/2026-09-25-hex-v2-upload-dry-run.md), re-run on
+ *  2026-09-28 after the owner's 2.6 safety text and 6.8 disclaimer replaced
+ *  their placeholders: 18,543,267 bytes for release 2026-10-01, 290 parts (it
+ *  was 18,542,930 with the placeholders). It replaces the decision's "~19.5 MB"
+ *  estimate. It is still NOT a published object, so `sizeMeasured` stays false
+ *  until 10.3 HEADs the real key. Decimal MB. */
 export const HEX_V2_SET = {
   name: "hex-cluster",
-  sizeBytes: 18_542_930,
+  sizeBytes: 18_543_267,
   sizeLabel: "~18.5 MB",
   sizeMeasured: false,
 } as const;
@@ -199,7 +198,7 @@ export const HEX_V2_JIGS: Jig[] = [
 
 // -- people ------------------------------------------------------------------
 
-/** Decision 1.13. PLACEHOLDER: the alias does not exist yet (TODO-owner). */
+/** Decision 1.13. The alias exists (owner, 2026-09-28). */
 export const HEX_V2_SUPPORT_EMAIL = "hex@onethousanddrones.com";
 /** 72 h reply target, decision 1.13. */
 export const HEX_V2_SUPPORT_REPLY_HOURS = 72;

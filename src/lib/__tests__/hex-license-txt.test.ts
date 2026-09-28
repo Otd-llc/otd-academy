@@ -1,5 +1,5 @@
 // The published v1 LICENSE.txt must not move by a byte, and the v2 one must
-// carry its year and the owner's disclaimer slot (launch item 6.8).
+// carry its year and the owner's approved disclaimer (launch item 6.8).
 //
 // The v1 pin is a sha256 of the text `scripts/upload-printables.ts` carried from
 // its first commit (2bd48dc1) to the 2026-08-17 release, computed from that
@@ -16,7 +16,7 @@ import {
   HEX_LICENSE,
 } from "@/lib/hex-license";
 import {
-  HEX_LICENSE_OWNER_WORDING,
+  HEX_LICENSE_DISCLAIMER,
   HEX_V1_LICENSE_RELEASES,
   HEX_V1_LICENSE_TXT,
   hexLicenseTxt,
@@ -27,6 +27,13 @@ import { HEX_RELEASE, HEX_RELEASE_FILES } from "@/lib/hex-spec";
 const V1_SHA256 =
   "e7145e51e43da01f79edae2b5e8d6be4939971f81fb9442df9a33e43e0f3f24b";
 const V1_BYTES = 836;
+
+// The owner's approved words (2026-09-28), typed here independently of the
+// module so a silent rewording of the constant fails this file.
+const APPROVED_DISCLAIMER =
+  "These files are provided as is, without warranty of any kind, including fitness for a particular purpose. You print, assemble and use them at your own risk. One Thousand Drones LLC is not liable for damage or injury arising from their use. Section 5 of the CC BY 4.0 licence also applies.";
+const APPROVED_MODIFICATIONS =
+  "If you changed the files, say so, and say what you changed.";
 
 const sha = (s: string) => createHash("sha256").update(s, "utf8").digest("hex");
 const ASCII_ONLY = /^[\x00-\x7f]*$/;
@@ -71,12 +78,23 @@ describe("v2 LICENSE.txt", () => {
     expect(hexLicenseTxt("2027-03-05")).toContain("Copyright (c) 2027 ");
   });
 
-  it("carries the disclaimer-notice slot, and reports it as pending", () => {
-    expect(txt).toContain(HEX_LICENSE_OWNER_WORDING.disclaimer);
-    expect(HEX_LICENSE_OWNER_WORDING.disclaimer).toMatch(/^\[OWNER-WORDING: /);
-    expect(ownerWordingPending(txt)).toEqual([
-      HEX_LICENSE_OWNER_WORDING.disclaimer,
-    ]);
+  it("carries the owner's approved disclaimer, word for word, and nothing pending", () => {
+    expect(HEX_LICENSE_DISCLAIMER).toBe(APPROVED_DISCLAIMER);
+    // Wrapped to the file's width: rejoining the lines gives the words back.
+    expect(txt.split("\n").join(" ")).toContain(APPROVED_DISCLAIMER);
+    for (const line of txt.split("\n")) {
+      expect(line.length).toBeLessThanOrEqual(76);
+    }
+    expect(ownerWordingPending(txt)).toEqual([]);
+  });
+
+  it("still reports a reintroduced placeholder as pending", () => {
+    const marked = txt.replace(
+      APPROVED_DISCLAIMER.split(" ").slice(0, 6).join(" "),
+      "[OWNER-WORDING: reintroduced]",
+    );
+    expect(marked).not.toBe(txt);
+    expect(ownerWordingPending(marked)).toEqual(["[OWNER-WORDING: reintroduced]"]);
   });
 
   it("differs from v1, still cites the licence and the source, and is ASCII", () => {
@@ -117,12 +135,13 @@ describe("the uploader builds its LICENSE.txt from this module", () => {
 });
 
 describe("the credit line (CC BY 4.0 s3(a)(1))", () => {
-  it("carries the licence URI and the modifications slot, Source last", () => {
+  it("carries the licence URI and the owner's modifications line, Source last", () => {
     expect(HEX_LICENSE.credit).toContain(
       "https://creativecommons.org/licenses/by/4.0/",
     );
     expect(HEX_LICENSE.credit).toContain(HEX_CREDIT_MODIFICATIONS_SLOT);
-    expect(HEX_CREDIT_MODIFICATIONS_SLOT).toMatch(/^\[OWNER-WORDING: /);
+    expect(HEX_CREDIT_MODIFICATIONS_SLOT).toBe(APPROVED_MODIFICATIONS);
+    expect(HEX_LICENSE.credit).not.toMatch(/OWNER-WORDING/);
     expect(HEX_LICENSE.credit).toMatch(
       /Source: https:\/\/academy\.onethousanddrones\.com\/hex$/,
     );

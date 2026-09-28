@@ -10,10 +10,10 @@ const DEED = "https://creativecommons.org/licenses/by/4.0/";
 
 /** The slot in the credit line where a remixer says whether they changed the
  *  work (CC BY 4.0 s3(a)(1)(B): "indicate if You modified the Licensed
- *  Material"). The WORDING IS THE OWNER'S (launch item 6.8): this is a marked
- *  placeholder, not drafted text, and it must be replaced before launch. */
+ *  Material"). The WORDING IS THE OWNER'S (launch item 6.8), approved verbatim
+ *  2026-09-28. Do not reword. */
 export const HEX_CREDIT_MODIFICATIONS_SLOT =
-  "[OWNER-WORDING: modifications notice]";
+  "If you changed the files, say so, and say what you changed.";
 
 /** CC BY 4.0. One-way: files already published under it stay under it, and only
  *  a future release could carry different terms. The LICENSE.txt itself is
