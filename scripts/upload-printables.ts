@@ -162,7 +162,7 @@ const SETS: Record<
   { label: string; parts: (shipped: ManifestPart[]) => string[] }
 > = {
   "hex-cluster": {
-    label: "Hex Cluster modular tile system -- complete set",
+    label: "Hex Cluster modular tile system: complete set",
     // Handed the parts that SHIP (both withholdings already applied), never the
     // raw manifest, so a set can only ever hold what passed the allow-list.
     parts: (shipped) => shipped.map((p) => p.part),
@@ -604,7 +604,7 @@ async function main() {
   if (!write) console.log("Re-run with --write to apply.");
 }
 
-// The README is deliberately plain ASCII (it uses `--` for dashes throughout),
+// The README is deliberately plain ASCII (no dashes as punctuation at all),
 // because it is read in whatever the downloader's zip viewer or Notepad does
 // with encodings. The shared spec is written for the WEB page, so degree signs,
 // en dashes and multiplication signs come through it; fold them here rather
@@ -652,8 +652,7 @@ function orientationNote(parts: ManifestPart[]): string[] {
       "",
       ...wrap72(
         "Every orientation has been checked: each part rests on a flat face. " +
-          "Nobody has printed the set yet, so this is a geometric check and not " +
-          "a print-tested one.",
+          "Nobody has printed the set yet, so this is a geometric check only.",
       ),
     );
   }
@@ -673,7 +672,7 @@ function orientationNote(parts: ManifestPart[]): string[] {
     return lines;
   }
   lines.push(
-    ...wrap72(`Supports and brim -- ${present.join(", ")}.`),
+    ...wrap72(`Supports and brim: ${present.join(", ")}.`),
     ...wrap72(
       "The slicer flagged these when this release was checked, and each one " +
         "is named below with what it needs. Every other part needs neither " +
@@ -685,7 +684,7 @@ function orientationNote(parts: ManifestPart[]): string[] {
   // sentence is the slicer sweep's own.
   for (const name of present) {
     const note = SUPPORT_NOTE[name];
-    if (note) lines.push(...wrap72(`${name} -- ${note}`, "  "));
+    if (note) lines.push(...wrap72(`${name}: ${note}`, "  "));
   }
   if (present.some((n) => PART_REMEDY[n]?.support)) {
     lines.push("", ...wrap72(SUPPORT_SLICER_NOTE, ""));
@@ -746,7 +745,7 @@ function setReadme(
   return [
     `${label}`,
     "",
-    "Hex Cluster modular tile system -- One Thousand Drones, LLC",
+    "Hex Cluster modular tile system by One Thousand Drones, LLC",
     "https://academy.onethousanddrones.com/hex",
     "",
     // Decision 1.10: the configurator's own host, live before any public link.
@@ -828,7 +827,7 @@ function setReadme(
     `Parts (${names.length}):`,
     ...names.map((n) => `  - ${n}`),
     "",
-    "Licensed CC BY 4.0 -- see LICENSE.txt.",
+    "Licensed CC BY 4.0. See LICENSE.txt.",
   ].join("\n");
 }
 

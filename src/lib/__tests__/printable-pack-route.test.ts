@@ -444,7 +444,7 @@ describe("the download is named after the cluster", () => {
       .file("3D/3dmodel.model")!
       .async("string");
     expect(model).toContain(
-      `<metadata name="Title">${NAME} -- plate 1 of 1</metadata>`,
+      `<metadata name="Title">${NAME}: plate 1 of 1</metadata>`,
     );
   });
 
@@ -478,7 +478,7 @@ describe("the download is named after the cluster", () => {
     const model = await (await plateOf(res))
       .file("3D/3dmodel.model")!
       .async("string");
-    expect(model).toContain("ハニカム -- plate 1 of 1");
+    expect(model).toContain("ハニカム: plate 1 of 1");
   });
 
   it("round-trips a non-ASCII plate name through the zip", async () => {
@@ -811,11 +811,11 @@ describe("a build that needs supports never ships without the warning", () => {
       `plates/${FB}-plate-1-of-1.3mf`,
     ]);
     const readme = await zip.file("README.txt")!.async("string");
-    expect(readme).toContain("Supports and brim -- hex-spike-solid.");
+    expect(readme).toContain("Supports and brim: hex-spike-solid.");
     // The remedy that fits THIS part. Asserting a generic phrase here is what
     // let the README tell both spikes the same thing for months, including the
     // one a brim cannot hold. See the sibling test in hex-pack-readme.test.ts.
-    expect(flat(readme)).toContain("hex-spike-solid -- rests on a thin line");
+    expect(flat(readme)).toContain("hex-spike-solid: rests on a thin line");
   });
 
   it("warns even when the spike is one part among many", async () => {
@@ -845,7 +845,7 @@ describe("a build that needs supports never ships without the warning", () => {
       .file("3D/3dmodel.model")!
       .async("string");
     expect(model).toContain('<metadata name="Description">');
-    expect(model).toContain("Supports and brim -- hex-spike-solid.");
+    expect(model).toContain("Supports and brim: hex-spike-solid.");
     expect(flat(model)).toContain("keep every part flat on the bed");
   });
 

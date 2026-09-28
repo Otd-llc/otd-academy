@@ -579,7 +579,7 @@ async function platedPack(
           // the title and the filename, so a slicer's title bar and the file it
           // was opened from cannot be saying different things -- the same reason
           // the README lists plates through the helper that names them.
-          title: `${stem} -- plate ${n} of ${plates.length}`,
+          title: `${stem}: plate ${n} of ${plates.length}`,
           credit: HEX_LICENSE.credit,
           // Per PLATE, not per pack: a plate with no spike on it says so, and
           // the one that has them names them. A pack-wide note would tell four

@@ -127,7 +127,7 @@ describe("packReadme -- the loose-file zip", () => {
   it("says no supports or brim are needed when nothing in it is flagged", () => {
     const out = flat(packReadme(base));
     expect(out).toContain(NONE);
-    expect(out).not.toContain("Supports and brim --");
+    expect(out).not.toMatch(/Supports and brim: (?!none needed)/);
     expect(out).not.toMatch(/not yet checked/);
   });
 
@@ -241,7 +241,7 @@ describe("plateReadme -- the plated zip", () => {
 
   it("says no supports or brim are needed, with nothing flagged on it", () => {
     expect(flat(txt)).toContain(NONE);
-    expect(txt).not.toContain("Supports and brim --");
+    expect(txt).not.toMatch(/Supports and brim: (?!none needed)/);
   });
 
   it("carries the CC BY credit", () => {
@@ -262,7 +262,7 @@ describe("plateReadme -- the plated zip", () => {
   it("gets the grammar right for a single plate holding a single part", () => {
     const one = plateReadme({ ...base, plates: [[PLAIN()]] });
     expect(flat(one)).toContain("1 part on 1 plate,");
-    expect(one).toContain(`plates/${STEM}-plate-1-of-1.3mf -- 1 part`);
+    expect(one).toContain(`plates/${STEM}-plate-1-of-1.3mf: 1 part`);
   });
 
   it("is pure ASCII", () => {
@@ -299,17 +299,17 @@ describe("support and brim, from the measured slice", () => {
       credit: HEX_LICENSE.credit,
       specUrl: SPEC_URL,
     });
-    expect(out).toContain(`Supports and brim -- ${SUP}.`);
-    expect(flat(out)).toContain(`${SUP} -- needs support switched on`);
+    expect(out).toContain(`Supports and brim: ${SUP}.`);
+    expect(flat(out)).toContain(`${SUP}: needs support switched on`);
     expect(out).not.toContain(NONE);
   });
 
   it("gives each flagged part its OWN advice, never the other's", () => {
     const sup = flat(plateDescription([{ slug: SUP, name: display(SUP) }]));
     const brim = flat(plateDescription([{ slug: BRIM, name: display(BRIM) }]));
-    expect(sup).toContain(`${display(SUP)} -- needs support switched on`);
+    expect(sup).toContain(`${display(SUP)}: needs support switched on`);
     expect(sup).not.toContain("give it a brim");
-    expect(brim).toContain(`${display(BRIM)} -- give it a brim`);
+    expect(brim).toContain(`${display(BRIM)}: give it a brim`);
     expect(brim).not.toContain("needs support switched on");
   });
 
@@ -322,7 +322,7 @@ describe("support and brim, from the measured slice", () => {
 
   it("uses the PUBLISHED spelling on a plate, not the slug", () => {
     const d = plateDescription([{ slug: SUP, name: display(SUP) }]);
-    expect(d).toContain(`Supports and brim -- ${display(SUP)}.`);
+    expect(d).toContain(`Supports and brim: ${display(SUP)}.`);
     expect(d).not.toContain(SUP);
   });
 

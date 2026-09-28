@@ -660,8 +660,7 @@ export default function HexPage() {
                   </a>{" "}
                   ({HEX_LICENSE.name}). You may share it and adapt it, for any
                   purpose, including commercially. Attribution is the one
-                  condition, and it is the whole return: it is why the files are
-                  free.
+                  condition, and it is why the files are free.
                 </p>
                 <p>Crediting it means three things:</p>
                 <ul className="ml-5 list-disc space-y-1.5 marker:text-command-gold">
