@@ -811,9 +811,12 @@ function setReadme(
     // exported in their CAD orientation". That is wrong for a third of the set:
     // 16 of the 53 carry a baked -90 degree X rotation from the exporter. Worse,
     // it points the reader at the wrong risk. The risk is not that nothing was
-    // rotated, it is that the rotations are DERIVED and every part in the
-    // manifest still has printOrientationReviewed = false. Counted from the
-    // manifest rather than typed in, so the sentence cannot drift from the set.
+    // rotated, it is that the rotations are DERIVED. Since 2026-09-28 the
+    // 2026-10-01 manifest carries printOrientationReviewed = true on all 297
+    // parts (hex-cluster `check_orientation.py --stamp`), so the note says
+    // "checked"; an unstamped manifest still gets the "NOT reviewed" warning.
+    // Counted from the manifest rather than typed in, so the sentence cannot
+    // drift from the set.
     ...orientationNote(parts),
     "",
     // Launch item 2.6. The owner's approved words (2026-09-28), shared with the

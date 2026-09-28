@@ -140,13 +140,16 @@ export function printableProxyPath(release: string, rest: string): string {
  *  manifest (docs/plans/2026-09-25-hex-v2-upload-dry-run.md), re-run on
  *  2026-09-28 after the owner's 2.6 safety text and 6.8 disclaimer replaced
  *  their placeholders (18,543,267 bytes), and again the same day after 4.7
- *  put the support/brim section and "where the rest lives" into the README:
- *  18,543,877 bytes for release 2026-10-01, 290 parts. It replaces the decision's "~19.5 MB"
+ *  put the support/brim section and "where the rest lives" into the README
+ *  (18,543,877 bytes), and again after hex-cluster stamped every print pose
+ *  reviewed, which turned the README's orientation note from "NOT reviewed"
+ *  to "checked": 18,543,876 bytes for release 2026-10-01, 290 parts. It
+ *  replaces the decision's "~19.5 MB"
  *  estimate. It is still NOT a published object, so `sizeMeasured` stays false
  *  until 10.3 HEADs the real key. Decimal MB. */
 export const HEX_V2_SET = {
   name: "hex-cluster",
-  sizeBytes: 18_543_877,
+  sizeBytes: 18_543_876,
   sizeLabel: "~18.5 MB",
   sizeMeasured: false,
 } as const;

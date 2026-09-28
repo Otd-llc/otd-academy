@@ -6,6 +6,33 @@ defects the first run found are fixed (see "Defects fixed"). What still stops
 marked slot for the 2.6 safety text, the LICENSE carries the 6.8 disclaimer
 slot, and `--write` refuses while either remains.
 
+## Re-run 2026-09-28 (2), after hex-cluster stamped the print poses
+
+hex-cluster `ceddb42` ran `check_orientation.py --stamp`: all 297 manifest parts
+now carry `printOrientationReviewed: true`. That changed only the manifest's
+hash (LF-normalised `798e4b2e...68cb44b`, now recorded by the regenerated
+`src/lib/hex-release-tables.ts`), and hex-cluster's support-data file re-cut
+against it (`src/lib/hex-support-data.ts` regenerated; counts unchanged, 5
+support, 3 brim). Same inputs otherwise, same scrubbed environment and
+non-credential placeholders as below, run twice.
+
+- **Exit 0, both runs. The two emit dirs are byte-identical** (`diff -r`).
+- Files: 290 `.3mf` (19,200,212 B), 290 `.stl` (94,029,160 B), 290 `.step`
+  (110,131,258 B), `LICENSE.txt` (1,131 B), `sets/hex-cluster.zip`. **872 files,
+  241,905,637 B.** Every mesh and the LICENSE are unchanged; only the README
+  (inside the zip) moved.
+- **Set zip: 18,543,876 B (1 B smaller), sha256
+  `f6b91eea60edf73781f42e2ec7cba7e0b6c7eec7040e6ec0193045bd3244a002`.** 292
+  entries, 19,213,371 B uncompressed (26 B more README text).
+  `HEX_V2_SET.sizeBytes` now holds 18,543,876.
+- **The orientation note now says reviewed:** "Orientation: 87 of the 290 parts
+  are exported already rotated for printing; the remaining 203 are in their CAD
+  orientation. Every orientation has been checked: each part rests on a flat
+  face. Nobody has printed the set yet, so this is a geometric check and not a
+  print-tested one." The "have NOT been reviewed by hand" sentence is gone.
+- Withheld: the same 7, none uploaded. Owner placeholders: none.
+  `manifest.json` in the output: none.
+
 ## Re-run 2026-09-28, after 4.7 (support data + "where the rest lives")
 
 Run exactly as below, twice, against the NEW inputs: the manifest at
@@ -39,11 +66,12 @@ below, `R2_ENDPOINT=http://127.0.0.1:9`.
 - **"Where the rest lives"** (decision 1.3) is generated from the release id and
   the formats the shipped parts carry: the archive is 3MF only, and STL/STEP are
   per-part downloads at `/api/printable/2026-10-01/{stl,step}/<part>.{stl,step}`.
-- Still open, not this run's: the README's orientation note says "87 of the 290
+- ~~Still open, not this run's: the README's orientation note says "87 of the 290
   parts are exported already rotated ... have NOT been reviewed by hand",
   because this manifest carries `printOrientationReviewed: false` on all 297
   parts: it has not been stamped since its last export
-  (`python tools/check_orientation.py build/printables --stamp` in hex-cluster).
+  (`python tools/check_orientation.py build/printables --stamp` in hex-cluster).~~
+  Closed by the stamp; see the second re-run above.
 
 ## How it was run
 
