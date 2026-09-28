@@ -25,12 +25,12 @@ import type { PartBox } from "@/lib/hex-plate";
 export const HEX_TABLES_RELEASE = "2026-10-01";
 
 /** Content hash of this file. See the header. */
-export const HEX_RELEASE_TABLES_HASH = "1e529a4f175d7cd82ae1a3067ee5a2a9034943d167d8125ed856de00653866d7";
+export const HEX_RELEASE_TABLES_HASH = "3e049857be73bfde3453d2c7b1ce26b23f3284f73d06a04c885e9d392a7d95a2";
 
 /** sha256 of the two inputs this file was generated from. */
 export const HEX_TABLES_SOURCE = {
-  manifestSha256: "b0d24e08c1c3d9766cbb2f3fbe89a967479bf529cf2f1d60fe0bc940ba9cfba6",
-  licenceSha256: "a1340b0458005c6de8d5cd0626f22fed636c6d11b14d51b926ba570525b37e5d",
+  manifestSha256: "6a4031c81d5af506c48539ce337a37ba2898053f04d6051c811420fb666f7e77",
+  licenceSha256: "f4870f310187b44bc33b7abb77cba2992514c55bdc812989919f653761c6f0f8",
 } as const;
 
 /** Decision 1.5: the smallest bed a pack is built for, in mm, both axes. */
