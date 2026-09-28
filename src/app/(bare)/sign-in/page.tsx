@@ -1,5 +1,6 @@
 import { signIn, signOut } from "@/auth";
 import { InlineBanner } from "@/components/InlineBanner";
+import { CookieSettingsButton } from "@/components/chrome/CookieSettingsButton";
 import { SignInForms } from "@/components/auth/SignInForms";
 import { safeCallbackPath } from "@/lib/safe-callback";
 import {
@@ -140,6 +141,10 @@ export default async function SignInPage({
         >
           Privacy
         </a>
+        <span aria-hidden="true" className="mx-3">
+          ·
+        </span>
+        <CookieSettingsButton className="cursor-pointer uppercase tracking-[0.2em] transition-colors hover:text-gold-light focus-visible:text-gold-light focus-visible:outline-none" />
       </p>
     </main>
   );
