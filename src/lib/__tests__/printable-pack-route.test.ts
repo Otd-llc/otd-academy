@@ -56,8 +56,11 @@ vi.mock("@/lib/printable-releases", async () => {
     ...actual,
     isPublishedRelease: (r: string | undefined) =>
       r !== undefined &&
-      (actual.PUBLISHED_RELEASES.has(r) ||
-        (r === geometry && !releases.unpublished)),
+      // The tables' release is really published since launch (10.4), so the
+      // flag has to be able to TAKE it away, or the gate below proves nothing.
+      (r === geometry
+        ? !releases.unpublished
+        : actual.PUBLISHED_RELEASES.has(r)),
   };
 });
 

@@ -465,15 +465,14 @@ describe("attribution on printable_downloaded (6.6, 1.14)", () => {
 });
 
 describe("PUBLISHED_RELEASES", () => {
-  it("is exactly the three v1 releases of the published record", async () => {
-    // The ids themselves are pinned, as literals, by the published record's own
-    // test (`hex-release-tables.test.ts`); this pins that the route serves
-    // exactly that record and nothing else yet. The v2 release joins at launch.
+  it("is the published record plus the v2 release, and nothing else", async () => {
+    // The v1 ids are pinned, as literals, by the published record's own test
+    // (`hex-release-tables.test.ts`); the v2 release joined at launch (10.4).
     const { PUBLISHED_RELEASES } = await import("@/lib/printable-releases");
     expect([...PUBLISHED_RELEASES].sort()).toEqual(
-      [...HEX_PUBLISHED_RECORD_RELEASES].sort(),
+      [...HEX_PUBLISHED_RECORD_RELEASES, "2026-10-01"].sort(),
     );
-    expect(PUBLISHED_RELEASES.size).toBe(3);
+    expect(PUBLISHED_RELEASES.size).toBe(4);
   });
 });
 

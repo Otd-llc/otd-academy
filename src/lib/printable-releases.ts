@@ -12,9 +12,15 @@
 // they keep being served, and their ids are spelled once, there. The v2 release
 // is added HERE at launch, not before.
 import { HEX_PUBLISHED_RECORD_RELEASES } from "@/lib/hex-published-record";
+import { HEX_TABLES_RELEASE } from "@/lib/hex-release-tables";
 
 export const PUBLISHED_RELEASES: ReadonlySet<string> = new Set<string>([
   ...HEX_PUBLISHED_RECORD_RELEASES,
+  // THE v2 RELEASE, published at launch (10.4, owner's go-ahead 2026-09-28).
+  // Named through the generated tables, so the route serves exactly the
+  // release the tables, the plate plan and the byte budget describe. It was
+  // uploaded and SHA-verified (875 objects) before this line was added.
+  HEX_TABLES_RELEASE,
 ]);
 
 export function isPublishedRelease(release: string | undefined): boolean {
