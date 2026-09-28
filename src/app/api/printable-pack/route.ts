@@ -88,6 +88,7 @@ import {
   type Placement,
 } from "@/lib/hex-plate";
 import { printableKey, printableLicenseKey } from "@/lib/r2";
+import { isPublishedRelease } from "@/lib/printable-releases";
 import { distinctIdFromCookies } from "@/lib/posthog-distinct-id";
 import { hexFlag } from "@/lib/hex-flags";
 
@@ -280,6 +281,15 @@ export async function GET(req: NextRequest) {
   // table and the budget needs the byte table, and neither describes any other
   // cut. v1 is dead: an older release is not served, loose or otherwise.
   if (release !== HEX_GEOMETRY_RELEASE) {
+    return new Response("Not found", { status: 404 });
+  }
+  // AND ONLY ONCE IT IS PUBLISHED. The same allow-list as the single-file
+  // route, and for the same reason: uploading is not publishing. Without it a
+  // release sitting in the bucket would be served, packed, to anyone who
+  // guessed its date. So until the tables' release is added to
+  // `PUBLISHED_RELEASES` (a launch-day, one-line change) every pack 404s. 404,
+  // not 400, and before any R2 read.
+  if (!isPublishedRelease(release)) {
     return new Response("Not found", { status: 404 });
   }
 

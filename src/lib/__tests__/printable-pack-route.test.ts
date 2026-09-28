@@ -38,6 +38,29 @@ vi.mock("@/lib/part-r2", () => ({ getR2ObjectBytes: getBytes }));
 const captured = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/analytics", () => ({ capture: captured }));
 
+/** PUBLICATION, SIMULATED. The route packs only a release that is BOTH the one
+ *  the tables were measured from AND listed in `PUBLISHED_RELEASES`. The tables'
+ *  release is added to that list at launch, not before, so the real list does
+ *  not name it yet. These rows are about what a PUBLISHED pack looks like, so
+ *  they publish it here; `unpublished` takes it back out for the rows that prove
+ *  the gate. The list itself is pinned in `printable-download.test.ts`. */
+const releases = vi.hoisted(() => ({ unpublished: false }));
+vi.mock("@/lib/printable-releases", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/lib/printable-releases")
+  >("@/lib/printable-releases");
+  const { HEX_GEOMETRY_RELEASE: geometry } = await vi.importActual<
+    typeof import("@/lib/hex-geometry")
+  >("@/lib/hex-geometry");
+  return {
+    ...actual,
+    isPublishedRelease: (r: string | undefined) =>
+      r !== undefined &&
+      (actual.PUBLISHED_RELEASES.has(r) ||
+        (r === geometry && !releases.unpublished)),
+  };
+});
+
 /** ONE FIXTURE SUPPORT ROW, because the real v2 support data is UNKNOWN.
  *
  *  `hex-support.ts` carries an explicit `unknown` state until launch readiness
@@ -241,6 +264,40 @@ describe("price BEFORE read -- the ordering IS the security property", () => {
     const text = await res.text();
     expect(text).toContain("one plate at a time");
     expect(text).toContain("&plate_index=1");
+  });
+});
+
+describe("only published releases are packed", () => {
+  it("404s an unlisted release having touched R2 zero times", async () => {
+    // A well-formed date that is not in PUBLISHED_RELEASES: exactly what a
+    // release uploaded but not yet published looks like from outside.
+    const res = await call(`release=2026-08-20&parts=hex-cap-edge-1h-f:3`);
+    expect(res.status).toBe(404);
+    expect(getBytes).not.toHaveBeenCalled();
+  });
+
+  it("the loose-zip path is gated too, not only plating", async () => {
+    const res = await call(`release=2026-08-20&format=stl&parts=hex-cap-edge-1h-f:3`);
+    expect(res.status).toBe(404);
+    expect(getBytes).not.toHaveBeenCalled();
+  });
+
+  it("the tables' own release 404s until it is published, on both paths", async () => {
+    // The gate that actually binds on this branch: 2026-08-20 above is refused
+    // by the geometry check too, so it cannot tell the two apart. This can.
+    releases.unpublished = true;
+    try {
+      for (const q of [
+        `release=${RELEASE}&parts=hex-cap-edge-1h-f:3`,
+        `release=${RELEASE}&format=stl&parts=hex-cap-edge-1h-f:3`,
+      ]) {
+        const res = await call(q);
+        expect(res.status).toBe(404);
+      }
+      expect(getBytes).not.toHaveBeenCalled();
+    } finally {
+      releases.unpublished = false;
+    }
   });
 });
 

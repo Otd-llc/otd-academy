@@ -37,6 +37,15 @@ const schema = z.object({
 export async function notifyOnHexRelease(
   input: unknown,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  // CLOSED by default. The capture promised "one email when the next release
+  // lands", and the next release is v2; taking new sign-ups before deciding
+  // whether that email is sent would widen a promise nobody has chosen to keep.
+  // The /hex page no longer renders the form, but a server action stays callable
+  // by id, so the refusal has to live here. Opt in only by setting the env var.
+  if (process.env.HEX_RELEASE_NOTIFY_OPEN !== "1") {
+    return { ok: false, error: "Release notifications are closed for now." };
+  }
+
   const parsed = schema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: "That does not look like an email address." };

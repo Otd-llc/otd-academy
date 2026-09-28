@@ -1,12 +1,57 @@
-@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Lora:wght@400;500&display=swap");
 /* Saira Condensed = the dedicated DISPLAY NUMERAL face (big hex/stat number-heroes
    + instrument readouts). Loaded FULL at weight 800 (NOT a digit subset) so unit
    letters inside a readout — mA, h, m, A, V — render in Saira too. A digit-only
    subset made those letters fall back to caps-only Bebas, giving a fat-number /
    skinny-letter weight clash in the same readout (e.g. "13 H 20 M"). Text/titles
    still use Bebas; codes/labels still Space Mono. */
-@import url("https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@800&display=swap");
 @import "tailwindcss";
+
+/* Self-hosted faces (latin subset, from @fontsource v5; OFL texts beside them in
+   public/fonts/). Same family names + weights the Google Fonts request used to load,
+   so every literal font-family in the codebase keeps resolving. No third-party font
+   host is contacted. Italics were never loaded (synthesized), and still are not. */
+@font-face {
+  font-family: "Bebas Neue";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/bebas-neue-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Space Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/space-mono-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Space Mono";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/space-mono-latin-700-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Lora";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/lora-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Lora";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/lora-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Saira Condensed";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/fonts/saira-condensed-latin-800-normal.woff2") format("woff2");
+}
 
 /*
  * Design system tokens — design doc §8.1.

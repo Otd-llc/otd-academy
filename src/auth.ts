@@ -19,6 +19,7 @@ import { isBotSubmission, TURNSTILE_FIELD } from "@/lib/abuse-guard";
 import { enforce } from "@/lib/abuse-limit";
 import { magicLinkChecks, ipOnlyCheck, clientIp } from "@/lib/abuse-policy";
 import { defenseEnabled } from "@/lib/abuse-defense-flag";
+import { sendMagicLinkEmail } from "@/lib/magic-link-send";
 
 // GitHub's OAuth profile carries no "email verified" flag, and the default
 // provider will use a public (possibly unverified) email. We only ever link
@@ -163,17 +164,15 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         const { subject, html, text } = fg
           ? fieldGuideMagicLinkEmail({ url, guideLabel: fg.label, host })
           : magicLinkEmail({ url, host });
-        const res = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${provider.apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ from: provider.from, to, subject, html, text }),
+        // Throws a plain Error on any failure, after recording it (see the module).
+        await sendMagicLinkEmail({
+          apiKey: provider.apiKey,
+          from: provider.from,
+          to,
+          subject,
+          html,
+          text,
         });
-        if (!res.ok) {
-          throw new Error("Resend error: " + JSON.stringify(await res.json()));
-        }
       },
     }),
   ],

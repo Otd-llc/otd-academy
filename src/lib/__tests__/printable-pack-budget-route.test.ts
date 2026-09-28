@@ -47,6 +47,25 @@ vi.mock("@/lib/part-r2", () => ({ getR2ObjectBytes: getBytes }));
 const captured = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/analytics", () => ({ capture: captured }));
 
+/** PUBLICATION, SIMULATED. The route packs only a release listed in
+ *  `PUBLISHED_RELEASES`, and the tables' release joins that list at launch, not
+ *  before. Every row here is about a PUBLISHED pack, so the tables' release is
+ *  published for this file only; the gate itself is proven in
+ *  `printable-pack-route.test.ts`. */
+vi.mock("@/lib/printable-releases", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/lib/printable-releases")
+  >("@/lib/printable-releases");
+  const { HEX_RELEASE: live } = await vi.importActual<
+    typeof import("@/lib/hex-spec")
+  >("@/lib/hex-spec");
+  return {
+    ...actual,
+    isPublishedRelease: (r: string | undefined) =>
+      r !== undefined && (actual.PUBLISHED_RELEASES.has(r) || r === live),
+  };
+});
+
 const MODEL = `<?xml version="1.0" encoding="UTF-8"?>
 <model unit="millimeter" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
  <resources><object id="1" type="model"><mesh>

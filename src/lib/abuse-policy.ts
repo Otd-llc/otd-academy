@@ -31,6 +31,10 @@ export const RULES = {
   // cannot express and which are counted in SQL inside an advisory-locked
   // transaction. This just stops a stuck client hammering the endpoint.
   "hex:save:user": { limit: 30, window: "1 h" },
+  // Client error beacon (/api/beacon/error). A page reports at most a handful
+  // of boundary faults; 20 an hour per IP (or /64) is generous for a person and
+  // bounds what one client can spend of the PostHog quota.
+  "beacon:ip:hour": { limit: 20, window: "1 h" },
 } as const;
 
 export type RuleName = keyof typeof RULES;
