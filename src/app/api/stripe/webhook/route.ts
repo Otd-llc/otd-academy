@@ -307,7 +307,14 @@ export async function POST(req: Request): Promise<Response> {
     }
     if (purchaseRecordMissing) {
       try {
-        capture("purchase_record_missing", purchaseRecordMissing);
+        // The session id is for whoever repairs the row: server log only.
+        // PostHog gets the kind (class (a), `@/lib/analytics`). (Re-typed:
+        // assigned inside the transaction callback, so TS narrows it to never.)
+        const missing: { sessionId: string; kind: string } = purchaseRecordMissing;
+        console.error(
+          `[stripe-webhook] purchase record missing: ${missing.kind} ${missing.sessionId}`,
+        );
+        capture("purchase_record_missing", { kind: missing.kind });
       } catch {
         // never break the webhook ack on telemetry
       }
@@ -536,7 +543,8 @@ export async function POST(req: Request): Promise<Response> {
           // this send — park it for the lifecycle cron's durable retry instead
           // of letting the customer's only "your card failed" notice vanish.
           await recordDunningPending(db, user.id, inv.id);
-          capture("dunning_send_failed", { stage: "webhook", invoiceId: inv.id }, user.id);
+          // No person, no invoice id (class (a), `@/lib/analytics`).
+          capture("dunning_send_failed", { stage: "webhook" });
         }
       } else {
         console.warn(
