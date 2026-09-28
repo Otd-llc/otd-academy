@@ -10,7 +10,7 @@
 // Offline mode: consent state lives in localStorage, no backend. `measurement`
 // (analytics) is opt-in by default, so PostHog stays dark until consent — the
 // ConsentBridge mirrors that decision into getPosthog()'s gate.
-import { ConsentManagerProvider, ConsentBanner } from "@c15t/nextjs";
+import { ConsentManagerProvider, ConsentBanner, ConsentDialog } from "@c15t/nextjs";
 // The banner's stylesheet. Without it the ConsentBanner renders UNSTYLED: raw
 // text in document flow and the "Secured by c15t" logo SVG explodes to its
 // natural size at the page bottom (shipped that way in #344; fixed here).
@@ -177,6 +177,31 @@ const CONSENT_THEME = {
   },
 } as const;
 
+// The banner's words, replacing c15t's default English, which promised the
+// visitor "personalized content" this site does not show (legal findings 0.8).
+//
+// OWNER-APPROVED 2026-09-28: the owner approved these two strings verbatim. Do
+// not reword them without him. Change them here and nowhere else in this repo,
+// and change the configurator's `CONSENT_COPY` (bioscale-viz `src/consent.ts`)
+// to match: the two sites make one statement.
+//
+// Browser-language detection is OFF and the locale pinned to `en`, because the
+// override exists only in English: with detection on, a German browser got
+// c15t's German default, personalised-content promise included.
+export const CONSENT_COPY = {
+  // OWNER-APPROVED 2026-09-28
+  title: "Cookies and analytics",
+  // OWNER-APPROVED 2026-09-28
+  description:
+    "We use strictly necessary cookies to run the site. With your permission we also measure how the site is used, to improve it. We don't sell data or show ads.",
+} as const;
+
+const CONSENT_I18N = {
+  locale: "en",
+  detectBrowserLanguage: false,
+  messages: { en: { cookieBanner: CONSENT_COPY } },
+};
+
 export function ConsentProviders({ children }: { children: React.ReactNode }) {
   return (
     <ConsentManagerProvider
@@ -184,6 +209,7 @@ export function ConsentProviders({ children }: { children: React.ReactNode }) {
         mode: "offline",
         consentCategories: [...CONSENT_CATEGORIES],
         theme: CONSENT_THEME,
+        i18n: CONSENT_I18N,
       }}
     >
       <ConsentBridge />
@@ -191,6 +217,10 @@ export function ConsentProviders({ children }: { children: React.ReactNode }) {
           Without it the policy pack keeps pointing at Customize and the fill
           above lands on a control the pack does not treat as primary. */}
       <ConsentBanner primaryButton="accept" />
+      {/* The preference dialog. Opened by the banner's Customize and by the
+          "Cookie settings" control (CookieSettingsButton) through c15t's
+          activeUI === "dialog". Without it mounted, both did nothing. */}
+      <ConsentDialog />
       {children}
     </ConsentManagerProvider>
   );
