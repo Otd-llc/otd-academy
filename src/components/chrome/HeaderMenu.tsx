@@ -153,6 +153,7 @@ function HeaderMenuView({
             const active = isNavActive(pathname, link.href);
             return (
               <Link
+                prefetch={false}
                 key={link.href}
                 href={link.href}
                 aria-current={active ? "page" : undefined}
