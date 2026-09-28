@@ -7,8 +7,9 @@
 // (src/lib/admin-routes.ts) and a routing test pins that open: verify SIGNED
 // OUT, never only signed in.
 //
-// DRAFT FOR OWNER REVIEW (launch item 6.4). Every sentence the owner must
-// approve or write carries an `OWNER-REVIEW` comment directly above it. The
+// SHIPPED AS DRAFTED (launch item 6.4): the owner chose on 2026-09-28 to ship
+// this copy without a line-by-line review, so the per-sentence review markers
+// are gone. The
 // licence lines come from `HEX_LICENSE`; every v2 number comes from
 // `@/lib/hex-v2-page`, which cites the file and line each one was read from.
 //
@@ -25,6 +26,8 @@ import { HexConfiguratorFrame } from "@/components/hex/HexConfiguratorFrame";
 import { HexStill } from "@/components/hex/HexStill";
 import { env } from "@/env";
 import { HEX_LICENSE } from "@/lib/hex-license";
+import { hexLicenseTxt } from "@/lib/hex-license-txt";
+import { HEX_PART_SLUGS } from "@/lib/hex-release-tables";
 import { HEX_SAFETY_LINES } from "@/lib/hex-readme-safety";
 import { HEX_CONFIGURATOR_URL } from "@/lib/hex-spec";
 import {
@@ -170,23 +173,24 @@ export default function HexPage() {
       name: `${HEX_V2_SET.name}.zip`,
       format: "ZIP",
       size: HEX_V2_SET.sizeLabel,
-      // OWNER-REVIEW
       desc: "Every part as 3MF. STL and STEP come per part.",
     },
     {
       href: printableProxyPath(HEX_V2_RELEASE, "LICENSE.txt"),
       name: "LICENSE.txt",
       format: "TXT",
-      // TODO(publish): the byte count of the published v2 LICENSE.txt.
-      size: "TODO",
+      // THE PUBLISHED BYTES, computed: the uploader writes exactly
+      // `hexLicenseTxt(release)` as UTF-8 (scripts/upload-printables.ts), so
+      // this is that object's size, and it cannot drift from it.
+      size: `${(new TextEncoder().encode(hexLicenseTxt(HEX_V2_RELEASE)).length / 1000).toFixed(1)} KB`,
       desc: "The notice that travels inside every file",
     },
   ];
 
   const geometry: SpecRow[] = [
     { label: "Cell pitch", value: PITCH, aside: "centre to centre" },
-    // OWNER-REVIEW: which extent is "footprint width" (1.21). Drafted as the
-    // flat-to-flat extent of hex-main, 169.21; the long, corner-to-corner
+    // Which extent is "footprint width" (1.21): the flat-to-flat extent of
+    // hex-main, 169.21; the long, corner-to-corner
     // extent is the next row.
     { label: "Footprint width", value: mm(HEX_V2_MAIN_BBOX_MM.y) },
     { label: "Corner to corner", value: mm(HEX_V2_MAIN_BBOX_MM.x) },
@@ -218,7 +222,6 @@ export default function HexPage() {
                 Hex <span className="accent">cluster</span>
                 <span className="tdot">.</span>
               </h1>
-              {/* OWNER-REVIEW */}
               <p className="mt-4 max-w-xl font-serif text-[15px] leading-relaxed text-text">
                 A bench mounting standard you print yourself, {HEX_LICENSE.name}.
               </p>
@@ -268,7 +271,6 @@ export default function HexPage() {
                 </li>
               ))}
             </ul>
-            {/* OWNER-REVIEW */}
             <p className="mt-4 font-serif text-xs leading-relaxed text-muted">
               No account, no email. Release {HEX_V2_RELEASE}. A release is never
               overwritten, so a link you save today keeps giving you the same
@@ -276,8 +278,7 @@ export default function HexPage() {
             </p>
             {!HEX_V2_SET.sizeMeasured ? (
               <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.16em] text-command-gold">
-                TODO(publish): set size is an estimate until the object is
-                published
+                Set size is approximate until the release is published
               </p>
             ) : null}
           </div>
@@ -346,7 +347,6 @@ export default function HexPage() {
 
           <div className="py-10 lg:pl-12">
             <div className="title-rule" aria-hidden="true" />
-            {/* OWNER-REVIEW */}
             <p className="mt-6 max-w-xl font-serif text-base leading-relaxed text-text">
               Every base carries a dovetail on all six edges, so a layout of any
               size locks together and moves as one piece.
@@ -354,7 +354,6 @@ export default function HexPage() {
 
             <Section title="What it is">
               <Prose>
-                {/* OWNER-REVIEW */}
                 <p>
                   Hex Cluster is a mounting standard for the bench. The unit is
                   a hexagonal base, {mm(HEX_V2_MAIN_BBOX_MM.z, 0)} tall, that
@@ -362,7 +361,6 @@ export default function HexPage() {
                   and accessories fix to that grid, and the grid carries the
                   load between them.
                 </p>
-                {/* OWNER-REVIEW */}
                 <p>
                   You print every part on your own machine. Plan a layout in the
                   configurator, download the plates, and add to it one cell at a
@@ -373,7 +371,7 @@ export default function HexPage() {
 
             <Section title="Start small">
               <Prose>
-                {/* OWNER-REVIEW: the proposed first build. */}
+                {/* The proposed first build. */}
                 <p>
                   Print the tolerance ladder and the dovetail gauge first (they
                   are below, under{" "}
@@ -416,7 +414,6 @@ export default function HexPage() {
 
             <Section title="Geometry">
               <SpecRows rows={geometry} />
-              {/* OWNER-REVIEW */}
               <Note>
                 The pitch follows from the base. Two neighbours each reach{" "}
                 {HEX_V2_APOTHEM_MM.toFixed(3)} mm from their centre to the
@@ -442,7 +439,6 @@ export default function HexPage() {
                   },
                 ]}
               />
-              {/* OWNER-REVIEW */}
               <Note>
                 Bearings are measured counter-clockwise from east. Male and
                 female alternate around the hexagon, and every edge sits
@@ -454,7 +450,6 @@ export default function HexPage() {
 
             <Section title="Halves and quarters">
               <Prose>
-                {/* OWNER-REVIEW */}
                 <p>
                   A cell holds one <Code>hex-main</Code>, two halves, four
                   quarters, or any mix that covers the cell&rsquo;s four
@@ -464,7 +459,6 @@ export default function HexPage() {
                   <Code>-sw</Code> and <Code>-se</Code>. Use them to end a
                   layout on a straight edge.
                 </p>
-                {/* OWNER-REVIEW */}
                 <p>
                   All four quarters differ. The dovetail pattern repeats three
                   times around the hexagon and the quarter cut four times, so no
@@ -476,7 +470,6 @@ export default function HexPage() {
 
             <Section title="Caps">
               <Prose>
-                {/* OWNER-REVIEW */}
                 <p>
                   A cap closes a dovetail with no neighbour on it, so an outside
                   edge shows a finished face. <Code>edge</Code> caps cover one
@@ -485,7 +478,6 @@ export default function HexPage() {
                   <Code>cut-ns</Code> for an east or west half,{" "}
                   <Code>cut-ew</Code> for a north or south one.
                 </p>
-                {/* OWNER-REVIEW */}
                 <p>
                   Each comes <Code>solid</Code>, or <Code>1h</Code> with the
                   base&rsquo;s side hole carried through it. The last letter is
@@ -497,7 +489,6 @@ export default function HexPage() {
 
             <Section title="Print profile">
               <SpecRows rows={HEX_V2_PRINT_PROFILE} />
-              {/* OWNER-REVIEW */}
               <Note>
                 The largest part, a half base, is{" "}
                 {HEX_V2_LARGEST_PART_MM.x.toFixed(2)} ×{" "}
@@ -510,7 +501,6 @@ export default function HexPage() {
               <h3 className="mt-9 font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
                 ▸ Slicers
               </h3>
-              {/* OWNER-REVIEW */}
               <Note>
                 The 3MF files open in {HEX_V2_SLICERS.slice(0, -1).join(", ")}{" "}
                 and {HEX_V2_SLICERS[HEX_V2_SLICERS.length - 1]}. Cura has no
@@ -555,16 +545,20 @@ export default function HexPage() {
             </Section>
 
             <Section title="Tools">
-              {/* OWNER-REVIEW: the whole list is a draft. Fastener and magnet
-                  sizes are from hex-cluster docs/naming-v2.md; confirm what a
-                  first build actually needs before this ships. */}
+              {/* The owner shipped this as drafted (2026-09-28), with two facts
+                  corrected to the CAD: an M6 socket head takes a 5 mm key, and
+                  each cover magnet pulls on a steel BB heat-set into the base. */}
               <ul className="ml-5 max-w-xl list-disc space-y-1.5 font-serif text-base leading-relaxed text-text marker:text-command-gold">
                 <li>Calipers, to read the tolerance ladder</li>
                 <li>Flush cutters and a deburring blade, for brims</li>
-                <li>An M6 hex key, for the side bolts</li>
-                <li>5 × 1 mm neodymium magnets, for covers that take them</li>
+                <li>A 5 mm hex key, for the M6 side bolts</li>
                 <li>
-                  A soldering iron with a heat-set tip, for brass inserts
+                  5 × 1 mm neodymium magnets for the covers that take them, and a
+                  4.5 mm steel BB in the base under each one
+                </li>
+                <li>
+                  A soldering iron with a heat-set tip, for the inserts and the
+                  steel BBs
                 </li>
                 <li>
                   A PVC pipe cutter, primer and solvent cement, for pipe runs
@@ -573,7 +567,7 @@ export default function HexPage() {
             </Section>
 
             <Section id="jigs" title="Print these first">
-              {/* OWNER-REVIEW: the order and the reading/action lines. */}
+              {/* The order, and the reading/action lines. */}
               <p className="max-w-xl font-serif text-sm leading-relaxed text-muted">
                 Small prints that tell you how your printer lands on this
                 system before you spend hours on a base.
@@ -636,19 +630,22 @@ export default function HexPage() {
             </Section>
 
             <Section id="release-notes" title="Release notes">
-              {/* OWNER-REVIEW: filled from the 4.6 diff at publish. */}
+              {/* The first public v2 release, so there is no earlier v2 print
+                  to mate with and nothing to diff against. The count is read
+                  from the release tables, never typed. */}
               <SpecRows
                 rows={[
                   { label: "Release", value: HEX_V2_RELEASE },
-                  { label: "Mates with earlier v2 prints", value: "TODO" },
+                  { label: "Parts", value: String(HEX_PART_SLUGS.length) },
+                  {
+                    label: "Mates with earlier v2 prints",
+                    value: "First v2 release",
+                  },
                 ]}
               />
-              <div className="mt-4">
-                <Placeholder>
-                  TODO(publish): what changed in this release, from the 4.6
-                  diff
-                </Placeholder>
-              </div>
+              <p className="mt-4 max-w-xl font-serif text-base leading-relaxed text-text">
+                The first public release of Hex Cluster v2.
+              </p>
             </Section>
 
             <Section id="attribution" title="License and attribution">
@@ -691,7 +688,6 @@ export default function HexPage() {
             </Section>
 
             <Section id="support" title="Support">
-              {/* OWNER-REVIEW */}
               <p className="max-w-xl font-serif text-base leading-relaxed text-text">
                 Questions about a print or a fit go to{" "}
                 <a href={`mailto:${HEX_V2_SUPPORT_EMAIL}`} className={LINK}>

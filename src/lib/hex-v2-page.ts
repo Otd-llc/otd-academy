@@ -95,7 +95,7 @@ export const HEX_V2_REFERENCE_PRINTS: ReferencePrint[] = [
 export const HEX_V2_SPOOL_GRAMS = 1000;
 
 /** The smallest first build the page proposes: two bases on one joint.
- *  OWNER-REVIEW: the choice of build is a draft. */
+ *  Shipped as drafted (owner, 2026-09-28). */
 export const HEX_V2_FIRST_BUILD: { part: string; count: number }[] = [
   { part: "hex-main", count: 2 },
 ];
@@ -167,7 +167,7 @@ export type Jig = {
 
 /** "Print these first". Titles and the substance of each line come from
  *  hex-cluster tools/parts-copy.json; the reading/action split and the order
- *  are the draft's. OWNER-REVIEW. */
+ *  are the draft's, shipped as drafted (owner, 2026-09-28). */
 export const HEX_V2_JIGS: Jig[] = [
   {
     stem: "hex-jig-tolerance-ladder",
