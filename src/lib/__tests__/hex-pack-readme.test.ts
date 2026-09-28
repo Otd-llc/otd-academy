@@ -12,13 +12,10 @@
 // across a line break; asserting on the raw string would pin the wrap points and
 // break on any edit to the sentence around them.
 //
-// TWO SUPPORT STATES. The v2 support data is UNKNOWN until launch readiness 4.7
-// (`hex-support.ts`), and the first half of this file pins what the README says
-// in that state against the REAL module. The support MECHANISM -- a measured row
-// names its part once, carries its own note, and turns off "No supports needed"
-// -- is exercised in the second half against a FIXTURE measured table, because
-// no real v2 row exists yet to exercise it with.
-import { describe, expect, it, vi } from "vitest";
+// THE SUPPORT DATA IS MEASURED (launch readiness 4.7), so every support row
+// below runs against the REAL module: a part the slicer flagged is named once
+// with its own sentence, and a box holding none of them says so.
+import { describe, expect, it } from "vitest";
 
 import { platePath } from "@/lib/hex-pack";
 import {
@@ -29,8 +26,8 @@ import {
 } from "@/lib/hex-pack-readme";
 import type { Placement } from "@/lib/hex-plate";
 import { HEX_PART_SLUGS } from "@/lib/hex-parts";
+import { HEX_PUBLISHED_RECORD_SLUGS } from "@/lib/hex-published-record";
 import { HEX_LICENSE, HEX_RELEASE } from "@/lib/hex-spec";
-import { SUPPORT_UNKNOWN_NOTE } from "@/lib/hex-support";
 
 const RELEASE = HEX_RELEASE;
 const SPEC_URL = "https://academy.onethousanddrones.com/hex";
@@ -66,7 +63,11 @@ const ASCII_ONLY = /^[\x20-\x7e\n]*$/;
  *  the line happened to break. */
 const flat = (s: string) => s.replace(/\s+/g, " ");
 
-const UNKNOWN = flat(SUPPORT_UNKNOWN_NOTE);
+/** What a README says when nothing in the box needs a remedy. */
+const NONE = "Supports and brim: none needed.";
+/** Real v2 parts the 2026-10-01 slice flagged: one for support, one for a brim. */
+const SUP = "hex-half-w";
+const BRIM = "pvc-section-single";
 
 it("uses real v2 slugs for its neutral fixtures", () => {
   expect(HEX_PART_SLUGS).toContain(PLAIN_SLUG);
@@ -123,13 +124,11 @@ describe("packReadme -- the loose-file zip", () => {
     expect(out).toContain("Design gap: 0.25 mm");
   });
 
-  it("says supports are NOT YET CHECKED, never 'No supports needed'", () => {
-    // TODO(4.7). Nobody has sliced the v2 parts for support warnings, so the
-    // honest sentence is that it is unknown, not that nothing is needed.
+  it("says no supports or brim are needed when nothing in it is flagged", () => {
     const out = flat(packReadme(base));
-    expect(out).toContain(UNKNOWN);
-    expect(out).not.toContain("No supports needed");
-    expect(out).not.toContain("Support required");
+    expect(out).toContain(NONE);
+    expect(out).not.toContain("Supports and brim --");
+    expect(out).not.toMatch(/not yet checked/);
   });
 
   it("is pure ASCII", () => {
@@ -140,19 +139,23 @@ describe("packReadme -- the loose-file zip", () => {
 });
 
 describe("packNeedsSupport -- the question that decides the response SHAPE", () => {
-  it("is false for every released part while the support data is unknown", () => {
-    // Nothing is KNOWN to need a remedy, so nothing is archived for one; the
-    // unknown state is stated in the text instead (above and below).
-    expect(packNeedsSupport([...HEX_PART_SLUGS])).toBe(false);
+  it("is true exactly when a flagged part is in the pack", () => {
+    expect(packNeedsSupport([PLAIN_SLUG, CAP_SLUG])).toBe(false);
     expect(packNeedsSupport([])).toBe(false);
+    expect(packNeedsSupport([CAP_SLUG, SUP, CAP_SLUG])).toBe(true);
+    // A brim-only part too: its brim rides in the plate, and the README beside
+    // it is what says so.
+    expect(packNeedsSupport([BRIM])).toBe(true);
+    // Not fooled by a shared prefix.
+    expect(packNeedsSupport(["hex-half"])).toBe(false);
   });
 });
 
 describe("plateDescription -- the notes carried INSIDE the plate", () => {
-  it("says supports are not yet checked, and promises nothing", () => {
+  it("says none are needed on a plate with nothing flagged", () => {
     const d = flat(plateDescription([{ slug: PLAIN_SLUG, name: display(PLAIN_SLUG) }]));
-    expect(d).toContain(UNKNOWN);
-    expect(d).not.toContain("No supports needed");
+    expect(d).toContain(NONE);
+    expect(d).not.toMatch(/not yet checked/);
   });
 
   it("carries the orientation note too, which is true of every plate", () => {
@@ -236,10 +239,9 @@ describe("plateReadme -- the plated zip", () => {
     expect(txt).toContain("Material: FDM PETG");
   });
 
-  it("says supports are not yet checked, never 'No supports needed'", () => {
-    expect(flat(txt)).toContain(UNKNOWN);
-    expect(txt).not.toContain("No supports needed");
-    expect(txt).not.toContain("Support required");
+  it("says no supports or brim are needed, with nothing flagged on it", () => {
+    expect(flat(txt)).toContain(NONE);
+    expect(txt).not.toContain("Supports and brim --");
   });
 
   it("carries the CC BY credit", () => {
@@ -278,117 +280,55 @@ describe("plateReadme -- the plated zip", () => {
 });
 
 /* ===========================================================================
-   THE MECHANISM, against a FIXTURE measured table.
+   THE MEASURED ROWS, against the real 2026-10-01 slice.
 
-   What 4.7's rows will drive: a flagged part is named once, carries its own
-   note, and a measured build with nothing flagged says "No supports needed".
-   The fixture slugs are deliberately not v2 slugs, so nothing here reads as a
-   claim about a real part.
+   A flagged part is named once, carries the slicer sweep's own sentence, and
+   the support-only slicer note appears beside a SUPPORT part and never beside
+   a brim-only one.
    =========================================================================== */
 
-const LINE = "fx-rests-on-a-line";
-const BALL = "fx-rests-on-a-ball";
-const LINE_NOTE =
-  "rests on a thin line. A brim is the useful thing here, and supports are optional.";
-const BALL_NOTE =
-  "rests on the BALL, not the shaft. It needs supports. A brim will not help it.";
-
-async function measuredReadme(): Promise<typeof import("@/lib/hex-pack-readme")> {
-  vi.resetModules();
-  vi.doMock("@/lib/hex-support", async () => {
-    const actual =
-      await vi.importActual<typeof import("@/lib/hex-support")>("@/lib/hex-support");
-    const rows = [
-      { name: display(LINE), slug: LINE, support: true, brim: true, note: LINE_NOTE },
-      { name: display(BALL), slug: BALL, support: true, brim: false, note: BALL_NOTE },
-    ];
-    const slugs: ReadonlySet<string> = new Set(rows.map((r) => r.slug));
-    return {
-      ...actual,
-      HEX_SUPPORT_DATA: { state: "measured", source: "fixture", rows },
-      SUPPORT_UNKNOWN: false,
-      NEEDS_SUPPORT_NAMES: rows.map((r) => r.name),
-      NEEDS_SUPPORT_SLUGS: slugs,
-      PART_REMEDY: Object.fromEntries(
-        rows.map((r) => [r.slug, { support: r.support, brim: r.brim }]),
-      ),
-      needsSupport: (list: readonly string[]) => list.some((s) => slugs.has(s)),
-      SUPPORT_NOTE: Object.fromEntries(
-        rows.flatMap((r) => [
-          [r.slug, r.note],
-          [r.name, r.note],
-        ]),
-      ),
-    };
-  });
-  const mod = await import("@/lib/hex-pack-readme");
-  vi.doUnmock("@/lib/hex-support");
-  return mod;
-}
-
-describe("support mechanism, once the data is measured (fixture)", () => {
-  it("says no supports are needed when nothing in the box is flagged", async () => {
-    // The CONTROL: a note that ALWAYS printed would satisfy every row below.
-    const m = await measuredReadme();
-    const d = m.plateDescription([{ slug: PLAIN_SLUG, name: display(PLAIN_SLUG) }]);
-    expect(d).toContain("No supports needed");
-    expect(d).not.toContain("Support required");
-    expect(flat(d)).not.toContain(UNKNOWN);
-    expect(m.packNeedsSupport([PLAIN_SLUG, CAP_SLUG])).toBe(false);
-  });
-
-  it("answers the SHAPE question from the same rows", async () => {
-    const m = await measuredReadme();
-    expect(m.packNeedsSupport([LINE])).toBe(true);
-    expect(m.packNeedsSupport([CAP_SLUG, BALL, CAP_SLUG])).toBe(true);
-    // Not fooled by a shared prefix.
-    expect(m.packNeedsSupport(["fx-rests-on-a"])).toBe(false);
-  });
-
-  it("names a flagged part by the name the zip entry uses (loose zip = slug)", async () => {
-    const m = await measuredReadme();
-    const out = m.packReadme({
+describe("support and brim, from the measured slice", () => {
+  it("names a flagged part by the name the zip entry uses (loose zip = slug)", () => {
+    const out = packReadme({
       release: RELEASE,
       format: "stl",
       parts: [
         { slug: CAP_SLUG, qty: 1 },
-        { slug: LINE, qty: 1 },
+        { slug: SUP, qty: 1 },
       ],
       credit: HEX_LICENSE.credit,
       specUrl: SPEC_URL,
     });
-    expect(out).toContain(`Support required -- ${LINE}.`);
-    expect(out).not.toContain("No supports needed");
+    expect(out).toContain(`Supports and brim -- ${SUP}.`);
+    expect(flat(out)).toContain(`${SUP} -- needs support switched on`);
+    expect(out).not.toContain(NONE);
   });
 
-  it("gives each flagged part its OWN advice, never the other's", async () => {
-    const m = await measuredReadme();
-    const ball = flat(m.plateDescription([{ slug: BALL, name: display(BALL) }]));
-    const line = flat(m.plateDescription([{ slug: LINE, name: display(LINE) }]));
-    expect(ball).toContain(`${display(BALL)} rests on the BALL`);
-    expect(ball).not.toContain("rests on a thin line");
-    expect(line).toContain(`${display(LINE)} rests on a thin line`);
-    expect(line).not.toContain("rests on the BALL");
+  it("gives each flagged part its OWN advice, never the other's", () => {
+    const sup = flat(plateDescription([{ slug: SUP, name: display(SUP) }]));
+    const brim = flat(plateDescription([{ slug: BRIM, name: display(BRIM) }]));
+    expect(sup).toContain(`${display(SUP)} -- needs support switched on`);
+    expect(sup).not.toContain("give it a brim");
+    expect(brim).toContain(`${display(BRIM)} -- give it a brim`);
+    expect(brim).not.toContain("needs support switched on");
   });
 
-  it("carries the one slicer note worth carrying beside a flagged part", async () => {
-    const m = await measuredReadme();
-    const d = flat(m.plateDescription([{ slug: LINE, name: display(LINE) }]));
-    expect(d).toContain("normal or snug beats tree or organic");
-    expect(d).toContain("PETG supports tear rather than snap");
+  it("carries the slicer note beside a support part, not a brim-only one", () => {
+    const sup = flat(plateDescription([{ slug: SUP, name: display(SUP) }]));
+    const brim = flat(plateDescription([{ slug: BRIM, name: display(BRIM) }]));
+    expect(sup).toContain("PETG supports tear rather than snap");
+    expect(brim).not.toContain("PETG supports tear rather than snap");
   });
 
-  it("uses the PUBLISHED spelling on a plate, not the slug", async () => {
-    const m = await measuredReadme();
-    const d = m.plateDescription([{ slug: LINE, name: display(LINE) }]);
-    expect(d).toContain(`Support required -- ${display(LINE)}.`);
-    expect(d).not.toContain(LINE);
+  it("uses the PUBLISHED spelling on a plate, not the slug", () => {
+    const d = plateDescription([{ slug: SUP, name: display(SUP) }]);
+    expect(d).toContain(`Supports and brim -- ${display(SUP)}.`);
+    expect(d).not.toContain(SUP);
   });
 
-  it("names a repeated flagged part ONCE, not once per copy", async () => {
+  it("names a repeated flagged part ONCE, not once per copy", () => {
     // Asserted as INDEPENDENCE FROM THE COPY COUNT rather than a fixed number:
     // two plates differing ONLY in copies cannot differ in how often it is named.
-    const m = await measuredReadme();
     const base = {
       release: RELEASE,
       bed: { x: 350, y: 350 },
@@ -396,19 +336,36 @@ describe("support mechanism, once the data is measured (fixture)", () => {
       specUrl: SPEC_URL,
       stem: STEM,
     };
-    const flagged = () => at(LINE);
-    const once = m.plateReadme({ ...base, plates: [[PLAIN(), flagged()], [CAP()]] });
-    const six = m.plateReadme({
+    const flagged = () => at(BRIM);
+    const once = plateReadme({ ...base, plates: [[PLAIN(), flagged()], [CAP()]] });
+    const six = plateReadme({
       ...base,
       plates: [
         [PLAIN(), flagged(), flagged(), flagged(), flagged(), flagged(), flagged()],
         [CAP()],
       ],
     });
-    const name = display(LINE);
+    const name = display(BRIM);
     const count = (s: string) => s.split(name).length - 1;
     expect(count(six)).toBe(count(once));
     expect(count(once)).toBeGreaterThan(0);
     expect(ASCII_ONLY.test(six)).toBe(true);
+  });
+
+  it("4.7 done-when: hex-main + a cover carry no v1 or carrier wording", () => {
+    const txt = plateReadme({
+      release: RELEASE,
+      bed: { x: 350, y: 350 },
+      plates: [[at("hex-main", "hex-main"), at("hex-main-cover", "hex-main-cover")]],
+      credit: HEX_LICENSE.credit,
+      specUrl: SPEC_URL,
+      stem: STEM,
+    });
+    expect(flat(txt)).toContain(NONE);
+    expect(txt).not.toMatch(/not yet checked/i);
+    // No v1 part named anywhere in it: the published record is the v1 list.
+    for (const v1 of HEX_PUBLISHED_RECORD_SLUGS) {
+      expect(txt.toLowerCase(), v1).not.toContain(v1);
+    }
   });
 });

@@ -22,21 +22,20 @@ import { HEX_LICENSE } from "@/lib/hex-spec";
 import { HEX_PART_BOX, HEX_PART_NAME } from "@/lib/hex-geometry";
 import type { Placement } from "@/lib/hex-plate";
 
-/** A FIXTURE support table, because the real one is UNKNOWN for v2.
+/** The REAL support table (launch readiness 4.7), plus three FIXTURE rows.
  *
- *  `hex-support.ts` carries no measured rows until launch readiness 4.7 (the
- *  owner's calibration slice, 4.4), so `PART_REMEDY` is empty and nothing would
- *  be painted or configured. The rows below are about the WRITER's handling of
- *  each remedy -- paint one upward facet, switch support on, add a brim, or do
- *  neither -- not about which real parts need them, so they are keyed on
- *  fixture slugs that name no real part. TODO(4.7): once real rows exist, point
- *  at least one row here back at a real flagged part. */
+ *  The fixtures are about the WRITER's handling of each remedy -- paint one
+ *  upward facet, switch support on, add a brim, or do neither -- including the
+ *  support-AND-brim case the 2026-10-01 slice happens not to contain. The real
+ *  rows are kept alongside, so "the slicer's flagged parts get their settings"
+ *  is also asserted against real v2 parts (see "the measured v2 rows" below). */
 vi.mock("@/lib/hex-support", async () => {
   const actual =
     await vi.importActual<typeof import("@/lib/hex-support")>("@/lib/hex-support");
   return {
     ...actual,
     PART_REMEDY: {
+      ...actual.PART_REMEDY,
       "fx-support-and-brim": { support: true, brim: true },
       "fx-support-only": { support: true, brim: false },
       "fx-brim-only": { support: false, brim: true },
@@ -1057,6 +1056,25 @@ describe("support settings ride only on the parts that need them", () => {
       await plate3mf([at(SPIKE, 4, 4, {}, "Fx-Support-Only")], sources),
     );
     expect(cfg).toContain('key="support_threshold_angle" value="30"');
+  });
+
+  it("the measured v2 rows: a real support part and a real brim part", async () => {
+    // 4.7. hex-half-w was flagged for a floating cantilever, pvc-section-single
+    // for an 11 sq mm footprint. Each gets its own remedy and not the other's.
+    const SUP = "hex-half-w";
+    const BRIM = "pvc-section-single";
+    const sup = await configOf(
+      await plate3mf([at(SUP, 4, 4)], new Map([[SUP, source("1")]])),
+    );
+    expect(sup).toContain('key="enable_support" value="1"');
+    expect(sup).toContain('key="support_type" value="normal(auto)"');
+    expect(sup).not.toContain("brim_type");
+    const brim = await configOf(
+      await plate3mf([at(BRIM, 4, 4)], new Map([[BRIM, source("1")]])),
+    );
+    expect(brim).toContain('key="brim_type" value="outer_only"');
+    expect(brim).toContain('key="brim_width" value="5"');
+    expect(brim).not.toContain("enable_support");
   });
 
   it("still gives the support part the same infill as everything else", async () => {

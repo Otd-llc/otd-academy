@@ -70,6 +70,7 @@ import {
 // same reasoning as hex-spec. See that module on why the list lives in one place.
 import {
   NEEDS_SUPPORT_NAMES,
+  PART_REMEDY,
   SUPPORT_NOTE,
   SUPPORT_SLICER_NOTE,
 } from "../src/lib/hex-support";
@@ -644,48 +645,49 @@ function orientationNote(parts: ManifestPart[]): string[] {
       "hand. Check every part sits on a flat face before slicing.",
     );
   } else {
-    // "Except the parts named below" only when a support section follows. It
-    // used to say "the two exceptions below" unconditionally, and the v2 set has
-    // no part in NEEDS_SUPPORT_NAMES, so the sentence pointed at a section that
-    // never rendered. Support data stays unknown until launch item 4.7.
+    // Supports are a separate section now (below), not an exception to this
+    // sentence: the v2 parts the slicer flags all rest on a flat face; what they
+    // need is support under an overhang or a brim under a small footprint.
     lines.push(
       "",
       ...wrap72(
-        (supportParts(parts).length > 0
-          ? "Every orientation has been checked: each part rests on a flat face, " +
-            "except the parts named below."
-          : "Every orientation has been checked: each part rests on a flat face.") +
-          " Nobody has printed the set yet, so this is a geometric check and not " +
+        "Every orientation has been checked: each part rests on a flat face. " +
+          "Nobody has printed the set yet, so this is a geometric check and not " +
           "a print-tested one.",
       ),
     );
   }
 
-  // The parts that rest on a line by DESIGN, named so nobody is surprised
-  // mid-print. The list used to be a local const here AND a second one in
-  // src/lib/hex-pack-readme.ts, each asking the other to be kept in sync. It now
-  // lives once in @/lib/hex-support, because the download endpoint reads the same
-  // set to decide whether a single-plate build ships bare or inside an archive --
-  // so a re-cut that updated this file and not that one would ship a bare file
-  // with no warning in it at all. See that module's header.
+  // The parts the SLICER flagged, named so nobody is surprised mid-print. The
+  // list lives once in @/lib/hex-support (generated from the owner's slice,
+  // launch item 4.7), because the download endpoint reads the same set to decide
+  // whether a single-plate build ships bare or inside an archive -- so a copy
+  // here that drifted would ship a bare file with no warning in it at all.
   const present = supportParts(parts);
-  if (present.length > 0) {
+  lines.push("");
+  if (present.length === 0) {
     lines.push(
-      "",
-      `Support required -- ${present.join(", ")}.`,
-      "These lie on their side on purpose: a spike carries its load along its",
-      "axis, so printed upright the layers stack along that load and peel apart.",
-      "Lying down runs them ACROSS it. What that costs is what they stand on, and",
-      "it is not the same for both. Every other part stands on a flat face.",
-      "",
+      "Supports and brim: none needed. Every part here was checked in a",
+      "slicer for this release and none of them needs either.",
     );
-    // ONE ENTRY PER PART. The old note gave both the same sentence and sent
-    // everyone to a brim, which cannot hold a part with no perimeter on the
-    // plate. The measured figures live beside the list in src/lib/hex-support.
-    for (const name of present) {
-      const note = SUPPORT_NOTE[name];
-      if (note) lines.push(...wrap72(`${name} ${note}`, "  "));
-    }
+    return lines;
+  }
+  lines.push(
+    ...wrap72(`Supports and brim -- ${present.join(", ")}.`),
+    ...wrap72(
+      "The slicer flagged these when this release was checked, and each one " +
+        "is named below with what it needs. Every other part needs neither " +
+        "supports nor a brim.",
+    ),
+    "",
+  );
+  // ONE ENTRY PER PART: support and a brim answer different questions, and the
+  // sentence is the slicer sweep's own.
+  for (const name of present) {
+    const note = SUPPORT_NOTE[name];
+    if (note) lines.push(...wrap72(`${name} -- ${note}`, "  "));
+  }
+  if (present.some((n) => PART_REMEDY[n]?.support)) {
     lines.push("", ...wrap72(SUPPORT_SLICER_NOTE, ""));
   }
   return lines;
@@ -694,6 +696,46 @@ function orientationNote(parts: ManifestPart[]): string[] {
 /** The shipped parts that need support, in NEEDS_SUPPORT_NAMES order. */
 function supportParts(parts: ManifestPart[]): string[] {
   return NEEDS_SUPPORT_NAMES.filter((n) => parts.some((p) => p.part === n));
+}
+
+/** Formats in the order a reader is told about them; anything unknown last. */
+const ORDER = ["3mf", "stl", "step"];
+const rank = (f: string) =>
+  ORDER.includes(f) ? ORDER.indexOf(f) : ORDER.length;
+
+/** The academy origin every printed link in the README names. */
+const ACADEMY = "https://academy.onethousanddrones.com";
+
+/** Where the formats this archive does NOT carry live (decision 1.3).
+ *
+ *  GENERATED from the release id and the formats the shipped parts actually
+ *  carry in the manifest, minus `ZIP_FORMATS`, so a format added to or dropped
+ *  from the release changes this block without anyone remembering to. The
+ *  archive is 3MF only; every other format is a per-part download through the
+ *  academy's `/api/printable` route, one URL per part per format. */
+function whereTheRestLives(parts: ManifestPart[]): string[] {
+  const inZip = new Set<string>(ZIP_FORMATS);
+  const others = [...new Set(parts.flatMap((p) => Object.keys(p.files)))]
+    .filter((f) => !inZip.has(f))
+    .sort((a, b) => rank(a) - rank(b));
+  return [
+    "In this archive: 3mf/, one .3mf per part (carries units and part names).",
+    "",
+    "Where the rest lives:",
+    ...wrap72(
+      `${others.map((f) => f.toUpperCase()).join(" and ")} are not in this ` +
+        "archive. Each part is a separate download in each format, at:",
+      "  ",
+    ),
+    ...others.map(
+      (f) => `    ${ACADEMY}/api/printable/${RELEASE}/${f}/<part>.${f}`,
+    ),
+    ...wrap72(
+      "where <part> is a name from the Parts list below. Every file is also " +
+        `linked from ${ACADEMY}/hex`,
+      "  ",
+    ),
+  ];
 }
 
 function setReadme(
@@ -711,8 +753,7 @@ function setReadme(
     "Configure a cluster and generate a build sheet:",
     "  https://hex.onethousanddrones.com",
     "",
-    "Format: 3mf/ (carries units and part names). STL and STEP are",
-    "        separate per-part downloads, not in this archive.",
+    ...whereTheRestLives(parts),
     "",
     // CORRECTED 2026-08-02. The 2026-07-31 release says "Printed in PLA at
     // 0.2 mm". The material is PETG, and the 0.25 mm design gap is toleranced

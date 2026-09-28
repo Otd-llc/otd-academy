@@ -43,10 +43,9 @@ import {
 } from "@/lib/hex-print-intent";
 import {
   NEEDS_SUPPORT_SLUGS,
+  PART_REMEDY,
   SUPPORT_NOTE,
   SUPPORT_SLICER_NOTE,
-  SUPPORT_UNKNOWN,
-  SUPPORT_UNKNOWN_NOTE,
   needsSupport,
 } from "@/lib/hex-support";
 
@@ -187,42 +186,35 @@ function supportLines(
         .map((p) => [p.slug, ascii(p.label)] as const),
     ),
   ];
-  // UNKNOWN IS NOT "NONE". While the served release has not been through the
-  // slicer sweep (TODO(4.7)), a part without a row is a part nobody has sliced,
-  // and "No supports needed" about it would be a promise with nothing behind
-  // it. Say what is actually true instead.
-  const unknown = SUPPORT_UNKNOWN
-    ? parts.some((p) => !NEEDS_SUPPORT_SLUGS.has(p.slug))
-    : false;
-  const unknownLines = unknown ? wrap(SUPPORT_UNKNOWN_NOTE, "") : [];
   if (present.length === 0) {
-    return unknown
-      ? unknownLines
-      : ["Every part here stands on a flat face. No supports needed."];
+    // MEASURED, not assumed: every released part went through the slicer's
+    // own checks for this release (`hex-support.ts`), and a part with no row
+    // raised nothing.
+    return [
+      "Supports and brim: none needed. Every part here was checked in a",
+      "slicer for this release and none of them needs either.",
+    ];
   }
+  const anySupport = present.some(([slug]) => PART_REMEDY[slug]?.support);
   return [
-    ...(unknown ? [...unknownLines, ""] : []),
-    `Support required -- ${present.map(([, label]) => label).join(", ")}.`,
-    // TODO(4.7): this paragraph was written for the v1 spikes. It renders only
-    // beside a measured row, and there are none for v2 yet; rewrite it from the
-    // parts the v2 sweep actually flags.
     ...wrap(
-      "These lie on their side on purpose: a spike carries its load along its " +
-        "axis, so printed upright the layers stack along that load and peel " +
-        "apart. Lying down runs them ACROSS it. What that costs is what they " +
-        "stand on, and it is not the same for both.",
+      `Supports and brim -- ${present.map(([, label]) => label).join(", ")}.`,
+      "",
+    ),
+    ...wrap(
+      "The slicer flagged these when this release was checked, and each one " +
+        "is named below with what it needs. Every other part here needs " +
+        "neither supports nor a brim.",
       "",
     ),
     "",
-    // ONE ENTRY PER PART, because the old note gave them one shared sentence
-    // and it was wrong for the ball joint -- it sent people to a brim, which
-    // cannot hold a part with no perimeter on the plate. Measured figures live
-    // in `@/lib/hex-support` beside the list itself.
+    // ONE ENTRY PER PART, because support and a brim answer different
+    // questions and a shared sentence was wrong for one of them on v1. The
+    // sentence is the slicer sweep's own, from `@/lib/hex-support`.
     ...present.flatMap(([slug, label]) =>
-      SUPPORT_NOTE[slug] ? wrap(`${label} ${SUPPORT_NOTE[slug]}`, "  ") : [],
+      SUPPORT_NOTE[slug] ? wrap(`${label} -- ${SUPPORT_NOTE[slug]}`, "  ") : [],
     ),
-    "",
-    ...wrap(SUPPORT_SLICER_NOTE, ""),
+    ...(anySupport ? ["", ...wrap(SUPPORT_SLICER_NOTE, "")] : []),
   ];
 }
 

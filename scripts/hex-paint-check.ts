@@ -24,6 +24,7 @@ import JSZip from "jszip";
 
 import { buildPlate3mf } from "@/lib/hex-3mf";
 import { HEX_PART_BOX, HEX_PART_NAME } from "@/lib/hex-geometry";
+import { HEX_RELEASE } from "@/lib/hex-spec";
 import { PART_REMEDY } from "@/lib/hex-support";
 
 const DIR = "c:\\zzz\\hex-cluster\\build\\printables\\3mf";
@@ -43,8 +44,17 @@ async function main() {
   // a plate that is already correct.
   const slugs = [
     ...Object.keys(PART_REMEDY).filter((s) => PART_REMEDY[s]?.support),
-    "hex-tb-spike-platform-lrg",
+    // The negatives: a plain part, and a BRIM-only part -- a brim is a
+    // per-object setting, never a painted facet, so it must carry no paint.
+    "hex-main",
+    ...Object.keys(PART_REMEDY).filter(
+      (s) => PART_REMEDY[s]?.brim && !PART_REMEDY[s]?.support,
+    ),
   ];
+  if (!slugs.some((s) => PART_REMEDY[s]?.support)) {
+    // A check over nothing passes. Say so rather than print "all parts OK".
+    console.log("no part in PART_REMEDY needs support: nothing to paint");
+  }
   const sources = new Map<string, string>();
   for (const s of slugs) sources.set(s, await meshOf(s));
 
@@ -52,7 +62,7 @@ async function main() {
     const buf = await buildPlate3mf(
       [{ slug, name: HEX_PART_NAME[slug], box: HEX_PART_BOX[slug], x: 4, y: 4 }],
       sources,
-      { bed: { x: 350, y: 350 }, release: "2026-08-17" },
+      { bed: { x: 350, y: 350 }, release: HEX_RELEASE },
     );
     const model = await (await JSZip.loadAsync(buf))
       .file("3D/3dmodel.model")!

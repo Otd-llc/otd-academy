@@ -82,15 +82,14 @@ vi.mock("@/lib/hex-support", async () => {
   const slugs: ReadonlySet<string> = new Set([slug]);
   return {
     ...actual,
-    // MEASURED, for this file: a part without a row is then known to need
-    // nothing, which is the state the "No supports needed" rows below assert.
-    // The unknown-state wording is pinned in `hex-pack-readme.test.ts`.
+    // A FIXTURE row, so the route's shape rules are tested against a part
+    // that needs both remedies. The real 2026-10-01 rows are pinned in
+    // `hex-support.test.ts` and `hex-pack-readme.test.ts`.
     HEX_SUPPORT_DATA: {
       state: "measured",
       source: "fixture",
       rows: [{ name: slug, slug, support: true, brim: true, note }],
     },
-    SUPPORT_UNKNOWN: false,
     NEEDS_SUPPORT_NAMES: [slug],
     NEEDS_SUPPORT_SLUGS: slugs,
     PART_REMEDY: { [slug]: { support: true, brim: true } },
@@ -812,11 +811,11 @@ describe("a build that needs supports never ships without the warning", () => {
       `plates/${FB}-plate-1-of-1.3mf`,
     ]);
     const readme = await zip.file("README.txt")!.async("string");
-    expect(readme).toContain("Support required -- hex-spike-solid.");
+    expect(readme).toContain("Supports and brim -- hex-spike-solid.");
     // The remedy that fits THIS part. Asserting a generic phrase here is what
     // let the README tell both spikes the same thing for months, including the
     // one a brim cannot hold. See the sibling test in hex-pack-readme.test.ts.
-    expect(flat(readme)).toContain("hex-spike-solid rests on a thin line");
+    expect(flat(readme)).toContain("hex-spike-solid -- rests on a thin line");
   });
 
   it("warns even when the spike is one part among many", async () => {
@@ -846,7 +845,7 @@ describe("a build that needs supports never ships without the warning", () => {
       .file("3D/3dmodel.model")!
       .async("string");
     expect(model).toContain('<metadata name="Description">');
-    expect(model).toContain("Support required -- hex-spike-solid.");
+    expect(model).toContain("Supports and brim -- hex-spike-solid.");
     expect(flat(model)).toContain("keep every part flat on the bed");
   });
 
@@ -882,7 +881,7 @@ describe("a build that needs supports never ships without the warning", () => {
     const model = await (await plateOf(res))
       .file("3D/3dmodel.model")!
       .async("string");
-    expect(model).toContain("No supports needed");
+    expect(model).toContain("Supports and brim: none needed.");
   });
 });
 

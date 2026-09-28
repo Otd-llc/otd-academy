@@ -454,7 +454,8 @@ export const INTENT_BRIM_PARTS = byScope("brim");
  * The settings a READER is shown, in the order the surfaces read them.
  *
  * `every` rows only, and the filter is the whole argument. A brim is written for
- * three measured parts and support for twenty-five, not for the plate, so a flat
+ * three measured parts and support for five (the 2026-10-01 slice, generated
+ * into `hex-support-data.ts`), not for the plate, so a flat
  * "brim 5 mm" on a card would be false of almost every build -- and a strip is
  * worth nothing unless every line on it is true of the file just taken. A count
  * of the support parts is worse still: that list lives in `hex-support.ts`

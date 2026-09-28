@@ -624,8 +624,8 @@ export async function buildPlate3mf(
     // ONLY the parts the SLICER said need support, from `hex-support.ts`. A
     // tripwire on a part that needs nothing would fire the modal for a plate
     // that is already correct -- a false alarm that trains people to switch
-    // support on globally, which is wrong for the 28 parts measured not to
-    // need it. So the paint follows the collected list, never a guess.
+    // support on globally, which is wrong for every part the slice measured
+    // not to need it. So the paint follows the collected list, never a guess.
     const needsPaint = PART_REMEDY[p.slug]?.support === true;
     // Cura's per-object surface is narrower than the others -- no brim at all --
     // so the rows are filtered by what Cura can actually apply, from the one
