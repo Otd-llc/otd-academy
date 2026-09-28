@@ -217,22 +217,22 @@ export function isCopyleft(license: string): boolean {
  *
  * Shape: { name: "pkg", version: "1.2.3", reason: "why, who approved, when" }
  *
- * The entries below were RECORDED BY AN AGENT on 2026-09-25, PENDING THE
- * OWNER'S CONFIRMATION. None of them changes what ships: all three were
+ * The entries below were RECORDED BY AN AGENT on 2026-09-25 and CONFIRMED BY THE
+ * OWNER on 2026-09-28. None of them changes what ships: all three were
  * already in production when this guard landed. Each is a standard,
  * compliant use of its licence, stated so the owner can check the claim.
  */
 const SHARP_SERVER_ONLY =
   "LGPL-3.0-or-later (bundled libvips). next/image runs sharp on the SERVER; the library is " +
   "never conveyed to a visitor, and LGPL obligations attach to conveying. " +
-  "Agent-recorded 2026-09-25, pending owner confirmation.";
+  "Confirmed by the owner 2026-09-28.";
 export const COPYLEFT_ALLOW: readonly { name: string; version: string; reason: string }[] = [
   {
     name: "jszip",
     version: "3.10.1",
     reason:
       "Dual-licensed (MIT OR GPL-3.0-or-later); we take the MIT side, as its LICENSE.markdown " +
-      "offers. Agent-recorded 2026-09-25, pending owner confirmation.",
+      "offers. Confirmed by the owner 2026-09-28.",
   },
   {
     name: "occt-import-js",
@@ -240,7 +240,7 @@ export const COPYLEFT_ALLOW: readonly { name: string; version: string; reason: s
     reason:
       "LGPL-2.1. Shipped UNMODIFIED as its own file (public/occt-import-js.wasm + its loader), " +
       "loaded on demand, so a user can replace it (LGPL-2.1 s.6); its notice and source URL are " +
-      "in THIRD_PARTY_NOTICES. Agent-recorded 2026-09-25, pending owner confirmation.",
+      "in THIRD_PARTY_NOTICES. Confirmed by the owner 2026-09-28.",
   },
   // sharp's per-platform binaries: Linux x64 is what Vercel builds on; win32 is local dev.
   { name: "@img/sharp-linux-x64", version: "0.34.5", reason: SHARP_SERVER_ONLY },
