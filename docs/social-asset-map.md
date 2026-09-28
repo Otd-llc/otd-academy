@@ -14,8 +14,9 @@ and they live in different places:
   `tools/hex-promo-cuts.mjs` in this repo. Regenerate rather than archive.
 
 ```
-pnpm dev                                  # in Otd-llc/bioscale-viz, NOT `npx vite`
-node tools/hex-promo-cuts.mjs --preset=<p> --choreo=orbit --text   # silent loop + type
+# the v2 configurator's DEV server, from an archived copy of one commit --
+# see the header of tools/hex-film.mjs (HEX_V2_APP, default :5231)
+node tools/hex-promo-cuts.mjs --preset=<p> --text                  # silent loop + type
 python tools/hex-bed.py --kit rd-revtaiko                          # arrange the bed
 python tools/hex-master.py --kit rd-revtaiko                       # finish it
 node tools/hex-social-master.mjs --preset=<p> --laps=1 --text      # loop + bed -> master
@@ -97,7 +98,12 @@ than out of silence. Measured across the join: 22 against a p99 of 739.
 ## The kinetic type
 
 Five words on strikes in the bed, one per two bars, burned into the picture by
-`node tools/hex-promo-cuts.mjs --preset=<p> --choreo=orbit --text`.
+`node tools/hex-promo-cuts.mjs --preset=<p> --text`.
+
+**The words were approved against the v1 picture.** Against the v2 film they
+land on: PRINT as the pipe arrives, SNAP as the column's cover snaps home, GROW
+on the explode, FREE as the parts lie on their print beds. The cue sheet is
+unchanged; whether the pairing still reads is the owner's call.
 
 | t (s)   | Cue                | Cell             | Motion                                                                |
 | ------- | ------------------ | ---------------- | --------------------------------------------------------------------- |
@@ -149,17 +155,17 @@ for 16:9, where it multiplied everything by 1.78: the first wide render put the
 words at 217 px instead of 122 and the download icon at 359 px instead of 202,
 which drew the arrow straight through the front tile of the cluster.
 
-## Which film
+## The film
 
-There are two Hex Cluster loops and they answer different questions. Picking the
-wrong one is the most likely way to waste the asset.
-
-- **`--choreo=orbit`** (the decision loop). Opens in plan view, a ghost lights on
-  one slot, the attention moves to another, the part drops, the cluster builds
-  up and is inspected. Answers _why would I want this_. **Default for social.**
-- **`--choreo=hero`** (the anatomy loop). A tray opens, caps go on, it reverses.
-  Answers _what is this thing_. Better where the object is unfamiliar and the
-  surrounding page does no explaining.
+There is one Hex Cluster v2 loop (`tools/hex-film.mjs`), and every cut, the
+`/hex` clip and every still are frames of it: **column -> PVC -> explode ->
+plates**, as a closed ten-second loop on the bed's grid. A stacked column with
+its cover stands in a row of open bases; the PVC pipe slides through the row on
+2.0; the cover lifts and snaps home on 4.0; the build explodes on 6.0; every
+printed part flies onto a print bed, in its print pose, where the configurator's
+own packer lays it (the bought pipe shrinks away), landing on 8.0; and the parts
+fly home to the opening frame by 9.9. The v1 loops (`--choreo=orbit|hero`, the
+parts tray) are retired with v1.
 
 ## Motion posts
 
@@ -223,11 +229,12 @@ lap read -13.6 dB mean.
 
 | Surface             | File                                 | Note                                                                                                                                                                     |
 | ------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Academy `/hex` hero | `hex-band-orbit.mp4` + `-light`      | Shipped. `band` is framed for a **cropped** surface: the hero is `object-fit: cover` at 58vh and discards ~13% top and bottom.                                           |
-| Apex home band      | `hex-wide.mp4` (**hero**, not orbit) | Deliberate. That band keeps only ~60% of the height; the orbit's vertical travel gets sliced. Clearing it needs a dolly near 2.07, which shrinks the cluster to a speck. |
-| GitHub READMEs (×4) | `hex-readme-orbit.webp` (720×450)    | README markdown will not autoplay a repo-hosted mp4; it renders as a dead link. Animated WebP is the only format that plays inline.                                      |
+| Academy `/hex` hero | `public/hex/hero-{dark,light}.webp` (a still) | The v2 hero is a STILL (launch 6.4), so reduced motion needs no second path. `hex-band.mp4` is still cut, framed for a surface that keeps 74% of the height. |
+| Academy `/hex` loop | `public/hex/configurator{,-light}.mp4` + posters | `tools/hex-video.mjs`, 1280×800, one clip <= 500 KB (gated). |
+| Apex home band      | `hex-apex.mp4` + `-poster.jpg`, copied to the apex repo as `public/hex/cluster-loop{.mp4,-poster.jpg}` | That band keeps ~37% of a 16:9 frame's height at 1440×900 and pushes the clip right, so the `apex` preset fits the whole shot inside a centred 50% × 37% window. |
+| GitHub READMEs (×4) | `hex-readme.webp` (720×450)          | README markdown will not autoplay a repo-hosted mp4; it renders as a dead link. Animated WebP is the only format that plays inline.                                      |
 
-`-orbit-text` variants of both exist and are **not** what these surfaces ship.
+`-text` variants of both exist and are **not** what these surfaces ship.
 They are there to be chosen deliberately -- on a page that drops its own
 headline, or a README that wants the words carried by the image.
 
@@ -235,10 +242,10 @@ headline, or a README that wants the words carried by the image.
 
 | Use                                 | File                                                                                                                                   |
 | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Post thumbnail / poster frame       | `hex-<preset>-orbit-poster.jpg`, a real frame from mid-clip. The `-text` variant carries SNAP, since mid-clip falls inside that window |
-| Transparent cluster, any background | `public/hex/clean/{trio,flower,strip}.webp` (3200×2400)                                                                                |
-| Configurator UI, both themes        | `public/hex/ui/{trio,flower,strip}-{dark,light}.webp` (3200×2000)                                                                      |
-| `/hex` share card                   | generated by `src/app/(chrome)/hex/opengraph-image.tsx`                                                                                |
+| Post thumbnail / poster frame       | `hex-<preset>-poster.jpg`, a real frame from mid-clip (5.0 s: the assembled build with its pipe). The `-text` variant carries SNAP, since mid-clip falls inside that window |
+| Transparent cluster, any background | `public/hex/clean/{trio,flower,strip}.webp` (3200×2400), v2 builds under the v1 file names (`tools/hex-stills.mjs clean`)            |
+| Configurator UI, both themes        | `public/hex/ui/{trio,flower,strip}-{dark,light}.webp` (3200×2000) (`tools/hex-stills.mjs ui`)                                        |
+| `/hex` share card                   | `src/app/(chrome)/hex/opengraph-image.tsx`, composing `public/hex/og-cutout.png` (`tools/hex-stills.mjs og`)                          |
 
 ## Known gaps
 
@@ -253,11 +260,8 @@ bed comes from `hex-bed.py` + `hex-master.py`; the synthesiser survives only
 because the sub layer still uses it and deleting it would lose the record of
 four rounds of what did not work.
 
-**Light-theme ghosts are faint.** On ivory the app draws the placement ghosts as
-near-white outlines rather than the blue and gold it uses on deep space, so the
-decision story reads weakly in the light cut. That is the app's material, not
-the capture. Social posts use the dark cut, so this only affects light page
-surfaces.
+**The film hides the app's placement ghosts.** They are an offer to a live
+pointer, and a loop with no pointer in it has nothing to offer them to.
 
 **No vertical-native accounts.** Without Instagram or TikTok, the 9:16 cut earns
 its keep on Shorts alone. Worth knowing before commissioning more vertical work.

@@ -9,18 +9,20 @@
 // `data-theme` attribute the toggle sets (the rule beside `video[data-loop]`),
 // so a theme flip lands in the same paint with no client component at all.
 //
-// TODO(phase-8): the images are the existing configurator posters, used as a
-// stand-in. Replace both with the v2 still (and its light twin) when Phase 8
-// renders it; nothing else here changes.
+// The images are the v2 still and its light twin, rendered by
+// `tools/hex-stills.mjs hero` from the same film as the loop (tools/hex-film.mjs)
+// at 1920x1080, with the build fitted inside the part of the frame that
+// survives this element's `object-fit: cover` on a desktop band and a phone.
 export function HexStill({ className }: { className?: string }) {
-  // TODO(phase-8): describe the v2 still once it replaces the stand-in.
-  const alt = "The Hex Cluster configurator";
+  const alt =
+    "A Hex Cluster build in the configurator: a column of three stacked hex bases " +
+    "with a cover on top, in a row of open bases that a PVC pipe runs through";
   return (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element -- a fixed-size hero pair toggled by CSS; next/image adds nothing here */}
       <img
         data-still="dark"
-        src="/hex/configurator-poster.jpg"
+        src="/hex/hero-dark.webp"
         alt={alt}
         className={className}
         fetchPriority="high"
@@ -28,7 +30,7 @@ export function HexStill({ className }: { className?: string }) {
       {/* eslint-disable-next-line @next/next/no-img-element -- see above */}
       <img
         data-still="light"
-        src="/hex/configurator-light-poster.jpg"
+        src="/hex/hero-light.webp"
         alt={alt}
         className={className}
         loading="lazy"
