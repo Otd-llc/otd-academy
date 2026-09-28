@@ -138,7 +138,7 @@ describe("release + configurator constants", () => {
     // is read from the generated tables; regenerating for another id fails here
     // until this line is moved on purpose.
     expect(HEX_RELEASE).toBe("2026-10-01");
-    expect(HEX_CONFIGURATOR_URL).toBe("https://demo.onethousanddrones.com/hex");
+    expect(HEX_CONFIGURATOR_URL).toBe("https://hex.onethousanddrones.com/hex");
   });
 });
 

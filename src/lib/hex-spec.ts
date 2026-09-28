@@ -51,7 +51,9 @@ export const HEX_RELEASE: string = HEX_TABLES_RELEASE;
 
 /** The configurator (a separate deploy). Also the URL printed in the release
  *  README and on every build sheet. */
-export const HEX_CONFIGURATOR_URL = "https://demo.onethousanddrones.com/hex";
+// The canonical host since launch (decision 1.10; 10.5, 2026-09-28). demo. and
+// *.pages.dev still serve it and redirect here, fragment intact.
+export const HEX_CONFIGURATOR_URL = "https://hex.onethousanddrones.com/hex";
 
 /** Number of parts in the release, generated with the list it counts.
  *
