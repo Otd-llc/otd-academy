@@ -12,12 +12,14 @@
 // a bounded grammar check: only `v2s=` is accepted, and a payload that does not
 // inflate to a v2 build is refused as malformed rather than stored.
 //
-// TODO(owner, /privacy): account deletion vs saved builds is UNDECIDED. Today
-// `HexCluster.userId` is `onDelete: SetNull`: deleting an account keeps every
-// saved build and revision, and its /c/ page stays public (rendered with
-// "Open in the configurator" hidden). Whether builds are deleted or kept
-// anonymised on account deletion is the owner's call, and whichever it is must
-// be stated in /privacy (src/app/(chrome)/privacy/page.tsx, section 5).
+// ACCOUNT DELETION DELETES SAVED BUILDS (owner decision 2026-09-28). When an
+// account is deleted, every HexCluster it owns and every revision under it are
+// deleted in the same transaction as the User row, so their /c/ share pages
+// resolve to the generic "can't be opened" page. The FK is still
+// `onDelete: SetNull` (no migration), so the policy lives in code, in
+// deleteStudent (src/lib/actions/admin-students.ts) -- the only User delete in
+// the app. Stated for /privacy section 5 in
+// docs/plans/2026-09-28-privacy-account-deletion-note.md.
 //
 // Design: docs/plans/2026-08-01-hex-cluster-saved-builds-design.md §§5.2, 5.3, 6.
 

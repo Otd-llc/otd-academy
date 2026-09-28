@@ -156,7 +156,9 @@ export async function resetEnrollment(input: unknown): Promise<{ ok: true }> {
 // ─── deleteStudent ──────────────────────────────────────
 // Permanently delete a learner account. The User delete cascades accounts,
 // sessions, enrollments (+ their artifacts / attempts), and lifecycle sends; tips,
-// certificates, and PURCHASES SetNull (kept, de-linked). GUARDS: an admin cannot
+// certificates, and PURCHASES SetNull (kept, de-linked). Saved HEX BUILDS are
+// DELETED with the account (owner decision 2026-09-28), explicitly below, since
+// the FK itself is SetNull. GUARDS: an admin cannot
 // delete their OWN account (footgun), and a delete that hits a Restrict FK (the
 // account authored curriculum content) is surfaced as a clean error instead of a
 // raw Prisma throw.
@@ -201,23 +203,25 @@ export async function deleteStudent(input: unknown): Promise<{ ok: true }> {
     }
   }
 
-  // Saved hex clusters survive the delete with userId → NULL, for the same
-  // reason Purchase does: a printed sheet's QR must not 404 because an account
-  // was cleaned up. But SetNull does not scrub `name`, and /c/ falls back to it
-  // once userId is null — so a deleted user's build title would keep rendering
-  // on a public page.
+  // Saved hex builds are DELETED with the account (owner decision 2026-09-28,
+  // launch item 6.3): every HexCluster the user owns and every revision under
+  // it, so no /c/<shareCode> of theirs stays public -- each resolves to the
+  // generic "can't be opened" page. The schema FK is still `onDelete: SetNull`
+  // (no migration by design), so this code is the ONLY thing that enforces
+  // the policy: a bare user.delete anywhere else would orphan the builds and
+  // keep their /c/ pages live. Any new account-deletion path must do the same.
   //
-  // ORDER IS LOAD-BEARING. Collect the ids and scrub BEFORE the delete: after
-  // it, userId is already NULL, an updateMany({ where: { userId } }) matches
-  // zero rows, the id list is unobtainable, and the scrub reports success
-  // having done nothing.
+  // ORDER IS LOAD-BEARING. Collect the ids and delete BEFORE the user row: after
+  // it, userId is already NULL, a deleteMany({ where: { userId } }) matches zero
+  // rows, the id list is unobtainable, and the delete reports success having
+  // done nothing.
   //
-  // ATOMIC with the delete, and that matters: the catch below proves a P2003 is
-  // an EXPECTED outcome here, not a freak error. Run unwrapped, that path left
-  // the user very much alive with every one of their build names permanently
-  // rewritten to "(deleted)" -- irreversible, since the originals were the only
-  // copy. Inside a transaction the FK violation aborts at the DELETE statement
-  // and the scrub rolls back with it.
+  // ATOMIC with the user delete, and that matters: the catch below proves a
+  // P2003 is an EXPECTED outcome here, not a freak error. Run unwrapped, that
+  // path would leave the user very much alive with every saved build gone --
+  // irreversible. Inside a transaction the FK violation aborts at the DELETE
+  // statement and the build delete rolls back with it. Serializable, so a save
+  // racing the delete either lands before (and is deleted) or fails.
   //
   // The Stripe cancellation above deliberately stays OUTSIDE: it is a network
   // call to a third party that no database rollback can undo, and holding a
@@ -231,10 +235,12 @@ export async function deleteStudent(input: unknown): Promise<{ ok: true }> {
             await tx.hexCluster.findMany({ where: { userId }, select: { id: true } })
           ).map((c) => c.id);
           if (ids.length > 0) {
-            await tx.hexCluster.updateMany({
-              where: { id: { in: ids } },
-              data: { name: "(deleted)" },
+            // Revisions first, explicitly, rather than trusting the FK
+            // cascade alone: the share codes live on the revisions.
+            await tx.hexClusterRevision.deleteMany({
+              where: { clusterId: { in: ids } },
             });
+            await tx.hexCluster.deleteMany({ where: { id: { in: ids } } });
           }
           await tx.user.delete({ where: { id: userId } });
           return ids;
@@ -254,8 +260,8 @@ export async function deleteStudent(input: unknown): Promise<{ ok: true }> {
     throw e;
   }
 
-  // Account deletion IS a cache concern: without these, the deleted user's
-  // build title survives on /c/ for up to an hour after the scrub.
+  // Account deletion IS a cache concern: without these, a deleted build's /c/
+  // page keeps rendering from cache for up to an hour after the delete.
   for (const id of hexClusterIds) invalidateHexCluster(id);
 
   revalidatePath("/admin/students");
