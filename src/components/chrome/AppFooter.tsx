@@ -9,6 +9,7 @@
 import Link from "next/link";
 
 import { BrandMark } from "@/components/BrandMark";
+import { CookieSettingsButton } from "@/components/chrome/CookieSettingsButton";
 import { SOCIAL_LINKS } from "@/lib/seo/jsonld";
 import {
   XIcon,
@@ -107,7 +108,7 @@ export function AppFooter() {
               <span className="font-display text-sm tracking-[0.1em] text-command-gold">
                 {g.label}
               </span>
-              {g.links.map(([label, href]) =>
+              {g.links.flatMap(([label, href]) => [
                 // A static file (the notices .txt) is not a route: a plain
                 // anchor, so Link does not try to prefetch it as one.
                 /\.[a-z]+$/.test(href) ? (
@@ -119,7 +120,19 @@ export function AppFooter() {
                     {label}
                   </Link>
                 ),
-              )}
+                // "Cookie settings" beside Privacy: reopens the consent
+                // dialog so analytics consent can be withdrawn as easily as it
+                // was given (GDPR Art. 7(3)). A button, not a Link: it
+                // navigates nowhere, so there is nothing to prefetch.
+                ...(href === "/privacy"
+                  ? [
+                      <CookieSettingsButton
+                        key="cookie-settings"
+                        className={`${FOOTER_LINK} cursor-pointer text-left`}
+                      />,
+                    ]
+                  : []),
+              ])}
             </nav>
           ))}
           <nav
