@@ -12,6 +12,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { ClusterLookup, PublicCluster } from "@/lib/hex-cluster-load";
 import {
   MAX_LABEL_CHARS,
+  MAX_PIPE_TEXT_CHARS,
   sanitiseDisplayText,
   sharedView,
 } from "@/lib/hex-share-view";
@@ -192,6 +193,107 @@ describe("the /c/[shareCode] page", () => {
     expect(html).not.toContain("‮");
     expect(html).not.toContain("z".repeat(MAX_NAME_CHARS));
     expect(html).toContain("Open in the configurator");
+  });
+
+  // Decision 9: the page lists EVERYTHING in the build, not only the balloons.
+  const EVERYTHING = {
+    ...GOOD_SUMMARY,
+    hubHalves: [
+      { item: 2, qty: 2, label: "PVC hub · top half", sourceFile: "pvc-hub-top.FCStd" },
+    ],
+    hardware: [
+      { item: 3, qty: 12, label: "M6 x 35 socket head cap screw, ISO 4762 (DIN 912)" },
+      { item: 4, qty: 1, label: "heatset-m6-short" },
+    ],
+    pipe: {
+      buy: ["buy 1 x 10 ft 3/4 in Sch 40 PVC pipe, OD 26.67 mm (US)."],
+      sticks: [
+        { cuts: [400, 701], offcutMm: 1946, flex: false },
+        { cuts: [350], offcutMm: 2700, flex: true },
+      ],
+      warnings: ["leg 4000 is 4000 mm, longer than one 3048 mm stick -- break it and add a coupling"],
+      notes: ["1 run STRUCTURAL -- DRY, NOT PRESSURE RATED."],
+    },
+  };
+
+  /** The page's visible text, React's comment markers removed. */
+  const textOf = (html: string) =>
+    html.replace(/<!-- -->/g, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+
+  it("renders every section: hub halves, hardware and the pipe cut list", async () => {
+    const html = await render(hit({ summary: EVERYTHING }));
+    const text = textOf(html);
+    expect(text).toContain("Hub halves");
+    expect(text).toContain("PVC hub · top half");
+    expect(text).toContain("pvc-hub-top.FCStd");
+    expect(text).toContain("Bought hardware");
+    expect(text).toContain("M6 x 35 socket head cap screw, ISO 4762 (DIN 912)");
+    expect(text).toContain("heatset-m6-short");
+    expect(text).toContain("PVC pipe");
+    expect(text).toContain("buy 1 x 10 ft 3/4 in Sch 40 PVC pipe");
+    expect(text).toContain("Stick 1 · cut 400, 701 mm · offcut 1946 mm");
+    expect(text).toContain("Roll 2 · cut 350 mm · offcut 2700 mm");
+    expect(text).toContain("break it and add a coupling");
+    expect(text).toContain("DRY, NOT PRESSURE RATED");
+    // The numbers continue the ballooned bill, as the sheet prints them.
+    expect(text).toContain(" 3 12× M6 x 35 socket head cap screw");
+    expect(text).toContain(" 2 2× PVC hub · top half pvc-hub-top.FCStd");
+  });
+
+  it("a row saved before decision 9 renders its bill alone, as it always did", async () => {
+    const text = textOf(await render(hit()));
+    expect(text).not.toContain("Hub halves");
+    expect(text).not.toContain("Bought hardware");
+    expect(text).not.toContain("PVC pipe");
+    expect(text).toContain("Bill of materials");
+  });
+
+  it("a shed cut list still says how much pipe to buy", async () => {
+    const text = textOf(
+      await render(hit({ summary: { ...EVERYTHING, pipe: { ...EVERYTHING.pipe, sticks: [] } } })),
+    );
+    expect(text).toContain("buy 1 x 10 ft");
+    expect(text).not.toContain("Stick 1");
+  });
+
+  it("sanitises and caps every new string", async () => {
+    const hostile = `<script>x</script>‮${"h".repeat(500)}`;
+    const v = sharedView(
+      hit({
+        summary: {
+          ...EVERYTHING,
+          hubHalves: [{ ...EVERYTHING.hubHalves[0], label: hostile, sourceFile: hostile }],
+          hardware: [{ ...EVERYTHING.hardware[0], label: hostile }],
+          pipe: { ...EVERYTHING.pipe, buy: [hostile], warnings: [hostile], notes: [hostile] },
+        },
+      }),
+    );
+    expect(v.kind).toBe("ok");
+    if (v.kind !== "ok") return;
+    const s = v.build.summary;
+    for (const t of [s.hubHalves![0].label, s.hubHalves![0].sourceFile, s.hardware![0].label]) {
+      expect([...t].length).toBe(MAX_LABEL_CHARS);
+      expect(t).not.toContain("‮");
+    }
+    for (const t of [...s.pipe!.buy, ...s.pipe!.warnings, ...s.pipe!.notes]) {
+      expect([...t].length).toBe(MAX_PIPE_TEXT_CHARS);
+      expect(t).not.toContain("‮");
+    }
+    const html = await render(
+      hit({ summary: { ...EVERYTHING, hardware: [{ ...EVERYTHING.hardware[0], label: hostile }] } }),
+    );
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;");
+  });
+
+  it("a malformed new section is the generic page, never a partial one", () => {
+    for (const summary of [
+      { ...EVERYTHING, hardware: "x" },
+      { ...EVERYTHING, pipe: { ...EVERYTHING.pipe, sticks: [{ cuts: ["1"], offcutMm: 0, flex: false }] } },
+      { ...EVERYTHING, hubHalves: [{ item: 1, qty: 1 }] },
+    ]) {
+      expect(sharedView(hit({ summary })).kind).toBe("unreadable");
+    }
   });
 
   it("opens a v2 save in the academy's framed configurator, by share code", async () => {

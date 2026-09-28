@@ -57,6 +57,51 @@ function openInConfigurator(shareCode: string): string {
   return savedBuildPath(shareCode);
 }
 
+const SECTION = "mt-10 border-t border-panel-border/60 pt-6";
+const EYEBROW =
+  "font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold";
+const TH = "py-1 pr-3 font-normal";
+const TD = "py-1.5 pr-3";
+
+/** A table of numbered lines: the hub halves and the bought hardware. Their
+ *  item numbers continue the ballooned bill's, exactly as the sheet prints
+ *  them, so a reader can run a finger down paper and page together. */
+function SupplyTable({
+  title,
+  lines,
+  showSource,
+}: {
+  title: string;
+  lines: ReadonlyArray<{ item: number; qty: number; label: string; sourceFile?: string }>;
+  showSource: boolean;
+}) {
+  return (
+    <section className={SECTION}>
+      <p className={EYEBROW}>▸ {title}</p>
+      <table className="mt-3 w-full text-left">
+        <thead>
+          <tr className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
+            <th className={TH}>Item</th>
+            <th className={TH}>Qty</th>
+            <th className={TH}>Part</th>
+            {showSource ? <th className="py-1 font-normal">Source file</th> : null}
+          </tr>
+        </thead>
+        <tbody className="font-mono text-xs text-title">
+          {lines.map((line, i) => (
+            <tr key={`${line.item}-${i}`} className="border-t border-panel-border/40">
+              <td className={TD}>{line.item}</td>
+              <td className={TD}>{line.qty}×</td>
+              <td className={TD}>{line.label}</td>
+              {showSource ? <td className="py-1.5">{line.sourceFile}</td> : null}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">{children}</main>
@@ -165,6 +210,54 @@ export default async function SharedClusterPage({
           {s.caps} caps · {s.spikes} spikes
         </p>
       </section>
+
+      {/* THE REST OF THE BUILD (decision 9): what the drawing cannot balloon.
+          Each section shows only when the row has it; a build saved before
+          these existed shows the bill alone, as it always did. */}
+      {s.hubHalves && s.hubHalves.length > 0 ? (
+        <SupplyTable title="Hub halves" lines={s.hubHalves} showSource />
+      ) : null}
+
+      {s.hardware && s.hardware.length > 0 ? (
+        <SupplyTable title="Bought hardware" lines={s.hardware} showSource={false} />
+      ) : null}
+
+      {s.pipe ? (
+        <section className={SECTION}>
+          <p className={EYEBROW}>▸ PVC pipe</p>
+          <ul className="mt-2 space-y-1 font-mono text-xs text-title">
+            {s.pipe.buy.map((b, i) => (
+              <li key={`buy-${i}`}>{b}</li>
+            ))}
+          </ul>
+          {s.pipe.sticks.length > 0 ? (
+            <ol className="mt-3 space-y-1 font-mono text-xs text-title">
+              {s.pipe.sticks.map((st, i) => (
+                <li key={`stick-${i}`}>
+                  {st.flex ? "Roll" : "Stick"} {i + 1} · cut {st.cuts.join(", ")} mm · offcut{" "}
+                  {st.offcutMm} mm
+                </li>
+              ))}
+            </ol>
+          ) : null}
+          {s.pipe.warnings.length > 0 ? (
+            <ul className="mt-3 space-y-1 font-serif text-xs text-title">
+              {s.pipe.warnings.map((w, i) => (
+                <li key={`warn-${i}`}>
+                  <strong>{w}</strong>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {s.pipe.notes.length > 0 ? (
+            <ul className="mt-3 space-y-1 font-serif text-xs text-muted">
+              {s.pipe.notes.map((n, i) => (
+                <li key={`note-${i}`}>{n}</li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
 
       {!view.canOpen ? null : (
         <section className="mt-10 border-t border-panel-border/60 pt-6">
