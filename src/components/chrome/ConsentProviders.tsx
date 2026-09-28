@@ -180,16 +180,18 @@ const CONSENT_THEME = {
 // The banner's words, replacing c15t's default English, which promised the
 // visitor "personalized content" this site does not show (legal findings 0.8).
 //
-// OWNER-WORDING: the owner approves consent copy. These two strings are a draft
-// until he does; change them here and nowhere else.
+// OWNER-APPROVED 2026-09-28: the owner approved these two strings verbatim. Do
+// not reword them without him. Change them here and nowhere else in this repo,
+// and change the configurator's `CONSENT_COPY` (bioscale-viz `src/consent.ts`)
+// to match: the two sites make one statement.
 //
 // Browser-language detection is OFF and the locale pinned to `en`, because the
 // override exists only in English: with detection on, a German browser got
 // c15t's German default, personalised-content promise included.
 export const CONSENT_COPY = {
-  // OWNER-WORDING
+  // OWNER-APPROVED 2026-09-28
   title: "Cookies and analytics",
-  // OWNER-WORDING
+  // OWNER-APPROVED 2026-09-28
   description:
     "We use strictly necessary cookies to run the site. With your permission we also measure how the site is used, to improve it. We don't sell data or show ads.",
 } as const;

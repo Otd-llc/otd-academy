@@ -110,11 +110,12 @@ describe("consent provider wiring", () => {
     expect(text).toMatch(/with your permission/i);
   });
 
-  it("marks the consent strings OWNER-WORDING", () => {
+  it("marks the consent strings as the owner approved them", () => {
     const src = readFileSync(
       join(process.cwd(), "src/components/chrome/ConsentProviders.tsx"),
       "utf8",
     );
-    expect(src.match(/OWNER-WORDING/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(src.match(/OWNER-APPROVED 2026-09-28/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(src).not.toMatch(/OWNER-WORDING/);
   });
 });
