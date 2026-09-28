@@ -13,7 +13,7 @@ import { academyDate } from "@/lib/logbook/economy";
 import { signUnsubscribeToken } from "@/lib/unsubscribe-token";
 import { sendLifecycleEmail } from "@/lib/lifecycle-send";
 import { reviewNudgeEmail } from "@/lib/lifecycle-emails";
-import { capture } from "@/lib/analytics";
+import { capture, errorNameOf } from "@/lib/analytics";
 
 // Below this many due cards the email is more noise than nudge.
 const MIN_DUE = 3;
@@ -94,11 +94,10 @@ export async function sendReviewDueNudges(
       else skipped++;
     } catch (e) {
       failed++;
-      capture(
-        "lifecycle_send_failed",
-        { sequence, detail: e instanceof Error ? e.message : String(e) },
-        u.id,
-      );
+      // Free text to the server log only; PostHog gets no person and no
+      // message (class (a), `@/lib/analytics`).
+      console.error(`[review-nudge] ${sequence} send failed`, e);
+      capture("lifecycle_send_failed", { sequence, errorName: errorNameOf(e) });
     }
   }
   return { sent, skipped, failed };

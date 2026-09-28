@@ -117,7 +117,9 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   // Counted HERE rather than with a click handler on the page. This is the top
   // of the maker funnel and the one hop we can measure without cooperation: no
   // ad blocker, no `<a download>` quirk and no direct-link share can drop it.
-  // Stitched to the browser's PostHog person where there is one. After the
+  // Stitched to the browser's PostHog person where there is one. Sent ONLY with
+  // the visitor's analytics consent: `capture()` drops it otherwise (class (b),
+  // the consent rule in `@/lib/analytics`), and nothing counts the refusal. After the
   // object is known to exist and the URL is signed, so a 404 or a 503 is never
   // counted as a download.
   try {
