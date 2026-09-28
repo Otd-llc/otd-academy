@@ -101,8 +101,10 @@ describe("the generated release tables", () => {
       "hex-cover-handle",
       "hex-acc-saddle",
       "hex-acc-saddle-half",
-      // same 0.245 mm wall as hex-acc-saddle; withheld with it
-      "hex-acc-saddle-one",
+      // pipe cut from a bought stick, never a print (owner, 2026-09-28).
+      // hex-acc-saddle-one is RELEASED the same day: its wall reason was stale.
+      "pvc-section-single",
+      "pvc-section-double",
       // the C-clip parts
       "hex-acc-hose",
       "hex-acc-probe",

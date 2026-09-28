@@ -1059,10 +1059,11 @@ describe("support settings ride only on the parts that need them", () => {
   });
 
   it("the measured v2 rows: a real support part and a real brim part", async () => {
-    // 4.7. hex-half-w was flagged for a floating cantilever, pvc-section-single
-    // for an 11 sq mm footprint. Each gets its own remedy and not the other's.
+    // 4.7. hex-half-w was flagged for a floating cantilever, hex-spike-stud for
+    // a brim. Each gets its own remedy and not the other's. (pvc-section-single
+    // was the brim example until it was withheld as cut pipe, 2026-09-28.)
     const SUP = "hex-half-w";
-    const BRIM = "pvc-section-single";
+    const BRIM = "hex-spike-stud";
     const sup = await configOf(
       await plate3mf([at(SUP, 4, 4)], new Map([[SUP, source("1")]])),
     );

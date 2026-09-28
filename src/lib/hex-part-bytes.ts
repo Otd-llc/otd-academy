@@ -24,7 +24,7 @@ export const HEX_PART_BYTES_RELEASE: string | null = "2026-10-01";
 
 /** sha256 of the canonical text of `HEX_PART_BYTES` (see the header). */
 export const HEX_PART_BYTES_HASH =
-  "5eb5fd5935feab95b9b0f69e76d40d611db9399d27dad0974a0248fafdee8ecf";
+  "4acd1e61af23dfc11a15b0f6382b32f16009f3a6044363cf41dbedd41169850c";
 
 export const HEX_PART_BYTES: Readonly<Record<string, HexPartBytes>> = {
   "25mm-ins": { "3mf": 58856, stl: 281884 },
@@ -43,6 +43,7 @@ export const HEX_PART_BYTES: Readonly<Record<string, HexPartBytes>> = {
   "hex-acc-keyhole": { "3mf": 18382, stl: 100884 },
   "hex-acc-label": { "3mf": 33870, stl: 194284 },
   "hex-acc-rod": { "3mf": 33566, stl: 175884 },
+  "hex-acc-saddle-one": { "3mf": 17539, stl: 99284 },
   "hex-acc-splice": { "3mf": 94163, stl: 508884 },
   "hex-bin-bolt-e-port": { "3mf": 66146, stl: 307884 },
   "hex-bin-bolt-e-port-div3": { "3mf": 72600, stl: 336684 },
@@ -311,8 +312,6 @@ export const HEX_PART_BYTES: Readonly<Record<string, HexPartBytes>> = {
   "hex-stack-double-snap": { "3mf": 2765, stl: 9884 },
   "pvc-hub-bottom": { "3mf": 238180, stl: 1114384 },
   "pvc-hub-top": { "3mf": 250343, stl: 1180084 },
-  "pvc-section-double": { "3mf": 6633, stl: 25284 },
-  "pvc-section-single": { "3mf": 6038, stl: 25284 },
   "side-connector-double": { "3mf": 16054, stl: 74684 },
   "side-connector-single": { "3mf": 15644, stl: 64984 },
   "spike-acc-platform-lrg": { "3mf": 2657, stl: 9484 },

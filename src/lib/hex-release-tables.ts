@@ -14,9 +14,10 @@
 //   hex-acc-probe  (1.6: C-clip part)
 //   hex-acc-saddle  (1.6: under 2 extrusion widths)
 //   hex-acc-saddle-half  (1.6: under 2 extrusion widths)
-//   hex-acc-saddle-one  (1.6 rule: min wall 0.245 mm, same as hex-acc-saddle)
 //   hex-acc-trellis  (1.6: C-clip part)
 //   hex-cover-handle  (1.6: withheld)
+//   pvc-section-double  (owner 2026-09-28: cut from bought pipe, not printed)
+//   pvc-section-single  (owner 2026-09-28: cut from bought pipe, not printed)
 //   pvc-wedge  (1.6: withheld)
 
 import type { PartBox } from "@/lib/hex-plate";
@@ -25,7 +26,7 @@ import type { PartBox } from "@/lib/hex-plate";
 export const HEX_TABLES_RELEASE = "2026-10-01";
 
 /** Content hash of this file. See the header. */
-export const HEX_RELEASE_TABLES_HASH = "9bd45dd23410559c4c61e2132d038545b561f136aa98a1ad636ef6efe54bff18";
+export const HEX_RELEASE_TABLES_HASH = "b23eabde85cb23c7d1eacd9dceebdd07346eb82f4b7153a8ceb189aad8a7fb7d";
 
 /** sha256 of the two inputs this file was generated from. */
 export const HEX_TABLES_SOURCE = {
@@ -54,6 +55,7 @@ export const HEX_PART_SLUGS = [
   "hex-acc-keyhole",
   "hex-acc-label",
   "hex-acc-rod",
+  "hex-acc-saddle-one",
   "hex-acc-splice",
   "hex-bin-bolt-e-port",
   "hex-bin-bolt-e-port-div3",
@@ -322,8 +324,6 @@ export const HEX_PART_SLUGS = [
   "hex-stack-double-snap",
   "pvc-hub-bottom",
   "pvc-hub-top",
-  "pvc-section-double",
-  "pvc-section-single",
   "side-connector-double",
   "side-connector-single",
   "spike-acc-platform-lrg",
@@ -331,7 +331,7 @@ export const HEX_PART_SLUGS = [
 ] as const;
 
 /** How many parts the release carries. */
-export const HEX_PART_COUNT = 290;
+export const HEX_PART_COUNT = 289;
 
 /** The manifest's own part families, sorted. */
 export const HEX_PART_FAMILIES = [
@@ -369,6 +369,7 @@ export const HEX_PART_FAMILY: Readonly<Record<string, HexReleaseFamily>> = {
   "hex-acc-keyhole": "accessory",
   "hex-acc-label": "accessory",
   "hex-acc-rod": "accessory",
+  "hex-acc-saddle-one": "accessory",
   "hex-acc-splice": "accessory",
   "hex-bin-bolt-e-port": "bin",
   "hex-bin-bolt-e-port-div3": "bin",
@@ -637,8 +638,6 @@ export const HEX_PART_FAMILY: Readonly<Record<string, HexReleaseFamily>> = {
   "hex-stack-double-snap": "collar",
   "pvc-hub-bottom": "pvc",
   "pvc-hub-top": "pvc",
-  "pvc-section-double": "pvc",
-  "pvc-section-single": "pvc",
   "side-connector-double": "join",
   "side-connector-single": "join",
   "spike-acc-platform-lrg": "spike",
@@ -652,8 +651,8 @@ export const HEX_PART_FAMILY: Readonly<Record<string, HexReleaseFamily>> = {
  *  the uploader, and its exact size is recorded by the upload dry run (4.9). */
 export const HEX_RELEASE_FILES = {
   set: {
-    members: 290,
-    contentBytes: 19200212,
+    members: 289,
+    contentBytes: 19205080,
     label: "19.2 MB",
   },
 } as const;
@@ -682,6 +681,7 @@ export const HEX_PART_BOX: Readonly<Record<string, PartBox>> = {
   "hex-acc-keyhole": { x0: -24, y0: -40, z0: 0, dx: 48, dy: 80, dz: 6 },
   "hex-acc-label": { x0: -24, y0: -28, z0: 0, dx: 48, dy: 56, dz: 8.2 },
   "hex-acc-rod": { x0: -24, y0: -38, z0: 0, dx: 48, dy: 76, dz: 46 },
+  "hex-acc-saddle-one": { x0: -24, y0: -28, z0: 0, dx: 48, dy: 56, dz: 28.951 },
   "hex-acc-splice": { x0: -24, y0: -28, z0: 0, dx: 48, dy: 136, dz: 21 },
   "hex-bin-bolt-e-port": { x0: -3.877, y0: -82.353, z0: 0, dx: 96.693, dy: 160.955, dz: 80 },
   "hex-bin-bolt-e-port-div3": { x0: -3.877, y0: -82.353, z0: 0, dx: 96.693, dy: 160.955, dz: 80 },
@@ -950,8 +950,6 @@ export const HEX_PART_BOX: Readonly<Record<string, PartBox>> = {
   "hex-stack-double-snap": { x0: -14.875, y0: -72.28, z0: 0, dx: 29.75, dy: 9.858, dz: 17 },
   "pvc-hub-bottom": { x0: -44.422, y0: -50.294, z0: 0, dx: 88.844, dy: 100.589, dz: 22.013 },
   "pvc-hub-top": { x0: -44.422, y0: -50.295, z0: 0, dx: 88.844, dy: 100.589, dz: 22.013 },
-  "pvc-section-double": { x0: -13.335, y0: -18, z0: 0, dx: 26.655, dy: 18, dz: 26.663 },
-  "pvc-section-single": { x0: -13.335, y0: -18, z0: 0, dx: 26.655, dy: 9, dz: 26.663 },
   "side-connector-double": { x0: -9.567, y0: 0, z0: 0, dx: 19.134, dy: 18, dz: 10.168 },
   "side-connector-single": { x0: -9.567, y0: 48.619, z0: 0, dx: 19.134, dy: 10.168, dz: 9 },
   "spike-acc-platform-lrg": { x0: -25.981, y0: -30, z0: 0, dx: 51.962, dy: 60, dz: 3 },
@@ -989,6 +987,7 @@ export const HEX_PART_NAME: Readonly<Record<string, string>> = {
   "hex-acc-keyhole": "hex-acc-keyhole",
   "hex-acc-label": "hex-acc-label",
   "hex-acc-rod": "hex-acc-rod",
+  "hex-acc-saddle-one": "hex-acc-saddle-one",
   "hex-acc-splice": "hex-acc-splice",
   "hex-bin-bolt-e-port": "hex-bin-bolt-e-port",
   "hex-bin-bolt-e-port-div3": "hex-bin-bolt-e-port-div3",
@@ -1257,8 +1256,6 @@ export const HEX_PART_NAME: Readonly<Record<string, string>> = {
   "hex-stack-double-snap": "hex-stack-double-snap",
   "pvc-hub-bottom": "pvc-hub-bottom",
   "pvc-hub-top": "pvc-hub-top",
-  "pvc-section-double": "pvc-section-double",
-  "pvc-section-single": "pvc-section-single",
   "side-connector-double": "side-connector-double",
   "side-connector-single": "side-connector-single",
   "spike-acc-platform-lrg": "spike-acc-platform-lrg",

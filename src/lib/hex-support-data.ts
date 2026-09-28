@@ -11,7 +11,7 @@
 // nor a brim. 297 parts sliced: 5 support, 3 brim, 0 both.
 
 /** Content hash of this file. See the header. */
-export const HEX_SUPPORT_DATA_HASH = "19cc4273853a60c65f37e67d9c37f84fe80fa6faf43f7dcf7894a297e2c72e0b";
+export const HEX_SUPPORT_DATA_HASH = "8d5f297f1f233cd9a98a2777edbb297d2f8be43db22ac034c7bba5c0a2cdb5dd";
 
 /** Where the rows came from. */
 export const HEX_SUPPORT_SOURCE = {
@@ -109,23 +109,5 @@ export const HEX_SUPPORT_ROWS: readonly {
     firstLayerMm2: 106.57,
     note:
       "give it a brim: it stands on about 107 sq mm, which the slicer judges too little to hold it on its own.",
-  },
-  {
-    slug: "pvc-section-double",
-    support: false,
-    brim: true,
-    warnings: [],
-    firstLayerMm2: 22.5,
-    note:
-      "give it a brim: it stands on about 23 sq mm, which the slicer judges too little to hold it on its own.",
-  },
-  {
-    slug: "pvc-section-single",
-    support: false,
-    brim: true,
-    warnings: [],
-    firstLayerMm2: 11.25,
-    note:
-      "give it a brim: it stands on about 11 sq mm, which the slicer judges too little to hold it on its own.",
   },
 ];

@@ -34,8 +34,6 @@ describe("the v2 support data", () => {
       "hex-quarter-nw": { support: true, brim: false },
       "hex-quarter-sw": { support: true, brim: false },
       "hex-spike-stud": { support: false, brim: true },
-      "pvc-section-double": { support: false, brim: true },
-      "pvc-section-single": { support: false, brim: true },
     });
     for (const s of NEEDS_SUPPORT_SLUGS) expect(SUPPORT_NOTE[s], s).toBeTruthy();
   });
@@ -45,7 +43,7 @@ describe("the v2 support data", () => {
     expect(needsSupport(["hex-main", "hex-half-w"])).toBe(true);
     // A brim rides in the plate as a per-object setting; the README beside it
     // is what says so, so a brim-only part still pulls the plate into an archive.
-    expect(needsSupport(["pvc-section-single"])).toBe(true);
+    expect(needsSupport(["hex-spike-stud"])).toBe(true);
   });
 
   it("no longer carries the v1 spike measurement in the slicer note", () => {
@@ -65,6 +63,6 @@ describe("the v2 support data", () => {
     // silently never fire.
     const live = new Set<string>(HEX_PART_SLUGS);
     for (const s of NEEDS_SUPPORT_SLUGS) expect(live.has(s), s).toBe(true);
-    expect(NEEDS_SUPPORT_NAMES).toHaveLength(8);
+    expect(NEEDS_SUPPORT_NAMES).toHaveLength(6);
   });
 });

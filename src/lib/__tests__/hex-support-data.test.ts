@@ -65,6 +65,9 @@ describe("the generated support data", () => {
   it("carries the 2026-10-01 slice: 5 support, 3 brim, none both", () => {
     // Pinned by content, so a regenerated file that moves a part in or out of
     // either list shows up as this test failing, not as a quiet diff.
+    // The COUNTS are the slice's: 297 sliced, 3 flagged for a brim. The ROWS are
+    // released parts only, and the two PVC stubs are withheld (cut pipe, owner
+    // 2026-09-28), so one brim row remains.
     expect(HEX_SUPPORT_COUNTS).toEqual({ parts: 297, support: 5, brim: 3, both: 0 });
     expect(HEX_SUPPORT_ROWS.filter((r) => r.support).map((r) => r.slug)).toEqual([
       "25mm-ins-trinity-handle",
@@ -75,8 +78,6 @@ describe("the generated support data", () => {
     ]);
     expect(HEX_SUPPORT_ROWS.filter((r) => r.brim).map((r) => r.slug)).toEqual([
       "hex-spike-stud",
-      "pvc-section-double",
-      "pvc-section-single",
     ]);
   });
 

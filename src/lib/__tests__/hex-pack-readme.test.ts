@@ -67,7 +67,9 @@ const flat = (s: string) => s.replace(/\s+/g, " ");
 const NONE = "Supports and brim: none needed.";
 /** Real v2 parts the 2026-10-01 slice flagged: one for support, one for a brim. */
 const SUP = "hex-half-w";
-const BRIM = "pvc-section-single";
+// The released brim part. pvc-section-single held this role until it was
+// withheld as cut pipe (owner, 2026-09-28).
+const BRIM = "hex-spike-stud";
 
 it("uses real v2 slugs for its neutral fixtures", () => {
   expect(HEX_PART_SLUGS).toContain(PLAIN_SLUG);
