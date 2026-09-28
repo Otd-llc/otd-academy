@@ -1,5 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
+
+import { reportClientError } from "@/lib/error-beacon";
+
 // Root error boundary (audit Phase 6). Before this existed, ANY uncaught throw
 // on a learner page — a Neon timeout, a serialization conflict outliving its
 // retries — rendered Next's default unstyled "Application error" with no way
@@ -8,11 +12,17 @@
 // inline styles (globals.css may not have loaded). Dark-first with a light
 // fallback via prefers-color-scheme, token values inlined.
 export default function GlobalError({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Reported once per fault, server-side via the beacon (@/lib/error-beacon).
+  useEffect(() => {
+    reportClientError(error, "global");
+  }, [error]);
+
   return (
     <html lang="en">
       <body
