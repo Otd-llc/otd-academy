@@ -81,30 +81,41 @@ const PRESETS = {
   // `object-fit: cover` and kept 74% of the height at a 1440 viewport.
   band: {
     w: 1920, h: 1080, cropped: true,
+    budget: 500 * 1024,
     visible: { w: 1, h: 0.74 },
     textSafe: 24,
     textDl: { cell: "c-bl", align: "" },
   },
   // THE APEX HOME BAND (`cluster-loop.mp4`). `.hx-band video` is 124% wide,
   // 46vh tall (min 320 px), `object-fit: cover`, pushed right by 19% of its
-  // own width. At 1440x900 that shows ~37% of a 16:9 frame's height, and the
-  // cluster sits right of the headline. Fitted inside a centred 37% x 50%
-  // window so the whole shot survives the crop at every instant.
+  // own width, with the copy over a scrim on the left. At 1440x900 the page
+  // shows the source's rows 317-763 (41% of its height) and columns 0-1183
+  // (the LEFT 62% -- the right of the clip runs off the viewport), and the
+  // copy covers columns up to ~333. So the free window is NDC x -0.65..+0.23,
+  // y +-0.41: centred at -0.21, and the subject is shifted there rather than
+  // shrunk to fit a centred window whose right edge is at +0.23.
   apex: {
     w: 1920, h: 1080, cropped: true,
-    visible: { w: 0.5, h: 0.37 },
+    visible: { w: 0.42, h: 0.37 },
+    shiftX: -0.21,
     crf: 30,
+    budget: 500 * 1024,
   },
   // 16:10 at README width. Captured small on purpose: it becomes an animated
   // WebP, where every pixel is bytes in someone's README render.
   readme: { w: 960, h: 600 },
 };
 
-// The animated-WebP recipe, README preset only. 15fps and 720px are a size
+// The animated-WebP recipe, README preset only. Frame rate and width are a size
 // decision: 300 frames of 960px lossy WebP is several MB. READMEs bake the dark
 // field in -- a `<picture>` switched on `prefers-color-scheme` follows the OS,
 // not GitHub's own theme picker, and a transparent capture cost ~3.4x the bytes.
-const WEBP = { fps: 15, width: 720, quality: 72 };
+// v2: 12 fps at 640 px. The v2 loop's plates beat puts nine beds of edges in
+// every frame, and at v1's 15 fps / 720 px the README WebP measured 1009 KB at
+// q72 and still 808 KB at q48 -- quality alone cannot buy it back. 12 fps /
+// 640 px / q64 measured 644 KB; the budget loop below takes it the rest of the
+// way.
+const WEBP = { fps: 12, width: 640, quality: 64 };
 
 const arg = (name) => process.argv.find((a) => a.startsWith(`--${name}=`));
 const flag = (name) => process.argv.includes(`--${name}`);
@@ -153,7 +164,13 @@ async function stage(page, p) {
   return stageFilm(page, {
     theme: THEME,
     visible: visibleOf(p),
-    fill: p.fill,
+    shiftX: p.shiftX ?? 0,
+    // RESERVE THE TYPE'S BAND OUT OF THE PLATES SHOT. FREE and the download
+    // share 8.0, the download centred in the bottom band -- exactly where the
+    // plates grid sat at the default fill, so the arrow drew across a bed
+    // (measured on the first wide --text cut at 8.3 s). With type on, the
+    // plates are fitted smaller so the band is theirs.
+    fill: TEXT ? { plates: 0.6, ...(p.fill ?? {}) } : p.fill,
   });
 }
 
@@ -814,18 +831,38 @@ if (failures.length) {
   );
 }
 
-execFileSync("ffmpeg", [
-  "-y", "-loglevel", "error",
-  "-framerate", String(FPS),
-  "-i", `${FRAMES}/f%04d.png`,
-  "-an",
-  "-c:v", "libx264", "-preset", "slow", "-crf", String(preset.crf ?? 31),
-  "-pix_fmt", "yuv420p",
-  "-g", "30",
-  "-muxdelay", "0", "-muxpreload", "0",
-  "-movflags", "+faststart",
-  `${base}.mp4`,
-]);
+// THE BYTE BUDGET IS A GATE ON THE OUTPUT, for the cuts a PAGE ships: one clip
+// <= 500 KB (launch 8.2). The CRF starts at the preset's and steps up until the
+// file fits.
+//
+// SOCIAL CUTS HAVE NO BUDGET, deliberately. The v2 loop has more edges than
+// v1's (the plates beat is nine beds of them), and forcing the 1080p wide cut
+// with type under 500 KB took CRF 37, which measurably smeared the part edges
+// and the type on the encoded frame. Every platform re-encodes an upload, so
+// what a social master's bytes buy is the quality going INTO that re-encode.
+// They stay at CRF 31, where the v1 cuts were made, and the size is printed.
+const BUDGET = preset.budget ?? Infinity;
+const encode = (crf) =>
+  execFileSync("ffmpeg", [
+    "-y", "-loglevel", "error",
+    "-framerate", String(FPS),
+    "-i", `${FRAMES}/f%04d.png`,
+    "-an",
+    "-c:v", "libx264", "-preset", "slow", "-crf", String(crf),
+    "-pix_fmt", "yuv420p",
+    "-g", "30",
+    "-muxdelay", "0", "-muxpreload", "0",
+    "-movflags", "+faststart",
+    `${base}.mp4`,
+  ]);
+let crf = preset.crf ?? 31;
+encode(crf);
+while (statSync(`${base}.mp4`).size > BUDGET && crf < 40) encode(++crf);
+if (statSync(`${base}.mp4`).size > BUDGET) {
+  console.error(`[GATE FAILED] ${statSync(`${base}.mp4`).size} bytes at crf ${crf}, budget ${BUDGET}`);
+  process.exitCode = 1;
+}
+console.log(`[encode] crf ${crf}`);
 emitted.push(`${base}.mp4`);
 
 // GATE AFTER ENCODE, on the file: a clip that is 9.967 s does not loop.
@@ -845,16 +882,28 @@ execFileSync("ffmpeg", [
 ]);
 emitted.push(`${base}-poster.jpg`);
 
+// The README WebP has a budget too: the v1 ones sat at 550-600 KB. Quality
+// steps down from WEBP.quality until it fits.
+const WEBP_BUDGET = 620 * 1024;
 if (presetArg === "readme") {
-  execFileSync("ffmpeg", [
-    "-y", "-loglevel", "error",
-    "-framerate", String(FPS),
-    "-i", `${FRAMES}/f%04d.png`,
-    "-vf", `fps=${WEBP.fps},scale=${WEBP.width}:-1:flags=lanczos`,
-    "-c:v", "libwebp_anim", "-lossless", "0", "-q:v", String(WEBP.quality),
-    "-loop", "0",
-    `${base}.webp`,
-  ]);
+  const webpAt = (q) =>
+    execFileSync("ffmpeg", [
+      "-y", "-loglevel", "error",
+      "-framerate", String(FPS),
+      "-i", `${FRAMES}/f%04d.png`,
+      "-vf", `fps=${WEBP.fps},scale=${WEBP.width}:-1:flags=lanczos`,
+      "-c:v", "libwebp_anim", "-lossless", "0", "-q:v", String(q),
+      "-loop", "0",
+      `${base}.webp`,
+    ]);
+  let q = WEBP.quality;
+  webpAt(q);
+  while (statSync(`${base}.webp`).size > WEBP_BUDGET && q > 40) webpAt((q -= 8));
+  console.log(`[webp] q ${q}`);
+  if (statSync(`${base}.webp`).size > WEBP_BUDGET) {
+    console.error(`[GATE FAILED] ${base}.webp is ${statSync(`${base}.webp`).size} bytes, budget ${WEBP_BUDGET}`);
+    process.exitCode = 1;
+  }
   emitted.push(`${base}.webp`);
 }
 

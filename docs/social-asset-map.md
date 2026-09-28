@@ -145,7 +145,7 @@ left it just below. The icon moves to the empty left third (`textDl`), which is
 empty at every azimuth because landscape pays for the explode's height in empty
 sides.
 
-`readme` becomes a 720 px animated WebP, where high-contrast type on every frame
+`readme` becomes a 640 px, 12 fps animated WebP, where high-contrast type on every frame
 is what defeats the inter-frame compression the format depends on. The size is
 printed on every run -- read it rather than assume it.
 
@@ -231,8 +231,8 @@ lap read -13.6 dB mean.
 | ------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Academy `/hex` hero | `public/hex/hero-{dark,light}.webp` (a still) | The v2 hero is a STILL (launch 6.4), so reduced motion needs no second path. `hex-band.mp4` is still cut, framed for a surface that keeps 74% of the height. |
 | Academy `/hex` loop | `public/hex/configurator{,-light}.mp4` + posters | `tools/hex-video.mjs`, 1280×800, one clip <= 500 KB (gated). |
-| Apex home band      | `hex-apex.mp4` + `-poster.jpg`, copied to the apex repo as `public/hex/cluster-loop{.mp4,-poster.jpg}` | That band keeps ~37% of a 16:9 frame's height at 1440×900 and pushes the clip right, so the `apex` preset fits the whole shot inside a centred 50% × 37% window. |
-| GitHub READMEs (×4) | `hex-readme.webp` (720×450)          | README markdown will not autoplay a repo-hosted mp4; it renders as a dead link. Animated WebP is the only format that plays inline.                                      |
+| Apex home band      | `hex-apex.mp4` + `-poster.jpg`, copied to the apex repo as `public/hex/cluster-loop{.mp4,-poster.jpg}` | At 1440×900 that band shows rows 317-763 and the left 62% of a 16:9 frame, with the copy over its left third, so the `apex` preset fits the whole shot inside that window and shifts it clear of the copy (`shiftX`). The clip is gated at <= 500 KB. |
+| GitHub READMEs (×4) | `hex-readme.webp` (640×400, 12 fps, <= 620 KB) | README markdown will not autoplay a repo-hosted mp4; it renders as a dead link. Animated WebP is the only format that plays inline.                                      |
 
 `-text` variants of both exist and are **not** what these surfaces ship.
 They are there to be chosen deliberately -- on a page that drops its own

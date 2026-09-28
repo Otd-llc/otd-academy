@@ -245,6 +245,10 @@ export async function stageFilm(page, opts = {}) {
     stillAt: opts.stillAt ?? null,
     lift: opts.lift ?? 0,
     visible: opts.visible ?? { w: 1, h: 1 },
+    // Where the subject's centre sits across the frame, as NDC (-1 left edge,
+    // +1 right). Non-zero only for a surface whose visible window is not
+    // centred on the frame (the apex band shows the left 62% of it).
+    shiftX: opts.shiftX ?? 0,
     bedTheme: opts.theme ?? "dark",
   });
   return res;
@@ -757,6 +761,10 @@ async function pageStage(A) {
     const c = camAt(t);
     const pos = posFor(c.target, c.dist, c.polar, c.az);
     controls.setLookAt(pos.x, pos.y, pos.z, c.target.x, c.target.y, c.target.z, false);
+    // A focal offset slides the view sideways without turning it, so the
+    // subject sits at `shiftX` of the frame at every azimuth.
+    const tanH = Math.tan(((camera.fov * Math.PI) / 180) / 2) * camera.aspect;
+    controls.setFocalOffset(-A.shiftX * c.dist * tanH, 0, 0, false);
     controls.update(0);
   };
 
@@ -923,7 +931,8 @@ async function pageStage(A) {
     for (const p of [...cloudOf(cellsContainer, []), ...cloudOf(film, [])]) box.expandByPoint(v.copy(p).project(camera));
     if (box.isEmpty()) return null;
     // NDC -> shares from the centre, against the VISIBLE window.
-    const x0 = box.min.x, x1 = box.max.x, y0 = box.min.y, y1 = box.max.y;
+    // Measured from where the subject is MEANT to sit, not from the centre.
+    const x0 = box.min.x - A.shiftX, x1 = box.max.x - A.shiftX, y0 = box.min.y, y1 = box.max.y;
     const mx = Math.min(A.visible.w - Math.max(-x0, x1), 9);
     const my = Math.min(A.visible.h - Math.max(-y0, y1), 9);
     return {
