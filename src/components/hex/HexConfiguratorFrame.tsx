@@ -59,6 +59,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useConsentManager } from "@c15t/nextjs";
 
 import {
   HexConfiguratorContext,
@@ -85,6 +86,12 @@ import {
   type Bed,
   type SaveRequest,
 } from "@/lib/hex-embed-protocol";
+import {
+  consentChange,
+  createConsentTold,
+  measurementGranted,
+  readyConsent,
+} from "@/lib/hex-embed-consent";
 import { getPosthog } from "@/lib/posthog-client";
 
 /** Matches the transition durations below, and the `--hex-frame-*` timings. */
@@ -169,6 +176,20 @@ export function HexConfiguratorFrame({
    *  Cleared on FAILURE only -- a decline is a real answer (the account has a
    *  bed), and re-asking would never get a different one. */
   const promotedRef = useRef(false);
+
+  /** The visitor's c15t `measurement` decision, the same one ConsentBridge
+   *  gates PostHog on. Owner decision 1.14: the embedded configurator shows no
+   *  banner of its own, so this is the only consent it ever receives. Anything
+   *  but an explicit grant -- denied, undecided -- is `false`. */
+  const { consents } = useConsentManager();
+  const analyticsConsent = measurementGranted(consents);
+  /** Read at SEND time by the handshake, like `bedRef`: the handshake re-fires
+   *  on a frame remount, and a value closed over when the callback was built
+   *  would hand the new child a stale decision. */
+  const consentRef = useRef(analyticsConsent);
+  /** What the child has been told, so a change is relayed once and only after
+   *  a handshake (before one, the next `ready` carries the current value). */
+  const consentToldRef = useRef(createConsentTold());
 
   const origin = enabled ? hexConfiguratorOrigin() : "";
 
@@ -469,6 +490,20 @@ export function HexConfiguratorFrame({
     post({ type: "set-bed", bed: accountBed });
   }, [src, accountBed, post]);
 
+  // -- consent -----------------------------------------------------------
+  //
+  // Bound to the frame EXISTING, like the theme: a hidden frame still runs its
+  // message handlers, and a revocation made with the panel closed must reach the
+  // child before it is shown again. `consentChange` posts nothing until a
+  // handshake has told the child something, and nothing when the value is
+  // unchanged. Goes out through `post`, i.e. only to the exact configurator
+  // origin, never "*".
+  useEffect(() => {
+    consentRef.current = analyticsConsent;
+    const message = consentChange(consentToldRef.current, analyticsConsent);
+    if (message) post(message);
+  }, [analyticsConsent, post]);
+
   /**
    * A bed picked inside the configurator, written through to the account.
    *
@@ -565,6 +600,12 @@ export function HexConfiguratorFrame({
         case "context-lost":
           setContextLost(true);
           break;
+        case "restored":
+          // The child got its graphics context back on its own, so the notice
+          // is stale. Only dismisses; it never reloads the frame (that would
+          // throw away the build).
+          setContextLost(false);
+          break;
         case "bed-changed":
           // The child owns the picker; the academy owns the account. Writing it
           // through here is what makes a bed picked on a laptop true on a phone.
@@ -578,8 +619,8 @@ export function HexConfiguratorFrame({
           promoteBed(message.bed);
           break;
         default:
-          // `ready` / `set-theme` / `set-bed` / `saved` / `save-failed` /
-          // `save-cancelled` are ours to send, not to receive.
+          // `ready` / `set-theme` / `set-bed` / `set-consent` / `saved` /
+          // `save-failed` / `save-cancelled` are ours to send, not to receive.
           break;
       }
     }
@@ -621,6 +662,10 @@ export function HexConfiguratorFrame({
       // the protocol defines -- a null would be a third state the child would
       // have to guess at. See `Ready.bed`.
       ...(bedRef.current ? { bed: bedRef.current } : {}),
+      // ALWAYS present and always a boolean: `true` only for an explicit c15t
+      // grant. Records that the child has now been told, which is what arms the
+      // `set-consent` relay above.
+      ...readyConsent(consentToldRef.current, consentRef.current),
     });
   }, [post]);
 

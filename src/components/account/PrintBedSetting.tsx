@@ -18,7 +18,7 @@ import { useRouter } from "next/navigation";
 import { setPrintBed } from "@/lib/actions/print-bed";
 import {
   BED_MAX,
-  BED_MIN,
+  BED_FLOOR_MM,
   BED_PRESETS,
   FALLBACK_BED,
   formatBed,
@@ -144,7 +144,7 @@ export function PrintBedSetting({ initialBed }: { initialBed: StoredBed }) {
             <input
               type="number"
               inputMode="numeric"
-              min={BED_MIN}
+              min={BED_FLOOR_MM}
               max={BED_MAX}
               step={1}
               value={cx}
@@ -158,7 +158,7 @@ export function PrintBedSetting({ initialBed }: { initialBed: StoredBed }) {
             <input
               type="number"
               inputMode="numeric"
-              min={BED_MIN}
+              min={BED_FLOOR_MM}
               max={BED_MAX}
               step={1}
               value={cy}
@@ -184,7 +184,7 @@ export function PrintBedSetting({ initialBed }: { initialBed: StoredBed }) {
       <p className="mt-3 font-serif text-xs leading-relaxed text-muted">
         Sizes, not printer names: read the bed off your machine. A bigger bed only
         means fewer plates in a download, never a part that will not fit. Anything
-        from {BED_MIN} to {BED_MAX} mm.
+        from {BED_FLOOR_MM} to {BED_MAX} mm.
       </p>
 
       {error ? (

@@ -15,7 +15,7 @@ import {
 } from "@/lib/hex-prusa-config";
 import { PRINT_INTENT_TABLE } from "@/lib/hex-print-intent";
 
-const plain = (id = 1, name = "Hex-TB-Main"): PrusaObject => ({
+const plain = (id = 1, name = "hex-main"): PrusaObject => ({
   id,
   name,
   triangleCount: 12,
@@ -147,7 +147,7 @@ describe("it says the same thing as the Orca payload, in Prusa's words", () => {
     // nothing inside a test that still reported green.
     // The point of the whole exercise. Every Prusa key/value below comes from a
     // row that also carries the Orca spelling, so a change to one dialect cannot
-    // leave the other behind -- which is the drift that shipped in 2026-08-17,
+    // leave the other behind -- which is the drift that shipped in the last v1 release,
     // one repo boundary over.
     const cfg = prusaModelConfig([
       { id: 1, name: "n", triangleCount: 12, support: true, brim: true },

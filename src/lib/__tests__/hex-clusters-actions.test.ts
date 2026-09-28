@@ -29,6 +29,8 @@ import {
   MAX_REVISIONS_PER_CLUSTER,
   type SaveInput,
 } from "@/lib/hex-cluster";
+import { v2Payload, v2sFromEnvelope } from "./hex-v2-payload.fixture";
+import { FROZEN_V2_PAYLOADS } from "./hex-v2-share-corpus.fixture";
 
 const madeUsers: string[] = [];
 
@@ -65,10 +67,11 @@ function input(over: Partial<SaveInput> = {}): SaveInput {
   return {
     mode: "new",
     name: "Bench cluster",
-    payload: "s=eJyrVkrKz1WyUkotLs1RqgUAJ8QEjA",
+    payload: v2Payload(),
     payloadHash: `h1:${"a".repeat(64)}`,
     schemaVersion: 1,
     summary: SUMMARY,
+    consent: true,
     ...over,
   };
 }
@@ -76,7 +79,7 @@ function input(over: Partial<SaveInput> = {}): SaveInput {
 /** A distinct payload+hash pair, so a save is not mistaken for a repeat. */
 function distinct(n: number): Partial<SaveInput> {
   return {
-    payload: `s=${"b".repeat(10)}${n}`,
+    payload: v2Payload(n + 1),
     payloadHash: `h1:${n.toString(16).padStart(64, "0")}`,
   };
 }
@@ -128,9 +131,54 @@ describe("saveHexCluster — first save", () => {
 describe("saveHexCluster — rejections", () => {
   it("refuses an uncompressed payload with an actionable code", async () => {
     const res = await saveHexCluster(
-      input({ payload: "u=eJyrVkrKz1WyUkotLs1Rqg" }),
+      input({ payload: FROZEN_V2_PAYLOADS[1].v2u }),
     );
     expect(res).toMatchObject({ ok: false, code: "payload-uncompressed" });
+  });
+
+  it("saves every frozen configurator link (the v2s branch)", async () => {
+    for (const [i, b] of FROZEN_V2_PAYLOADS.entries()) {
+      const res = await saveHexCluster(
+        input({
+          payload: b.v2s,
+          payloadHash: `h1:${(0xf000 + i).toString(16).padStart(64, "0")}`,
+        }),
+      );
+      expect(res, b.name).toMatchObject({ ok: true });
+    }
+  });
+
+  it("refuses v1 outright: there is no v1 path", async () => {
+    const body = FROZEN_V2_PAYLOADS[1].v2s.slice("v2s=".length);
+    for (const payload of [`s=${body}`, "s=eJyrVkrKz1WyUkotLs1RqgUAJ8QEjA", `u=${body}`]) {
+      expect(await saveHexCluster(input({ payload }))).toMatchObject({
+        ok: false,
+        code: "payload-malformed",
+      });
+    }
+  });
+
+  it("refuses a v2s payload that is shaped right but is not a v2 build", async () => {
+    for (const payload of [
+      "v2s=eJyrVkrKz1WyUkotLs1RqgUAJ8QEjA", // base64url, not deflate of a build
+      v2sFromEnvelope({ v: 2, s: { pieces: [] } }), // a future version
+      v2sFromEnvelope({ v: 1, s: { pieces: [{ q: 0, r: 0, level: 0, variant: "carrier" }] } }),
+    ]) {
+      expect(await saveHexCluster(input({ payload }))).toMatchObject({
+        ok: false,
+        code: "payload-malformed",
+      });
+    }
+    expect(await db.hexCluster.count({ where: { userId: currentUserId } })).toBe(0);
+  });
+
+  it("refuses without the consent box ticked, and writes nothing", async () => {
+    for (const consent of [false, undefined, "true", 1]) {
+      expect(
+        await saveHexCluster(input({ consent: consent as unknown as boolean })),
+      ).toMatchObject({ ok: false, code: "consent-required" });
+    }
+    expect(await db.hexCluster.count({ where: { userId: currentUserId } })).toBe(0);
   });
 
   it("refuses a malformed payload, a bad hash and a bad schema version", async () => {
@@ -253,7 +301,7 @@ describe("saveHexCluster — revisions", () => {
         // Fixed width, then padded with a NON-numeric filler: `seed1` and
         // `seed10` both pad to the same 22 characters with zeros.
         shareCode: `seed${String(i).padStart(4, "0")}`.padEnd(22, "x"),
-        payload: "s=seeded",
+        payload: v2Payload(),
         payloadHash: `h1:${(i + 2).toString(16).padStart(64, "0")}`,
         schemaVersion: 1,
         summary: SUMMARY,

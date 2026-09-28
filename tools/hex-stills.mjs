@@ -1,152 +1,122 @@
-﻿// Configurator art for the /hex landing page, in two kinds.
+// The /hex stills, v2, in four kinds:
 //
-//   ui/     what the tool LOOKS LIKE -- chrome, buttons, the real thing.
-//   clean/  the cluster alone on transparency, for a hero or a figure.
+//   hero/   the /hex hero (HexStill), dark + light. Also what the page shows
+//           under reduced motion, since a still has nothing to pause.
+//   og      the transparent cutout the /hex share card composes (1200x630 card,
+//           src/app/(chrome)/hex/opengraph-image.tsx).
+//   ui/     what the tool LOOKS LIKE -- chrome, palette, the real thing.
+//   clean/  the build alone on transparency, for a figure on any background.
 //
-// Driven against the LOCAL dev server rather than production because the dev
-// build exposes the app's own modules, so a cluster can be built by calling
-// placeCell and the camera framed by calling fitToBox. Deterministic: re-run it
-// and the framing is identical, which is what stops the page's art drifting
-// away from the product it advertises.
+//   node tools/hex-stills.mjs            every kind
+//   node tools/hex-stills.mjs hero og    just those
+//
+// Every still is a frame of the same film the loop is (tools/hex-film.mjs), at
+// scene time STILL_T: the assembled showcase build with its pipe in, mid-orbit.
+// So the hero, the poster and the share card can never show three different
+// builds. The ui/ and clean/ stills keep v1's file names (trio, flower, strip)
+// because other surfaces link them; the builds behind the names are v2.
+//
+// Framing is by SHARE, measured across the shot like the film's: `visible` is
+// how much of the frame the surface keeps after `object-fit: cover`. The hero
+// is shown at 58vh x full width, which on a 1440x900 desktop keeps ~60% of a
+// 16:9 frame's height and on a phone ~50% of its width, so the build is fitted
+// inside that window.
 import { chromium } from "playwright";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, statSync } from "node:fs";
+import sharp from "sharp";
+import {
+  GPU_ARGS,
+  STILL_BUILDS,
+  SHOWCASE_BUILD,
+  bootFilm,
+  stageFilm,
+  filmFrame,
+  filmExtent,
+} from "./hex-film.mjs";
 
-const APP = "http://localhost:5180/hex";
-const OUT = "public/hex"; // run from the repo root: node tools/hex-stills.mjs
+const OUT = "public/hex"; // run from the repo root
+const SCRATCH = `${process.env.HEX_FILM_SCRATCH ?? "C:/Users/raven/AppData/Local/Temp/hex-film"}/stills`;
 mkdirSync(`${OUT}/ui`, { recursive: true });
 mkdirSync(`${OUT}/clean`, { recursive: true });
+mkdirSync(SCRATCH, { recursive: true });
 
-const SHOTS = [
-  {
-    name: "trio",
-    cells: [
-      [0, 0],
-      [1, 0],
-      [0, 1],
-    ],
-  },
-  {
-    name: "flower",
-    cells: [
-      [0, 0],
-      [1, 0],
-      [1, -1],
-      [0, -1],
-      [-1, 0],
-      [-1, 1],
-      [0, 1],
-    ],
-  },
-  {
-    name: "strip",
-    cells: [
-      [0, 0],
-      [1, 0],
-      [2, 0],
-      [3, 0],
-    ],
-  },
-];
+/** The film's own 5.0 s: assembled, pipe in, cover home, half a turn round. */
+const STILL_T = 5.0;
 
-/** Build the cluster and frame it. Returns once the scene has settled.
- *
- *  Framing is done by hand rather than with `controls.fitToBox`, which was the
- *  first attempt and came out wrong twice over: its padding is in WORLD units,
- *  and this scene is in metres, so the 0.35 that looked like a sensible margin
- *  was nearly twice the width of the cluster and shoved the camera into the next
- *  county. It also re-aimed the camera, flattening the default three-quarter
- *  view to an edge-on one.
- *
- *  So: keep the app's own azimuth and elevation exactly as shipped -- that view
- *  is a deliberate choice and it reads well -- and only change the DISTANCE, to
- *  the one that makes the cluster's bounding sphere fill `fill` of the frame. */
-async function build(page, cells, fill) {
-  await page.evaluate(
-    async ({ cells, fill }) => {
-      // NOT `import("three")`: a bare specifier does not resolve at runtime, and
-      // Vite only rewrites those in files it serves, not in an injected script.
-      // Nothing here needs THREE anyway -- camera-controls can do the fit.
-      const { placeCell } = await import("/src/hex/cells.ts");
-      const { controls, cellsContainer } = await import("/src/hex/scene.ts");
-      for (const [q, r] of cells) placeCell(q, r);
-      // A frame, so the freshly-cloned meshes have world matrices before their
-      // bounds are read. Measuring first silently yields an empty box.
-      await new Promise((r) => requestAnimationFrame(() => r(null)));
+const want = process.argv.slice(2).filter((a) => !a.startsWith("--"));
+const doKind = (k) => want.length === 0 || want.includes(k);
 
-      // fitToSphere, not fitToBox: it re-centres and re-distances while LEAVING
-      // THE CAMERA'S AIM ALONE, which is the whole difference. fitToBox aimed
-      // down an axis and flattened the shipped three-quarter view to edge-on.
-      await controls.fitToSphere(cellsContainer, false);
-      // fitToSphere fits the sphere exactly; back off so the cluster occupies
-      // `fill` of the frame instead of touching the edges.
-      controls.dollyTo(controls.distance / fill, false);
-    },
-    { cells, fill },
-  );
-  await page.waitForTimeout(2500); // damping + the shadow pass
+const browser = await chromium.launch({ args: GPU_ARGS });
+
+/** Stage `build`, step the clock to STILL_T, screenshot. Returns the extent. */
+async function shoot({ w, h, scale = 1, theme = "dark", build = SHOWCASE_BUILD, transparent = false, keepChrome = false, visible, fill, file }) {
+  const { ctx, page, hidden } = await bootFilm(browser, { w, h, theme, transparent, keepChrome, scale });
+  if (keepChrome) {
+    // The idle nudges are timed prompts for a live visitor and noise in a
+    // still. Everything else of the interface stays: that is the point.
+    await page.addStyleTag({ content: "#ghost-tip, #toast { display: none !important; }" });
+  }
+  await stageFilm(page, {
+    build, theme, visible, fill: { column: fill ?? 0.8 },
+    // Half a turn back from the film's own azimuth, so the still has the
+    // loop's OPENING three-quarter view with the pipe in.
+    azimuth0: -0.55 - Math.PI,
+    stillAt: STILL_T,
+  });
+  await page.evaluate(() => window.__clock.start());
+  await filmFrame(page, STILL_T);
+  const extent = await filmExtent(page);
+  await page.screenshot({ path: file, omitBackground: transparent });
+  await ctx.close();
+  console.log(`${file}  extent ${JSON.stringify(extent)}${hidden.length ? `  hid ${hidden.length}` : ""}`);
+  if (!extent || extent.margin < 0) throw new Error(`${file}: the build leaves the visible window`);
+  return extent;
 }
 
-const browser = await chromium.launch();
+async function webp(src, dst, quality, alpha = false) {
+  await sharp(src).webp({ quality, alphaQuality: alpha ? 90 : 100, effort: 6 }).toFile(dst);
+  console.log(`${dst}  ${statSync(dst).size} bytes`);
+}
 
-// ---- what the tool looks like -------------------------------------------
-for (const theme of ["dark", "light"]) {
-  for (const shot of SHOTS) {
-    const ctx = await browser.newContext({
-      viewport: { width: 1600, height: 1000 },
-      deviceScaleFactor: 2,
-    });
-    const page = await ctx.newPage();
-    // Before boot: the app reads the theme in a no-flash inline script, so
-    // setting it later would capture a repaint.
-    await page.addInitScript((t) => {
-      try {
-        localStorage.setItem("otd-theme", t);
-      } catch {
-        /* private mode */
-      }
-    }, theme);
-    await page.goto(APP, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(9000);
-    // The idle prompt is a timed nudge for a real visitor and pure noise in a
-    // still. Everything else stays: this shot exists to show the interface.
-    await page.addStyleTag({
-      content: "#idle-prompt, #ghost-tip, #hint { display: none !important; }",
-    });
-    await build(page, shot.cells, 0.62);
-    const file = `${OUT}/ui/${shot.name}-${theme}.png`;
-    await page.screenshot({ path: file });
-    console.log(file);
-    await ctx.close();
+// ---- hero: 1920x1080, both themes -----------------------------------------
+if (doKind("hero")) {
+  for (const theme of ["dark", "light"]) {
+    const png = `${SCRATCH}/hero-${theme}.png`;
+    await shoot({ w: 1920, h: 1080, theme, visible: { w: 0.5, h: 0.6 }, fill: 0.92, file: png });
+    await webp(png, `${OUT}/hero-${theme}.webp`, 80);
   }
 }
 
-// ---- the cluster alone, on transparency ---------------------------------
-// ONE file per shape, not one per theme: a transparent PNG sits on whatever
-// the page is, so it cannot be wrong in either theme.
-for (const shot of SHOTS) {
-  const ctx = await browser.newContext({
-    viewport: { width: 1600, height: 1200 },
-    deviceScaleFactor: 2,
-  });
-  const page = await ctx.newPage();
-  // `bg=transparent` makes the RENDERER clear to alpha 0. That is necessary and
-  // not sufficient: the document still paints its own background behind the
-  // canvas, and `omitBackground` only suppresses the browser's default white.
-  // Both have to go or the result is a black rectangle with a cluster on it.
-  await page.goto(`${APP}?bg=transparent`, { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(9000);
-  await page.addStyleTag({
-    content: `
-      html, body { background: transparent !important; }
-      #header, #toolbar, #inspector, #idle-prompt, #ghost-tip, #hint,
-      #crosshair, #action-sheet, .long-press-indicator { display: none !important; }
-    `,
-  });
-  await build(page, shot.cells, 0.88);
-  const file = `${OUT}/clean/${shot.name}.png`;
-  await page.screenshot({ path: file, omitBackground: true });
-  console.log(file);
-  await ctx.close();
+// ---- og: the cutout the share card composes ----------------------------------
+// 2x the 520x320 box it is drawn into, transparent, so it sits on the card's
+// own wash in either theme of the card.
+if (doKind("og")) {
+  const png = `${SCRATCH}/og-cutout.png`;
+  await shoot({ w: 1040, h: 640, transparent: true, fill: 0.94, file: png });
+  await sharp(png).png({ compressionLevel: 9, palette: false }).toFile(`${OUT}/og-cutout.png`);
+  console.log(`${OUT}/og-cutout.png  ${statSync(`${OUT}/og-cutout.png`).size} bytes`);
+}
+
+// ---- ui: the interface, both themes, 3200x2000 --------------------------------
+if (doKind("ui")) {
+  for (const theme of ["dark", "light"]) {
+    for (const [name, build] of Object.entries(STILL_BUILDS)) {
+      const png = `${SCRATCH}/ui-${name}-${theme}.png`;
+      // The palette rail and the foot take the left and the bottom; the build
+      // is fitted inside what the interface leaves.
+      await shoot({ w: 1600, h: 1000, scale: 2, theme, build, keepChrome: true, visible: { w: 0.62, h: 0.62 }, fill: 0.9, file: png });
+      await webp(png, `${OUT}/ui/${name}-${theme}.webp`, 72);
+    }
+  }
+}
+
+// ---- clean: the build alone, transparent, 3200x2400 ----------------------------
+if (doKind("clean")) {
+  for (const [name, build] of Object.entries(STILL_BUILDS)) {
+    const png = `${SCRATCH}/clean-${name}.png`;
+    await shoot({ w: 1600, h: 1200, scale: 2, build, transparent: true, fill: 0.9, file: png });
+    await webp(png, `${OUT}/clean/${name}.webp`, 80, true);
+  }
 }
 
 await browser.close();

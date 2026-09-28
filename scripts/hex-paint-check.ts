@@ -5,8 +5,8 @@
 // WHY THIS IS A SCRIPT AND NOT A UNIT TEST. The check has to run against the
 // REAL published meshes, which live outside this repo (`../hex-cluster/build`).
 // A unit test can only use fixtures, and a fixture cannot tell you that
-// `Hex-TB-Corner-F-Solid` -- re-oriented in the 2026-08-17 cut -- still has an
-// upward-facing facet to paint. `hex-3mf.ts` degrades SILENTLY when it finds
+// `hex-half-w` -- a support part whose print pose the owner reviewed -- still
+// has an upward-facing facet to paint after the next re-cut. `hex-3mf.ts` degrades SILENTLY when it finds
 // none, which is the right call at request time (a missing tripwire must not
 // cost someone their download) and exactly why it needs a loud check somewhere.
 //
@@ -24,6 +24,7 @@ import JSZip from "jszip";
 
 import { buildPlate3mf } from "@/lib/hex-3mf";
 import { HEX_PART_BOX, HEX_PART_NAME } from "@/lib/hex-geometry";
+import { HEX_RELEASE } from "@/lib/hex-spec";
 import { PART_REMEDY } from "@/lib/hex-support";
 
 const DIR = "c:\\zzz\\hex-cluster\\build\\printables\\3mf";
@@ -43,8 +44,17 @@ async function main() {
   // a plate that is already correct.
   const slugs = [
     ...Object.keys(PART_REMEDY).filter((s) => PART_REMEDY[s]?.support),
-    "hex-tb-spike-platform-lrg",
+    // The negatives: a plain part, and a BRIM-only part -- a brim is a
+    // per-object setting, never a painted facet, so it must carry no paint.
+    "hex-main",
+    ...Object.keys(PART_REMEDY).filter(
+      (s) => PART_REMEDY[s]?.brim && !PART_REMEDY[s]?.support,
+    ),
   ];
+  if (!slugs.some((s) => PART_REMEDY[s]?.support)) {
+    // A check over nothing passes. Say so rather than print "all parts OK".
+    console.log("no part in PART_REMEDY needs support: nothing to paint");
+  }
   const sources = new Map<string, string>();
   for (const s of slugs) sources.set(s, await meshOf(s));
 
@@ -52,7 +62,7 @@ async function main() {
     const buf = await buildPlate3mf(
       [{ slug, name: HEX_PART_NAME[slug], box: HEX_PART_BOX[slug], x: 4, y: 4 }],
       sources,
-      { bed: { x: 350, y: 350 }, release: "2026-08-17" },
+      { bed: { x: 350, y: 350 }, release: HEX_RELEASE },
     );
     const model = await (await JSZip.loadAsync(buf))
       .file("3D/3dmodel.model")!

@@ -64,10 +64,10 @@ export const PLATE_GAP = 4;
  *  freezes `DEFAULT_BED` against exactly this hazard; this is the compile-time
  *  half of the same idea, at no runtime cost.
  *
- *  `name` is the PUBLISHED spelling (`Hex-TB-Main`), carried because nothing
- *  downstream can recover it: the slug is a lossy projection of the filename, so
- *  a writer holding only `hex-tb-main` has to either invent a capitalisation or
- *  ship the slug. It is inert here -- the packer moves it, never reads it -- but
+ *  `name` is the PUBLISHED spelling (`HEX_PART_NAME`), carried because nothing
+ *  downstream can recover it in general: the slug is a lossy projection of the
+ *  filename, so a writer holding only a slug has to either invent a spelling or
+ *  ship the slug. (In v2 the two happen to be equal; the field is the contract.) It is inert here -- the packer moves it, never reads it -- but
  *  it is REQUIRED rather than optional, because the whole point is that a
  *  caller cannot quietly fall back to the slug. */
 export type PackInput = {
@@ -227,7 +227,7 @@ export function packPlates(
   // byte-different files, and each spelling would hold its own cache entry.
   //
   // Broken on the SLUG, not on the display name, and the two are not the same
-  // order: `dovetail-cap-single-f-solid` and `Dovetail-Cap-Single-F-Solid` sort
+  // order: `hex-cap-edge-solid-f` and a display name `Hex-Cap-Edge-Solid-F` sort
   // together only by accident, and a capital letter precedes every lowercase one
   // by code unit. Sorting on the name would reorder every plate the day a re-cut
   // renamed a file without changing its slug -- and the slug is what identifies

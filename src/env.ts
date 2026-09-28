@@ -149,6 +149,16 @@ export const env = createEnv({
     // an Edge Config store is connected. OPTIONAL: absent → the flag reads default-on
     // (fail-safe), so the build works before the store exists.
     EDGE_CONFIG: z.string().min(1).optional(),
+    // The Hex Cluster kill switches (`hexPackEnabled`, `hexSaveEnabled`), read by
+    // `@/lib/hex-flags`. A SEPARATE Edge Config store from EDGE_CONFIG, so a patch
+    // to one cannot touch the other's keys and staging can point at its own.
+    // OPTIONAL: absent -> both flags read enabled (fail-open; they switch
+    // features OFF, so a missing store must not).
+    HEX_FLAGS_EDGE_CONFIG: z.string().min(1).optional(),
+    // The one origin allowed to read /api/hex-flags cross-origin. OPTIONAL:
+    // absent -> the production configurator, https://hex.onethousanddrones.com.
+    // Staging sets its own configurator origin here.
+    HEX_FLAGS_ALLOW_ORIGIN: z.url().optional(),
   },
   client: {
     // Public site origin used as the metadataBase for absolute SEO URLs
@@ -243,6 +253,8 @@ export const env = createEnv({
     TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
     MAGIC_GLOBAL_DAILY_CAP: process.env.MAGIC_GLOBAL_DAILY_CAP,
     EDGE_CONFIG: process.env.EDGE_CONFIG,
+    HEX_FLAGS_EDGE_CONFIG: process.env.HEX_FLAGS_EDGE_CONFIG,
+    HEX_FLAGS_ALLOW_ORIGIN: process.env.HEX_FLAGS_ALLOW_ORIGIN,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
   },
   // Cross-field validation the per-key schemas can't express (design §12.2, R2-3): each

@@ -173,6 +173,13 @@ export function isPublicPath(pathname: string): boolean {
   // 22-char token in the path is the gate; the page is noindex and shows the
   // cluster's name, never the owner's.
   if (top === "c") return true;
+  // The Hex Cluster kill switches (/api/hex-flags). The configurator reads them
+  // cross-origin with no cookie, so a gate here would 307 every read to /sign-in
+  // and the configurator would treat that as "no change" forever. The body is two
+  // booleans and nothing else. EXACTLY this path, not the /api prefix.
+  if (top === "api" && segments[1] === "hex-flags" && segments.length === 2) {
+    return true;
+  }
   // The client error beacon (POST /api/beacon/error). An error boundary reports
   // from any page, signed-in or not, and a 307 to /sign-in would drop exactly
   // the signed-out faults. Admitted HERE rather than excluded from the proxy

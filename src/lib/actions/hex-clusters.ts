@@ -6,12 +6,20 @@
 // schema, constant and formatter lives in @/lib/hex-cluster — re-exporting a
 // type from here compiles fine and crashes at runtime.
 //
-// THE ACADEMY IS A PIPE. The payload goes in opaque and comes out opaque,
-// transport prefix included. It is never parsed, re-encoded or migrated here,
-// and there is no server-side decompression path at all: the schema, its
-// validator and its migrate() chokepoint live in the configurator on a
-// different deploy cadence, and mirroring them would be a third copy of enum
-// unions that file already documents as fragile.
+// THE ACADEMY IS A PIPE for what it STORES: the payload goes in and comes out
+// byte for byte, transport prefix included, never re-encoded or migrated. Since
+// v2 it is DECODED ONCE on the way in (`decodeV2State`, @/lib/hex-v2-state), as
+// a bounded grammar check: only `v2s=` is accepted, and a payload that does not
+// inflate to a v2 build is refused as malformed rather than stored.
+//
+// ACCOUNT DELETION DELETES SAVED BUILDS (owner decision 2026-09-28). When an
+// account is deleted, every HexCluster it owns and every revision under it are
+// deleted in the same transaction as the User row, so their /c/ share pages
+// resolve to the generic "can't be opened" page. The FK is still
+// `onDelete: SetNull` (no migration), so the policy lives in code, in
+// deleteStudent (src/lib/actions/admin-students.ts) -- the only User delete in
+// the app. Stated for /privacy section 5 in
+// docs/plans/2026-09-28-privacy-account-deletion-note.md.
 //
 // Design: docs/plans/2026-08-01-hex-cluster-saved-builds-design.md §§5.2, 5.3, 6.
 
@@ -22,7 +30,9 @@ import { currentUserId, requireUser } from "@/lib/auth-helpers";
 import { enforce } from "@/lib/abuse-limit";
 import { hexSaveCheck } from "@/lib/abuse-policy";
 import { defenseEnabled } from "@/lib/abuse-defense-flag";
+import { hexFlag } from "@/lib/hex-flags";
 import { invalidateHexCluster } from "@/lib/cache-invalidate";
+import { decodeV2State } from "@/lib/hex-v2-state";
 import {
   IDEMPOTENCY_WINDOW_MS,
   MAX_ACTIVE_CLUSTERS,
@@ -77,6 +87,10 @@ async function lockUser(
 export async function saveHexCluster(input: SaveInput): Promise<SaveResult> {
   const user = await requireUser();
 
+  // The kill switch (`hexSaveEnabled`), before the rate limiter and before any
+  // query: a paused save touches nothing.
+  if (!(await hexFlag("hexSaveEnabled"))) return fail("saves-paused");
+
   // Burst rate only. enforce() is a sliding-window RATE limiter: it cannot
   // express "50 rows exist", returns ok when KV_REST_API_* is unset (all of
   // local and CI), and degrades open — so the quotas below are counted in SQL
@@ -86,15 +100,24 @@ export async function saveHexCluster(input: SaveInput): Promise<SaveResult> {
     if (!verdict.ok) return fail("rate-limited");
   }
 
+  // The consent box (plan 6.3). Strictly `true`: a truthy string or a missing
+  // field from an older client is not a tick.
+  if (input.consent !== true) return fail("consent-required");
+
   const name = normaliseName(input.name);
   if (!name) return fail("name-invalid");
 
+  // Route on the prefix (only `v2s=`), then prove the body is a v2 build. The
+  // decode is bounded (16,384 characters in, 2 MiB inflated) and never throws.
+  if (typeof input.payload !== "string") return fail("payload-malformed");
   const payloadProblem = checkPayload(input.payload);
   if (payloadProblem === "uncompressed") return fail("payload-uncompressed");
   if (payloadProblem === "too-large") return fail("payload-too-large");
   if (payloadProblem) return fail("payload-malformed");
+  if (!decodeV2State(input.payload)) return fail("payload-malformed");
 
-  if (!isPayloadHash(input.payloadHash)) return fail("payload-malformed");
+  if (typeof input.payloadHash !== "string" || !isPayloadHash(input.payloadHash))
+    return fail("payload-malformed");
   if (!Number.isInteger(input.schemaVersion) || input.schemaVersion < 1) {
     return fail("payload-malformed");
   }

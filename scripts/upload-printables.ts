@@ -7,7 +7,15 @@
 // file that may be published and the licence each ships under. Only `cc-by`
 // passes; a `third-party` row, a row with no licence, a file the manifest has but
 // the list does not, or a listed file the manifest lacks each refuse the whole
-// run before anything is written. Format: scripts/lib/printables-allowlist.ts.
+// run before anything is written. A manifest part the list names under
+// `withheld` (with its reason) is SKIPPED and logged, never uploaded; that is
+// the only way a manifest part may be left out. Format:
+// scripts/lib/printables-allowlist.ts.
+//
+// `--write` also refuses while any `[OWNER-WORDING: ...]` placeholder remains in
+// any file it would upload. The 6.8 LICENSE disclaimer and the 2.6 README safety
+// text are filled (owner-approved 2026-09-28); the guard stays for any later
+// one. A dry run emits them, so they can be read.
 //
 // Every PUT carries `x-amz-meta-sha256` (hex SHA-256 of the bytes) and
 // `Content-Disposition: attachment`. Before writing, every key is HEADed:
@@ -62,9 +70,18 @@ import {
 // same reasoning as hex-spec. See that module on why the list lives in one place.
 import {
   NEEDS_SUPPORT_NAMES,
+  PART_REMEDY,
   SUPPORT_NOTE,
   SUPPORT_SLICER_NOTE,
 } from "../src/lib/hex-support";
+// Plain data, no env -- same reasoning again. The per-release LICENSE.txt.
+import { hexLicenseTxt } from "../src/lib/hex-license-txt";
+// Plain data, no env. The README's 2.6 safety slot, and the placeholder scan the
+// --write refusal applies to every file this run would upload.
+import {
+  hexReadmeSafetyLines,
+  ownerWordingIn,
+} from "../src/lib/hex-readme-safety";
 
 /** Hard-wrap for the archive README, which is read in Notepad and in terminals.
  *  Neither reflows, so a long sentence is either cut off at the column or
@@ -142,12 +159,13 @@ const WITHHELD_PARTS = new Set(["TB-1-POWER"]);
 
 const SETS: Record<
   string,
-  { label: string; parts: (m: Manifest) => string[] }
+  { label: string; parts: (shipped: ManifestPart[]) => string[] }
 > = {
   "hex-cluster": {
-    label: "Hex Cluster modular tile system -- complete set",
-    parts: (m) =>
-      m.parts.map((p) => p.part).filter((p) => !WITHHELD_PARTS.has(p)),
+    label: "Hex Cluster modular tile system: complete set",
+    // Handed the parts that SHIP (both withholdings already applied), never the
+    // raw manifest, so a set can only ever hold what passed the allow-list.
+    parts: (shipped) => shipped.map((p) => p.part),
   },
 };
 
@@ -420,9 +438,34 @@ async function main() {
     );
   }
 
+  // The allow-list's own withholdings (decision 1.6 and the licence rule, as the
+  // release-table generator recorded them). Each is skipped BY NAME, with its
+  // reason printed; a part the manifest has and the list neither lists nor
+  // withholds still falls through to the check below and refuses.
+  const listWithheld = new Map(allow.withheld.map((w) => [w.part, w.reason]));
+  const skippedByList = manifest.parts.filter((p) => listWithheld.has(p.part));
+  if (skippedByList.length) {
+    console.log(
+      `\nwithheld by the allow-list (${skippedByList.length}), not uploaded:`,
+    );
+    for (const p of skippedByList) {
+      console.log(`  - ${p.part}: ${listWithheld.get(p.part)}`);
+    }
+  }
+  const absentWithheld = allow.withheld.filter(
+    (w) => !manifest.parts.some((p) => p.part === w.part),
+  );
+  if (absentWithheld.length) {
+    console.log(
+      `withheld names not in this manifest (nothing to skip): ${absentWithheld.map((w) => w.part).join(", ")}`,
+    );
+  }
+
   // EVERY SOURCE FILE this run would read into the bucket, checked against the
   // allow-list BEFORE a single object is planned. Refusal is all-or-nothing.
-  const shipped = manifest.parts.filter((p) => !WITHHELD_PARTS.has(p.part));
+  const shipped = manifest.parts.filter(
+    (p) => !WITHHELD_PARTS.has(p.part) && !listWithheld.has(p.part),
+  );
   const problems = checkAgainstAllowList(
     shipped.flatMap((p) =>
       Object.values(p.files).map((f) => ({ path: f.path, part: p.part })),
@@ -442,6 +485,10 @@ async function main() {
   }
 
   const objects: Planned[] = [];
+  // Everything this run would publish, as the bytes a reader would open: each
+  // standalone object, and each zip ENTRY before compression (a marker inside a
+  // deflated README is not findable in the zip's own bytes).
+  const scan: { name: string; data: Buffer | string }[] = [];
 
   // Standalone too, not just inside the zip: anyone grabbing a single .3mf by
   // URL never opens the archive, and CC BY only works if the terms travel.
@@ -481,10 +528,13 @@ async function main() {
     : zipDate;
 
   for (const [setName, set] of Object.entries(SETS)) {
-    const names = set.parts(manifest);
+    const names = set.parts(shipped);
     const zip = new JSZip();
-    const add = (name: string, data: string | Buffer) =>
+    const zipKey = printableSetKey(RELEASE, setName);
+    const add = (name: string, data: string | Buffer) => {
+      scan.push({ name: `${zipKey} > ${name}`, data });
       zip.file(name, data, { date: entryDate, createFolders: false });
+    };
     // The README describes the parts it actually ships with, so it is handed
     // the manifest rows for exactly those names, not the whole manifest.
     const setParts = manifest.parts.filter((p) => names.includes(p.part));
@@ -507,7 +557,34 @@ async function main() {
       compression: "DEFLATE",
     });
     console.log(`  set ${setName}: ${names.length} part(s)`);
-    objects.push(plan(printableSetKey(RELEASE, setName), body, "application/zip"));
+    objects.push(plan(zipKey, body, "application/zip"));
+  }
+
+  // OWNER PLACEHOLDERS, in ANY file. The LICENSE disclaimer (6.8) and the README
+  // safety text (2.6) are the owner's words, and a release key is immutable, so
+  // publishing a placeholder is permanent. Checked after planning so it sees the
+  // exact bytes, and before publish() so it lands before any R2 call. A dry run
+  // reports them and carries on: it exists so the slots can be read.
+  for (const p of objects) {
+    if (p.contentType !== "application/zip") {
+      scan.push({ name: p.key, data: p.body });
+    }
+  }
+  const pending = scan.flatMap(({ name, data }) =>
+    ownerWordingIn(data).map((m) => `${name}: ${m}`),
+  );
+  if (pending.length) {
+    if (write) {
+      throw new Error(
+        `Refusing --write: the release still carries owner placeholders (${pending.length}):\n  ` +
+          pending.join("\n  ") +
+          `\nReplace them (src/lib/hex-license-txt.ts, src/lib/hex-readme-safety.ts) before --write.`,
+      );
+    }
+    console.log(
+      `\n!! ${pending.length} owner placeholder(s) remain; --write will refuse until they are replaced:\n  ` +
+        pending.join("\n  "),
+    );
   }
 
   await publish(objects);
@@ -527,7 +604,7 @@ async function main() {
   if (!write) console.log("Re-run with --write to apply.");
 }
 
-// The README is deliberately plain ASCII (it uses `--` for dashes throughout),
+// The README is deliberately plain ASCII (no dashes as punctuation at all),
 // because it is read in whatever the downloader's zip viewer or Notepad does
 // with encodings. The shared spec is written for the WEB page, so degree signs,
 // en dashes and multiplication signs come through it; fold them here rather
@@ -568,44 +645,96 @@ function orientationNote(parts: ManifestPart[]): string[] {
       "hand. Check every part sits on a flat face before slicing.",
     );
   } else {
+    // Supports are a separate section now (below), not an exception to this
+    // sentence: the v2 parts the slicer flags all rest on a flat face; what they
+    // need is support under an overhang or a brim under a small footprint.
     lines.push(
       "",
-      "Every orientation has been checked: each part rests on a flat face, with",
-      "the two exceptions below. Nobody has printed the set yet, so this is a",
-      "geometric check and not a print-tested one.",
+      ...wrap72(
+        "Every orientation has been checked: each part rests on a flat face. " +
+          "Nobody has printed the set yet, so this is a geometric check only.",
+      ),
     );
   }
 
-  // The parts that rest on a line by DESIGN, named so nobody is surprised
-  // mid-print. The list used to be a local const here AND a second one in
-  // src/lib/hex-pack-readme.ts, each asking the other to be kept in sync. It now
-  // lives once in @/lib/hex-support, because the download endpoint reads the same
-  // set to decide whether a single-plate build ships bare or inside an archive --
-  // so a re-cut that updated this file and not that one would ship a bare file
-  // with no warning in it at all. See that module's header.
-  const present = NEEDS_SUPPORT_NAMES.filter((n) =>
-    parts.some((p) => p.part === n),
-  );
-  if (present.length > 0) {
+  // The parts the SLICER flagged, named so nobody is surprised mid-print. The
+  // list lives once in @/lib/hex-support (generated from the owner's slice,
+  // launch item 4.7), because the download endpoint reads the same set to decide
+  // whether a single-plate build ships bare or inside an archive -- so a copy
+  // here that drifted would ship a bare file with no warning in it at all.
+  const present = supportParts(parts);
+  lines.push("");
+  if (present.length === 0) {
     lines.push(
-      "",
-      `Support required -- ${present.join(", ")}.`,
-      "These lie on their side on purpose: a spike carries its load along its",
-      "axis, so printed upright the layers stack along that load and peel apart.",
-      "Lying down runs them ACROSS it. What that costs is what they stand on, and",
-      "it is not the same for both. Every other part stands on a flat face.",
-      "",
+      "Supports and brim: none needed. Every part here was checked in a",
+      "slicer for this release and none of them needs either.",
     );
-    // ONE ENTRY PER PART. The old note gave both the same sentence and sent
-    // everyone to a brim, which cannot hold a part with no perimeter on the
-    // plate. The measured figures live beside the list in src/lib/hex-support.
-    for (const name of present) {
-      const note = SUPPORT_NOTE[name];
-      if (note) lines.push(...wrap72(`${name} ${note}`, "  "));
-    }
+    return lines;
+  }
+  lines.push(
+    ...wrap72(`Supports and brim: ${present.join(", ")}.`),
+    ...wrap72(
+      "The slicer flagged these when this release was checked, and each one " +
+        "is named below with what it needs. Every other part needs neither " +
+        "supports nor a brim.",
+    ),
+    "",
+  );
+  // ONE ENTRY PER PART: support and a brim answer different questions, and the
+  // sentence is the slicer sweep's own.
+  for (const name of present) {
+    const note = SUPPORT_NOTE[name];
+    if (note) lines.push(...wrap72(`${name}: ${note}`, "  "));
+  }
+  if (present.some((n) => PART_REMEDY[n]?.support)) {
     lines.push("", ...wrap72(SUPPORT_SLICER_NOTE, ""));
   }
   return lines;
+}
+
+/** The shipped parts that need support, in NEEDS_SUPPORT_NAMES order. */
+function supportParts(parts: ManifestPart[]): string[] {
+  return NEEDS_SUPPORT_NAMES.filter((n) => parts.some((p) => p.part === n));
+}
+
+/** Formats in the order a reader is told about them; anything unknown last. */
+const ORDER = ["3mf", "stl", "step"];
+const rank = (f: string) =>
+  ORDER.includes(f) ? ORDER.indexOf(f) : ORDER.length;
+
+/** The academy origin every printed link in the README names. */
+const ACADEMY = "https://academy.onethousanddrones.com";
+
+/** Where the formats this archive does NOT carry live (decision 1.3).
+ *
+ *  GENERATED from the release id and the formats the shipped parts actually
+ *  carry in the manifest, minus `ZIP_FORMATS`, so a format added to or dropped
+ *  from the release changes this block without anyone remembering to. The
+ *  archive is 3MF only; every other format is a per-part download through the
+ *  academy's `/api/printable` route, one URL per part per format. */
+function whereTheRestLives(parts: ManifestPart[]): string[] {
+  const inZip = new Set<string>(ZIP_FORMATS);
+  const others = [...new Set(parts.flatMap((p) => Object.keys(p.files)))]
+    .filter((f) => !inZip.has(f))
+    .sort((a, b) => rank(a) - rank(b));
+  return [
+    "In this archive: 3mf/, one .3mf per part (carries units and part names).",
+    "",
+    "Where the rest lives:",
+    ...wrap72(
+      `${others.map((f) => f.toUpperCase()).join(" and ")} are not in this ` +
+        "archive. Each part is a separate download in each format, at:",
+      "  ",
+    ),
+    ...others.map(
+      (f) => `    ${ACADEMY}/api/printable/${RELEASE}/${f}/<part>.${f}`,
+    ),
+    ...wrap72(
+      "where <part> is a name from the Parts list below. Every file is also " +
+        `linked from ${ACADEMY}/hex`,
+      "  ",
+    ),
+  ];
 }
 
 function setReadme(
@@ -616,14 +745,14 @@ function setReadme(
   return [
     `${label}`,
     "",
-    "Hex Cluster modular tile system -- One Thousand Drones, LLC",
+    "Hex Cluster modular tile system by One Thousand Drones, LLC",
     "https://academy.onethousanddrones.com/hex",
     "",
+    // Decision 1.10: the configurator's own host, live before any public link.
     "Configure a cluster and generate a build sheet:",
-    "  https://demo.onethousanddrones.com/hex",
+    "  https://hex.onethousanddrones.com",
     "",
-    "Format: 3mf/ (carries units and part names). STL and STEP are",
-    "        separate per-part downloads, not in this archive.",
+    ...whereTheRestLives(parts),
     "",
     // CORRECTED 2026-08-02. The 2026-07-31 release says "Printed in PLA at
     // 0.2 mm". The material is PETG, and the 0.25 mm design gap is toleranced
@@ -681,17 +810,24 @@ function setReadme(
     // exported in their CAD orientation". That is wrong for a third of the set:
     // 16 of the 53 carry a baked -90 degree X rotation from the exporter. Worse,
     // it points the reader at the wrong risk. The risk is not that nothing was
-    // rotated, it is that the rotations are DERIVED and every part in the
-    // manifest still has printOrientationReviewed = false. Counted from the
-    // manifest rather than typed in, so the sentence cannot drift from the set.
+    // rotated, it is that the rotations are DERIVED. Since 2026-09-28 the
+    // 2026-10-01 manifest carries printOrientationReviewed = true on all 297
+    // parts (hex-cluster `check_orientation.py --stamp`), so the note says
+    // "checked"; an unstamped manifest still gets the "NOT reviewed" warning.
+    // Counted from the manifest rather than typed in, so the sentence cannot
+    // drift from the set.
     ...orientationNote(parts),
+    "",
+    // Launch item 2.6. The owner's approved words (2026-09-28), shared with the
+    // /hex page; --write would still refuse if a placeholder came back.
+    ...hexReadmeSafetyLines(),
     "",
     "Full spec: https://academy.onethousanddrones.com/hex",
     "",
     `Parts (${names.length}):`,
     ...names.map((n) => `  - ${n}`),
     "",
-    "Licensed CC BY 4.0 -- see LICENSE.txt.",
+    "Licensed CC BY 4.0. See LICENSE.txt.",
   ].join("\n");
 }
 
@@ -701,30 +837,13 @@ function setReadme(
 // volume that makes a listing rank. Mandated attribution IS the return here.
 //
 // NOTE: this is one-way. Files published under CC BY stay CC BY; only future
-// releases can carry a different license.
-const LICENSE_TXT = [
-  "Hex Cluster modular tile system",
-  "Copyright (c) One Thousand Drones, LLC",
-  "",
-  "This work is licensed under the Creative Commons Attribution 4.0",
-  "International License (CC BY 4.0).",
-  "",
-  "You are free to:",
-  "  Share  -- copy and redistribute in any medium or format",
-  "  Adapt  -- remix, transform, and build upon it, for any purpose,",
-  "            including commercially.",
-  "",
-  "Under the following term:",
-  "  Attribution -- You must give appropriate credit to One Thousand",
-  "  Drones, LLC, provide a link to this license, and indicate if changes",
-  "  were made. You may do so in any reasonable manner, but not in any way",
-  "  that suggests One Thousand Drones endorses you or your use.",
-  "",
-  "Full licence text: https://creativecommons.org/licenses/by/4.0/legalcode",
-  "Summary:           https://creativecommons.org/licenses/by/4.0/",
-  "",
-  "Source: https://academy.onethousanddrones.com/hex",
-].join("\n");
+// releases can carry different terms.
+//
+// The text is chosen PER RELEASE in `src/lib/hex-license-txt.ts`: the three
+// published v1 releases get their published bytes back verbatim (pinned by
+// sha256 in its test), and a later release gets the v2 notice with its year and
+// the owner's disclaimer slot.
+const LICENSE_TXT = hexLicenseTxt(RELEASE);
 
 // Exported so the test can await the whole run and observe the exit code. A
 // refusal of ANY kind (allow-list, hash conflict, HEAD error) lands here and

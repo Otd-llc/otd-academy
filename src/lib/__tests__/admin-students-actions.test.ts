@@ -35,6 +35,10 @@ import {
   revokeEntitlement,
   deleteStudent,
 } from "@/lib/actions/admin-students";
+import { loadClusterByShareCode } from "@/lib/hex-cluster-load";
+import { sharedView } from "@/lib/hex-share-view";
+import { updateTag } from "next/cache";
+import { hexClusterTag } from "@/lib/cache-profile";
 
 const ADMIN_EMAIL = "admin-students-admin@example.com";
 const stamp = Date.now();
@@ -110,6 +114,134 @@ describe("deleteStudent", () => {
       expect(sub?.userId).toBeNull();
     } finally {
       await db.subscription.deleteMany({ where: { stripeSubscriptionId: subId } });
+    }
+  });
+});
+
+// Owner decision 2026-09-28: deleting an account deletes its saved hex builds,
+// revisions and all, so no /c/ page of theirs stays public. The FK is SetNull,
+// so without deleteStudent's explicit delete every row here would survive.
+const HEX_SUMMARY = {
+  nameAtSave: "del test",
+  cells: 1,
+  caps: 0,
+  spikes: 0,
+  pieces: 1,
+  envelope: null,
+  bom: [{ item: 1, qty: 1, label: "x", dims: null, sourceFile: "x" }],
+  details: [],
+};
+let codeSeq = 0;
+function shareCode(): string {
+  // 22 base62 chars, unique per call and per run.
+  return `D${stamp}${++codeSeq}`.padEnd(22, "Q").slice(0, 22);
+}
+
+/** A learner with one saved build of two revisions. Returns ids + codes. */
+async function learnerWithBuild(tag: string) {
+  const user = await db.user.create({
+    data: { email: `admin-hex-${tag}-${stamp}@example.com`, role: "LEARNER" },
+  });
+  const codes = [shareCode(), shareCode()];
+  const cluster = await db.hexCluster.create({
+    data: {
+      userId: user.id,
+      name: `build ${tag}`,
+      revisions: {
+        create: codes.map((code, i) => ({
+          revNo: i + 1,
+          shareCode: code,
+          payload: "v2s=abcdef",
+          payloadHash: `h1:${"a".repeat(64)}`,
+          schemaVersion: 2,
+          summary: HEX_SUMMARY,
+        })),
+      },
+    },
+  });
+  return { userId: user.id, clusterId: cluster.id, codes };
+}
+
+describe("deleteStudent deletes the account's saved hex builds", () => {
+  test("builds, revisions and share codes go; another user's stay", async () => {
+    const doomed = await learnerWithBuild("doomed");
+    const kept = await learnerWithBuild("kept");
+    try {
+      // Precondition: both are live on /c/ before the delete.
+      for (const code of [...doomed.codes, ...kept.codes]) {
+        expect((await loadClusterByShareCode(code)).outcome).toBe("hit");
+      }
+
+      vi.mocked(updateTag).mockClear();
+      await deleteStudent({ userId: doomed.userId });
+
+      // The cached /c/ render is dropped now, not after the hour.
+      expect(updateTag).toHaveBeenCalledWith(hexClusterTag(doomed.clusterId));
+      expect(updateTag).not.toHaveBeenCalledWith(hexClusterTag(kept.clusterId));
+
+      expect(await db.user.findUnique({ where: { id: doomed.userId } })).toBeNull();
+      expect(
+        await db.hexCluster.findUnique({ where: { id: doomed.clusterId } }),
+      ).toBeNull();
+      expect(
+        await db.hexClusterRevision.count({
+          where: { shareCode: { in: doomed.codes } },
+        }),
+      ).toBe(0);
+      // Nothing orphaned with userId NULL either.
+      expect(
+        await db.hexCluster.count({ where: { name: "build doomed", userId: null } }),
+      ).toBe(0);
+
+      // /c/<code> of the deleted build is the generic "can't be opened" page.
+      for (const code of doomed.codes) {
+        const lookup = await loadClusterByShareCode(code);
+        expect(lookup.outcome).toBe("unknown-code");
+        expect(sharedView(lookup).kind).toBe("unknown-code");
+      }
+
+      // The other learner is untouched.
+      const other = await db.hexCluster.findUnique({
+        where: { id: kept.clusterId },
+        include: { revisions: true },
+      });
+      expect(other?.userId).toBe(kept.userId);
+      expect(other?.name).toBe("build kept");
+      expect(other?.revisions).toHaveLength(2);
+      for (const code of kept.codes) {
+        expect((await loadClusterByShareCode(code)).outcome).toBe("hit");
+      }
+    } finally {
+      await db.hexCluster.deleteMany({
+        where: { id: { in: [doomed.clusterId, kept.clusterId] } },
+      });
+      await db.user.deleteMany({
+        where: { id: { in: [doomed.userId, kept.userId] } },
+      });
+    }
+  });
+
+  test("a refused delete (Restrict FK) keeps the builds: it is one transaction", async () => {
+    const author = await learnerWithBuild("author");
+    const project = await db.project.create({
+      data: {
+        slug: `admin-hex-author-${stamp}`,
+        name: "Authored",
+        createdById: author.userId,
+      },
+    });
+    try {
+      await expect(deleteStudent({ userId: author.userId })).rejects.toThrow(
+        /authored curriculum content/,
+      );
+      expect(await db.user.findUnique({ where: { id: author.userId } })).not.toBeNull();
+      expect(
+        await db.hexClusterRevision.count({ where: { clusterId: author.clusterId } }),
+      ).toBe(2);
+    } finally {
+      await db.project.deleteMany({ where: { id: project.id } });
+      await db.hexCluster.deleteMany({ where: { id: author.clusterId } });
+      await db.user.deleteMany({ where: { id: author.userId } });
     }
   });
 });

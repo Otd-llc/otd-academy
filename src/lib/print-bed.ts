@@ -11,7 +11,7 @@
 // prevents is a bed the settings page happily saves and the endpoint then
 // refuses: the account would hold a value that silently produces a 400 on every
 // download, and nothing on either side would say why.
-import { BED_MAX, BED_MIN, DEFAULT_BED, type Bed } from "@/lib/hex-pack";
+import { BED_FLOOR_MM, BED_MAX, DEFAULT_BED, type Bed } from "@/lib/hex-pack";
 
 export type { Bed };
 
@@ -32,13 +32,16 @@ export type StoredBed = Bed | null;
  *
  *  Non-square beds are still reachable through Custom; the presets are square
  *  because every one of these machines is. */
-export const BED_PRESETS = [180, 220, 235, 250, 300, 350] as const;
+export const BED_PRESETS = [220, 235, 250, 300, 350] as const;
 
 /** The bed used when nothing is stored anywhere. Re-exported so the UI can label
  *  the empty state with the size it will actually get, rather than a dash. */
 export const FALLBACK_BED: Bed = { ...DEFAULT_BED };
 
-export { BED_MAX, BED_MIN };
+/** The smallest bed an account may store: the pack endpoint's FLOOR, not the
+ *  grammar's `BED_MIN`. A stored bed under the floor would be a saved setting
+ *  that 400s every download (owner decision 1.5: 220 x 220, 180 dropped). */
+export { BED_FLOOR_MM, BED_MAX };
 
 /**
  * Coerce an untrusted pair into a bed, or null if it is not one.
@@ -54,14 +57,14 @@ export { BED_MAX, BED_MIN };
  * handler that produced the string, not in the rule that guards the column.
  *
  * `Number.isInteger` also excludes NaN and both infinities, which is what makes
- * the range comparison below safe -- `NaN < BED_MIN` is false, so a bare range
+ * the range comparison below safe -- `NaN < BED_FLOOR_MM` is false, so a bare range
  * check would wave NaN straight through into the column.
  */
 export function normalizeBed(x: unknown, y: unknown): Bed | null {
   if (typeof x !== "number" || typeof y !== "number") return null;
   if (!Number.isInteger(x) || !Number.isInteger(y)) return null;
-  if (x < BED_MIN || x > BED_MAX) return null;
-  if (y < BED_MIN || y > BED_MAX) return null;
+  if (x < BED_FLOOR_MM || x > BED_MAX) return null;
+  if (y < BED_FLOOR_MM || y > BED_MAX) return null;
   return { x, y };
 }
 

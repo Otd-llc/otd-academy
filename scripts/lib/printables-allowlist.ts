@@ -15,8 +15,21 @@
 //     "files": [
 //       { "path": "3mf/hex-main.3mf", "part": "hex-main", "licence": "cc-by" },
 //       { "path": "stl/hex-main.stl", "part": "hex-main", "licence": "cc-by" }
+//     ],
+//     "withheld": [
+//       { "part": "pvc-wedge", "reason": "1.6: withheld" }
 //     ]
 //   }
+//
+// `withheld` is OPTIONAL and additive, so the format id stays /1: a list written
+// before it existed still parses and means what it meant. It names manifest
+// parts that are deliberately NOT released, each with the reason. The uploader
+// SKIPS a part named there (logged, never uploaded). What it does not do is
+// relax anything else: a manifest file that is neither listed nor withheld still
+// refuses the run, because an omission nobody named is exactly the case the
+// list exists to catch. A part that is both listed and withheld refuses (the
+// generator contradicted itself), and so does an entry with no reason (a
+// withholding nobody can explain is not a decision).
 //
 // `path` is the manifest's `files[<fmt>].path`, relative to PRINTABLES_DIR, with
 // forward slashes. `release` must equal the release the uploader is cutting, so an
@@ -44,10 +57,19 @@ export type AllowListRow = {
   licence: string;
 };
 
+export type WithheldRow = {
+  /** A manifest part that is deliberately not released. */
+  part: string;
+  /** Why. Required and non-blank. */
+  reason: string;
+};
+
 export type AllowList = {
   format: typeof ALLOWLIST_FORMAT;
   release: string;
   files: AllowListRow[];
+  /** Always present after parsing; `[]` when the file carries none. */
+  withheld: WithheldRow[];
 };
 
 /** The plan (1.3) says never upload the build manifest, whatever lists it. */
@@ -104,6 +126,29 @@ export function parseAllowList(raw: unknown, source = "allow-list"): AllowList {
     rows.push({ path, part, licence: String(licence ?? "") });
   }
 
+  const withheld: WithheldRow[] = [];
+  if (obj.withheld !== undefined && !Array.isArray(obj.withheld)) {
+    errors.push("withheld must be an array when present");
+  }
+  const listedParts = new Set(rows.map((r) => r.part).filter((p) => p !== ""));
+  const seenWithheld = new Set<string>();
+  for (const [i, w] of (Array.isArray(obj.withheld) ? obj.withheld : []).entries()) {
+    const entry = (w ?? {}) as Record<string, unknown>;
+    const part = typeof entry.part === "string" ? entry.part.trim() : "";
+    const reason = typeof entry.reason === "string" ? entry.reason.trim() : "";
+    const where = `withheld[${i}]${part ? ` (${part})` : ""}`;
+    if (part === "") errors.push(`${where}: part missing`);
+    if (reason === "") errors.push(`${where}: no reason`);
+    if (part !== "" && listedParts.has(part)) {
+      errors.push(`${where}: part is both listed in files and withheld`);
+    }
+    if (part !== "" && seenWithheld.has(part)) {
+      errors.push(`${where}: duplicate withheld part`);
+    }
+    seenWithheld.add(part);
+    withheld.push({ part, reason });
+  }
+
   if (errors.length > 0) {
     throw new Error(
       `Refusing ${source}: ${errors.length} problem(s):\n` +
@@ -114,6 +159,7 @@ export function parseAllowList(raw: unknown, source = "allow-list"): AllowList {
     format: ALLOWLIST_FORMAT,
     release: obj.release as string,
     files: rows,
+    withheld,
   };
 }
 

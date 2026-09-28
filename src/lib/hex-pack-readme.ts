@@ -43,6 +43,7 @@ import {
 } from "@/lib/hex-print-intent";
 import {
   NEEDS_SUPPORT_SLUGS,
+  PART_REMEDY,
   SUPPORT_NOTE,
   SUPPORT_SLICER_NOTE,
   needsSupport,
@@ -137,10 +138,10 @@ const INTENT_LINES: readonly string[] = [
   "",
   ...wrap(
     "Those three are written into each plate, so you do not have to set them. " +
-      "They arrive when you OPEN the plate -- double-click it onto an empty " +
+      "They arrive when you OPEN the plate: double-click it onto an empty " +
       "bed, or use Open Project. Bringing it in through File > Import loads " +
-      "the shapes and drops the settings, which is the slicer's choice and not " +
-      "a broken file; set them yourself from the list above if you go that " +
+      "the shapes and drops the settings. That is the slicer's choice, and the " +
+      "file is intact; set them yourself from the list above if you go that " +
       "way. The rest of the profile below is yours to set either way.",
     "",
   ),
@@ -186,27 +187,34 @@ function supportLines(
     ),
   ];
   if (present.length === 0) {
-    return ["Every part here stands on a flat face. No supports needed."];
+    // MEASURED, not assumed: every released part went through the slicer's
+    // own checks for this release (`hex-support.ts`), and a part with no row
+    // raised nothing.
+    return [
+      "Supports and brim: none needed. Every part here was checked in a",
+      "slicer for this release and none of them needs either.",
+    ];
   }
+  const anySupport = present.some(([slug]) => PART_REMEDY[slug]?.support);
   return [
-    `Support required -- ${present.map(([, label]) => label).join(", ")}.`,
     ...wrap(
-      "These lie on their side on purpose: a spike carries its load along its " +
-        "axis, so printed upright the layers stack along that load and peel " +
-        "apart. Lying down runs them ACROSS it. What that costs is what they " +
-        "stand on, and it is not the same for both.",
+      `Supports and brim: ${present.map(([, label]) => label).join(", ")}.`,
+      "",
+    ),
+    ...wrap(
+      "The slicer flagged these when this release was checked, and each one " +
+        "is named below with what it needs. Every other part here needs " +
+        "neither supports nor a brim.",
       "",
     ),
     "",
-    // ONE ENTRY PER PART, because the old note gave them one shared sentence
-    // and it was wrong for the ball joint -- it sent people to a brim, which
-    // cannot hold a part with no perimeter on the plate. Measured figures live
-    // in `@/lib/hex-support` beside the list itself.
+    // ONE ENTRY PER PART, because support and a brim answer different
+    // questions and a shared sentence was wrong for one of them on v1. The
+    // sentence is the slicer sweep's own, from `@/lib/hex-support`.
     ...present.flatMap(([slug, label]) =>
-      SUPPORT_NOTE[slug] ? wrap(`${label} ${SUPPORT_NOTE[slug]}`, "  ") : [],
+      SUPPORT_NOTE[slug] ? wrap(`${label}: ${SUPPORT_NOTE[slug]}`, "  ") : [],
     ),
-    "",
-    ...wrap(SUPPORT_SLICER_NOTE, ""),
+    ...(anySupport ? ["", ...wrap(SUPPORT_SLICER_NOTE, "")] : []),
   ];
 }
 
@@ -254,9 +262,8 @@ const PRESET_LINES: readonly string[] = [
     'Creality Print may say "This project file is not from Creality Print. ' +
       'Please select the printer preset." That is expected, not an error. ' +
       "A plate carries per-part settings and its own arrangement, but no " +
-      "printer or filament profile: those describe your machine, not this " +
-      "model, and writing ours over yours would be the wrong trade. Pick your " +
-      "preset and slice.",
+      "printer or filament profile: those describe your machine rather than " +
+      "this model, so they stay yours. Pick your preset and slice.",
   ),
 ];
 
@@ -302,9 +309,9 @@ export function packReadme(opts: {
   specUrl: string;
 }): string {
   return [
-    "Hex Cluster -- selected parts",
+    "Hex Cluster: selected parts",
     "",
-    "Hex Cluster modular tile system -- One Thousand Drones, LLC",
+    "Hex Cluster modular tile system by One Thousand Drones, LLC",
     ascii(opts.specUrl),
     "",
     `This is a SUBSET: ${opts.parts.length} of the published parts, as ${opts.format.toUpperCase()},`,
@@ -324,7 +331,7 @@ export function packReadme(opts: {
     `Parts (${opts.parts.length}):`,
     ...opts.parts.map((p) => `  - ${ascii(p.slug)}`),
     "",
-    "Licensed CC BY 4.0 -- see LICENSE.txt.",
+    "Licensed CC BY 4.0. See LICENSE.txt.",
     ascii(opts.credit),
     "",
   ].join("\n");
@@ -376,20 +383,42 @@ export function plateReadme(opts: {
    *  hold -- which is exactly what a default here would produce the first time a
    *  caller forgot to pass one. */
   stem: string;
+  /** One-based: this archive holds ONLY that plate of the plan (a per-plate
+   *  download). The manifest then lists just the file the archive holds, under
+   *  the same `i-of-N` name the plan gives it. */
+  only?: number;
+  /** Where this build reopens: a saved drawing's /c/ page (7.6 README pick A).
+   *  Absent for an unsaved build, which then gets no line at all. */
+  buildUrl?: string;
 }): string {
   const plateCount = opts.plates.length;
-  const instances = opts.plates.reduce((n, p) => n + p.length, 0);
+  const held =
+    opts.only === undefined
+      ? opts.plates.map((plate, i) => ({ plate, n: i + 1 }))
+      : [{ plate: opts.plates[opts.only - 1], n: opts.only }];
+  if (held.some((h) => h.plate === undefined)) {
+    throw new Error(`plate ${opts.only} is not in a plan of ${plateCount}`);
+  }
+  const instances = held.reduce((n, h) => n + h.plate.length, 0);
   const bed = `${opts.bed.x} x ${opts.bed.y} mm`;
+  const scope =
+    opts.only === undefined
+      ? `${plural(instances, "part")} on ${plural(plateCount, "plate")}`
+      : `plate ${opts.only} of ${plateCount}, holding ${plural(instances, "part")}`;
 
   return [
-    "Hex Cluster -- packed plates",
+    "Hex Cluster: packed plates",
     "",
-    "Hex Cluster modular tile system -- One Thousand Drones, LLC",
+    "Hex Cluster modular tile system by One Thousand Drones, LLC",
     ascii(opts.specUrl),
     "",
+    // STRAIGHT AFTER THE SPEC ADDRESS (the owner's pick A), before anything
+    // about plates: where the build came from is the first thing to keep.
+    ...(opts.buildUrl
+      ? ["This build, to reopen or change it:", `  ${ascii(opts.buildUrl)}`, ""]
+      : []),
     ...wrap(
-      `This is a SUBSET: ${plural(instances, "part")} on ` +
-        `${plural(plateCount, "plate")}, packed for a ${bed} bed, as 3MF, ` +
+      `This is a SUBSET: ${scope}, packed for a ${bed} bed, as 3MF, ` +
         `chosen in the configurator. Release ${ascii(opts.release)}. The ` +
         "complete set, every format, and every part individually are at the " +
         "address above.",
@@ -401,13 +430,13 @@ export function plateReadme(opts: {
     // folder holding `plate-1.3mf` is the defect class this feature has already
     // shipped once: a filename disagreeing with its contents passed a green
     // suite, because nothing compared the two.
-    `Plates (${plateCount}):`,
-    ...opts.plates.flatMap((plate, i) => [
-      `  ${platePath(i + 1, plateCount, opts.stem)} -- ${plural(plate.length, "part")}`,
+    `Plates (${held.length === plateCount ? plateCount : `${held.length} of ${plateCount}`}):`,
+    ...held.flatMap(({ plate, n }) => [
+      `  ${platePath(n, plateCount, opts.stem)}: ${plural(plate.length, "part")}`,
       ...tally(plate).map((r) => `    ${r.qty} x ${ascii(r.name)}`),
     ]),
     "",
-    "The arrangement is a STARTING POINT, not a guarantee.",
+    "The arrangement is a STARTING POINT.",
     // MEASURED, not hedging, and measured in more than one slicer because they
     // do not agree: Creality Print V7.2.1 centres an imported scene on the bed as
     // a rigid group, and Cura drops it to the front left corner (observed
@@ -419,10 +448,10 @@ export function plateReadme(opts: {
     // slicer this had been opened in, and a reader whose slicer did something
     // else would reasonably conclude the file was wrong.
     ...wrap(
-      "Slicers move the scene as they import it -- Creality Print centres it on " +
-        "the bed, Cura drops it to the front left -- and your own auto-arrange " +
-        "overrides this layout completely. All of that is fine, and " +
-        "neither breaks anything. What the layout does promise is narrower: " +
+      "Slicers move the scene as they import it (Creality Print centres it on " +
+        "the bed, Cura drops it to the front left), and your own auto-arrange " +
+        "overrides this layout completely. None of that breaks anything. " +
+        "What the layout does promise is narrower: " +
         `everything on a plate fits the ${bed} bed named above, sitting flat, ` +
         `with ${PLATE_GAP} mm of clearance at the edges and between parts.`,
     ),
@@ -442,10 +471,10 @@ export function plateReadme(opts: {
     // Named by their PUBLISHED spelling, matching the plate manifest above and
     // the slicer's own object list -- the reader is looking at both.
     ...supportLines(
-      opts.plates.flat().map((p) => ({ slug: p.slug, label: p.name })),
+      held.flatMap((h) => h.plate).map((p) => ({ slug: p.slug, label: p.name })),
     ),
     "",
-    "Licensed CC BY 4.0 -- see LICENSE.txt.",
+    "Licensed CC BY 4.0. See LICENSE.txt.",
     ascii(opts.credit),
     "",
   ].join("\n");

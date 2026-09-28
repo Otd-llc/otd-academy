@@ -7,11 +7,16 @@
 import { describe, expect, it } from "vitest";
 
 import { HEX_PART_SLUGS, isHexPartSlug } from "@/lib/hex-parts";
+import { HEX_PUBLISHED_RECORD_SLUGS } from "@/lib/hex-published-record";
 import { HEX_PART_COUNT } from "@/lib/hex-spec";
 import {
+  BED_FLOOR_MM,
   BED_MAX,
   BED_MIN,
   DEFAULT_BED,
+  PACK_PATH,
+  canonicalPackQuery,
+  packPlateLinks,
   MAX_PACK_INSTANCES,
   MAX_PACK_PARTS,
   PART_SLUG_RE,
@@ -27,7 +32,7 @@ const TWO = HEX_PART_SLUGS[1];
 /** A build name, in the shape the configurator really produces: caps, spaces,
  *  and nothing that needs sanitising. Deliberately NOT the fallback, so a
  *  `platePath` that ignored its stem would fail rather than coincide. */
-const STEM = "TB-1 POWER";
+const STEM = "BENCH-2 POWER";
 
 describe("the published part list", () => {
   it("has exactly the number of parts the spec claims", () => {
@@ -50,15 +55,20 @@ describe("the published part list", () => {
     expect(new Set(HEX_PART_SLUGS).size).toBe(HEX_PART_SLUGS.length);
   });
 
-  it("does NOT contain the withheld part", () => {
-    // TB-1-POWER is withheld on disclosure grounds: a carrier is shaped around
-    // its board, so publishing it publishes that board's footprint.
-    expect(HEX_PART_SLUGS.some((s) => s.includes("tb-1-power"))).toBe(false);
+  it("does NOT contain a board carrier", () => {
+    // Board carriers are withheld on disclosure grounds: a carrier is shaped
+    // around its board, so publishing it publishes that board's footprint. No
+    // released slug is a carrier, and none is named after a bench board.
+    expect(HEX_PART_SLUGS.filter((s) => s.includes("carrier"))).toEqual([]);
+    expect(HEX_PART_SLUGS.filter((s) => /(^|-)tb-\d/.test(s))).toEqual([]);
   });
 
   it("rejects a well-formed slug that is not one of ours", () => {
-    expect(isHexPartSlug("hex-tb-main")).toBe(true);
+    expect(isHexPartSlug("hex-main")).toBe(true);
     expect(isHexPartSlug("not-a-real-part")).toBe(false);
+    // A v1 part is well formed and was published, and is not one of ours any
+    // more: it is the published record, not the release. All 53 of them.
+    for (const s of HEX_PUBLISHED_RECORD_SLUGS) expect(isHexPartSlug(s), s).toBe(false);
   });
 });
 
@@ -93,8 +103,8 @@ describe("resolvePack", () => {
 
   it.each([
     ["traversal", "../../secrets"],
-    ["an absolute key", "printables/2026-07-31/3mf/hex-tb-main"],
-    ["a plausible invention", "hex-tb-main-v2"],
+    ["an absolute key", "printables/2026-07-31/3mf/hex-main"],
+    ["a plausible invention", "hex-main-v2"],
     ["empty-ish", " , , "],
   ])("refuses %s", (_why: string, parts: string) => {
     const r = resolvePack({ release: RELEASE, format: "3mf", parts });
@@ -184,16 +194,16 @@ describe("packFilename", () => {
       { slug: ONE, qty: 6 },
       { slug: TWO, qty: 3 },
     ];
-    expect(packFilename(build, { ...INSTANCES, stem: "TB-1 POWER" })).toBe(
-      "TB-1 POWER-9-parts.zip",
+    expect(packFilename(build, { ...INSTANCES, stem: "BENCH-2 POWER" })).toBe(
+      "BENCH-2 POWER-9-parts.zip",
     );
     expect(
       packFilename([{ slug: ONE, qty: 1 }], {
         ...INSTANCES,
-        stem: "TB-1 POWER",
+        stem: "BENCH-2 POWER",
         ext: "3mf",
       }),
-    ).toBe(`TB-1 POWER-${ONE}.3mf`);
+    ).toBe(`BENCH-2 POWER-${ONE}.3mf`);
   });
 
   it("counts a multi-part pack", () => {
@@ -308,8 +318,8 @@ describe("the build's name, as a request field", () => {
   });
 
   it("carries a real name through to the request", () => {
-    const r = resolvePack({ release: RELEASE, parts: ONE, name: "TB-1 POWER" });
-    expect(r.ok && r.request.stem).toBe("TB-1 POWER");
+    const r = resolvePack({ release: RELEASE, parts: ONE, name: "BENCH-2 POWER" });
+    expect(r.ok && r.request.stem).toBe("BENCH-2 POWER");
   });
 
   it("REFUSES a name carrying a newline, rather than tidying it away", () => {
@@ -435,8 +445,9 @@ describe("the bed", () => {
   it("accepts both ENDS of the range -- the bounds are inclusive", () => {
     // The refusal list below only proves that values well outside the range are
     // refused. A `<=` where a `<` belongs would turn the smallest legitimate bed
-    // into a 400 and still pass every other test here.
-    for (const n of [BED_MIN, BED_MAX]) {
+    // into a 400 and still pass every other test here. The low end is the
+    // FLOOR (owner decision 1.5), not the grammar's `BED_MIN`.
+    for (const n of [BED_FLOOR_MM, BED_MAX]) {
       const r = resolvePack({
         release: RELEASE,
         parts: ONE,
@@ -474,5 +485,159 @@ describe("the bed", () => {
     expect(
       resolvePack({ release: RELEASE, parts: ONE, plate: "40x40" }),
     ).toEqual({ ok: false, problem: "bad-bed" });
+  });
+});
+
+describe("the bed floor (owner decision 1.5: 220 x 220)", () => {
+  it("is 220, and above the grammar's own minimum", () => {
+    expect(BED_FLOOR_MM).toBe(220);
+    expect(BED_FLOOR_MM).toBeGreaterThan(BED_MIN);
+  });
+
+  it("refuses a bed under it on EITHER axis, and says so specifically", () => {
+    for (const plate of ["180x180", "219x220", "220x219", `${BED_MIN}x${BED_MIN}`]) {
+      expect(resolvePack({ release: RELEASE, parts: ONE, plate }), plate).toEqual({
+        ok: false,
+        problem: "below-bed-floor",
+      });
+    }
+  });
+
+  it("CONTROL: under the GRAMMAR is still malformed, not merely small", () => {
+    expect(
+      resolvePack({ release: RELEASE, parts: ONE, plate: `${BED_MIN - 1}x300` }),
+    ).toEqual({ ok: false, problem: "bad-bed" });
+  });
+
+  it("is the default bed, so a link with no bed is never below it", () => {
+    const r = resolvePack({ release: RELEASE, parts: ONE });
+    expect(r.ok && r.request.bed).toEqual({ x: BED_FLOOR_MM, y: BED_FLOOR_MM });
+  });
+});
+
+describe("plate_index", () => {
+  it("reads a one-based plate number", () => {
+    const r = resolvePack({ release: RELEASE, parts: ONE, plateIndex: "12" });
+    expect(r.ok && r.request.plateIndex).toBe(12);
+  });
+
+  it("refuses zero, a sign, a leading zero, a decimal and four digits", () => {
+    for (const v of ["0", "-1", "+1", "01", "1.0", "1000", "", "x"]) {
+      expect(
+        resolvePack({ release: RELEASE, parts: ONE, plateIndex: v }),
+        JSON.stringify(v),
+      ).toEqual({ ok: false, problem: "bad-plate-index" });
+    }
+  });
+
+  it("refuses a plate of an STL request, which has no plates", () => {
+    expect(
+      resolvePack({ release: RELEASE, format: "stl", parts: ONE, plateIndex: "1" }),
+    ).toEqual({ ok: false, problem: "bad-plate-index" });
+  });
+});
+
+describe("the canonical query", () => {
+  const resolved = (input: Parameters<typeof resolvePack>[0]) => {
+    const r = resolvePack(input);
+    if (!r.ok) throw new Error(`did not resolve: ${r.problem}`);
+    return r.request;
+  };
+
+  it("sorts the parts, sums repeats and writes a quantity of one bare", () => {
+    const req = resolved({
+      release: RELEASE,
+      parts: `${TWO}:1,${ONE}:2,${TWO}:2`,
+      plate: "350x350",
+    });
+    expect(req.parts.map((p) => p.slug)).toEqual([ONE, TWO].sort());
+    // Ordered by SLUG, not by the token text: `25mm-ins` sorts before
+    // `25mm-ins-female`, but `25mm-ins:2` sorts after `25mm-ins-female:3`.
+    const qty: Record<string, number> = { [ONE]: 2, [TWO]: 3 };
+    expect(canonicalPackQuery(req)).toBe(
+      `release=${RELEASE}&parts=${[ONE, TWO]
+        .sort()
+        .map((s) => `${s}:${qty[s]}`)
+        .join(",")}&plate=350x350`,
+    );
+  });
+
+  it("states the default bed, and omits every other default", () => {
+    expect(canonicalPackQuery(resolved({ release: RELEASE, parts: ONE }))).toBe(
+      `release=${RELEASE}&parts=${ONE}&plate=220x220`,
+    );
+  });
+
+  it("spells format, name, bedFrom and plate_index in a fixed order", () => {
+    const req = resolved({
+      release: RELEASE,
+      parts: ONE,
+      plate: "256x256",
+      name: "BENCH-2 POWER",
+      bedFrom: "<img src=x>",
+      plateIndex: "3",
+    });
+    expect(canonicalPackQuery(req)).toBe(
+      `release=${RELEASE}&parts=${ONE}&plate=256x256&name=BENCH-2%20POWER&bedFrom=unknown&plate_index=3`,
+    );
+    const stl = resolved({ release: RELEASE, parts: ONE, format: "stl" });
+    expect(canonicalPackQuery(stl)).toBe(
+      `release=${RELEASE}&parts=${ONE}&plate=220x220&format=stl`,
+    );
+  });
+
+  it("spells src as the closed enum, after bedFrom and before plate_index (6.6)", () => {
+    const listed = resolved({ release: RELEASE, parts: ONE, src: "reddit", bedFrom: "account", plateIndex: "1" });
+    expect(canonicalPackQuery(listed)).toBe(
+      `release=${RELEASE}&parts=${ONE}&plate=220x220&bedFrom=account&src=reddit&plate_index=1`,
+    );
+    for (const hostile of ["Reddit", "<img src=x>", "a".repeat(5000), "hn "]) {
+      const req = resolved({ release: RELEASE, parts: ONE, src: hostile });
+      expect(req.src).toBe("unknown");
+      expect(canonicalPackQuery(req)).toBe(
+        `release=${RELEASE}&parts=${ONE}&plate=220x220&src=unknown`,
+      );
+    }
+    // Absent stays absent: links written before 6.6 are already canonical.
+    expect(resolved({ release: RELEASE, parts: ONE }).src).toBeUndefined();
+  });
+
+  it("is a FIXED POINT: resolving the canonical query gives it back", () => {
+    // What stops a redirect loop. A browser following the 307 sends these
+    // bytes back; if they resolved to a different canonical string, the route
+    // would redirect again, forever.
+    for (const input of [
+      { release: RELEASE, parts: `${TWO},${ONE}:3`, name: "ハニカム / tiles #1?" },
+      { release: RELEASE, parts: ONE, name: "a&b=c+d%20", bedFrom: "account" },
+      { release: RELEASE, parts: ONE, format: "stl", plate: "1000x300" },
+      { release: RELEASE, parts: ONE, bedFrom: "local", src: "<b>" },
+      { release: RELEASE, parts: ONE, src: "makerworld", plateIndex: "2" },
+    ]) {
+      const canon = canonicalPackQuery(resolved(input));
+      const url = new URL(`https://x.test${PACK_PATH}?${canon}`);
+      expect(url.search, "the URL parser must not respell it").toBe(`?${canon}`);
+      const q = url.searchParams;
+      const again = resolved({
+        release: q.get("release"),
+        format: q.get("format"),
+        parts: q.get("parts"),
+        plate: q.get("plate"),
+        name: q.get("name"),
+        bedFrom: q.get("bedFrom"),
+        src: q.get("src"),
+        plateIndex: q.get("plate_index"),
+      });
+      expect(canonicalPackQuery(again)).toBe(canon);
+    }
+  });
+
+  it("lists one link per plate, each canonical and numbered from 1", () => {
+    const req = resolved({ release: RELEASE, parts: `${ONE}:4`, plate: "300x300" });
+    const links = packPlateLinks(req, 3);
+    expect(links).toHaveLength(3);
+    links.forEach((link, i) => {
+      expect(link).toBe(`${PACK_PATH}?${canonicalPackQuery({ ...req, plateIndex: i + 1 })}`);
+      expect(link.endsWith(`&plate_index=${i + 1}`)).toBe(true);
+    });
   });
 });

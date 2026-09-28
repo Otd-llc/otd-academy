@@ -3,7 +3,9 @@
 // module may only export the handler names, and this is the part with rules.
 
 import { HEX_PART_SLUGS, isHexPartSlug } from "@/lib/hex-parts";
-import { resolvePackName } from "@/lib/hex-pack-name";
+import { BED_FLOOR_MM } from "@/lib/hex-release-tables";
+import { PACK_NAME_FALLBACK, resolvePackName } from "@/lib/hex-pack-name";
+import { readHexSource, type HexSource } from "@/lib/hex-attribution";
 
 /** Immutable release segment, e.g. `2026-07-31`. Same grammar as the proxy. */
 const RELEASE = /^\d{4}-\d{2}-\d{2}$/;
@@ -98,6 +100,50 @@ export const DEFAULT_BED: Readonly<Bed> = Object.freeze({ x: 220, y: 220 });
 export const BED_MIN = 100;
 export const BED_MAX = 1000;
 
+/** The smallest bed the v2 parts are packed for: 220 x 220 mm (owner decision
+ *  1.5, 2026-09-24; the A1 mini and the Prusa Mini are out).
+ *
+ *  A SEPARATE NUMBER FROM `BED_MIN`, and the difference is who is at fault.
+ *  `BED_MIN..BED_MAX` is the GRAMMAR: a bed outside it is malformed and gets the
+ *  flat 400. A bed inside the grammar but under this floor is a real printer we
+ *  do not support, so it gets a 400 that SAYS so. `BED_MIN` keeps its old value
+ *  because the account setting and the embed protocol validate against it.
+ *
+ *  GENERATED with the tables (4.6), so the number and the parts measured
+ *  against it cannot drift: the hex-cluster generator refuses a release with a
+ *  part that does not clear it with the packer's gap on both sides. The widest
+ *  v2 part is `hex-jig-tolerance-ladder` at 210 mm, 218 mm with the gaps. */
+export { BED_FLOOR_MM };
+
+/** Where the configurator got the bed it is asking us to pack for. Analytics
+ *  only -- it changes no byte of the response. */
+export const BED_SOURCES = ["account", "local", "default"] as const;
+export type BedSource = (typeof BED_SOURCES)[number] | "unknown";
+
+/**
+ * Read `bedFrom` into the enum, and never pass the raw string through.
+ *
+ * An unrecognised value becomes the fixed token `"unknown"`. A query parameter
+ * forwarded verbatim into PostHog is an attacker-chosen property value of
+ * unbounded cardinality. NOT a refusal: this field changes no byte of the
+ * response, and the configurator deploys separately, so a fourth value we have
+ * not shipped yet must not deny anyone their files. The canonical URL spells it
+ * as the enum value, so an unknown value is redirected to `bedFrom=unknown`.
+ */
+export function readBedSource(
+  raw: string | null | undefined,
+): BedSource | undefined {
+  if (raw == null || raw === "") return undefined;
+  return (BED_SOURCES as readonly string[]).includes(raw)
+    ? (raw as BedSource)
+    : "unknown";
+}
+
+/** `plate_index`: one-based, no sign, no leading zero, at most three digits
+ *  (the instance cap bounds a plan at 250 plates). Bounded for the same reason
+ *  the quantity is: every spelling is a cache key. */
+const PLATE_INDEX_RE = /^[1-9]\d{0,2}$/;
+
 /** Two integers and nothing else -- no signs, no decimals, no third dimension.
  *  `{1,4}` bounds the string before `Number` ever sees it. */
 const BED_RE = /^(\d{1,4})x(\d{1,4})$/;
@@ -107,6 +153,19 @@ export type PackRequest = {
   format: PackFormat;
   parts: PackPart[];
   bed: Bed;
+  /** Where the bed came from, as the enum. Analytics and the canonical URL. */
+  bedFrom?: BedSource;
+  /** Where the download was sent from, as the `HexSource` enum (6.6).
+   *  Analytics and the canonical URL; absent when the caller named none. */
+  src?: HexSource;
+  /** One-based plate to serve on its own, or absent for the whole pack. */
+  plateIndex?: number;
+  /** A SAVED drawing's share code, so the README can say where the build
+   *  reopens (7.6 README pick A, owner's option 1 of 2026-09-28: saved builds
+   *  only). Never the build itself: an unsaved build's payload lives in a URL
+   *  fragment precisely so it reaches no access log, and a query parameter
+   *  would put it in every one. Absent for an unsaved build. */
+  build?: string;
   /** The build's own name, already sanitised into something a filesystem will
    *  accept -- `OTD-Hex-Cluster` when the caller named nothing. Every filename
    *  this request produces, inside the archive and out, is built from this ONE
@@ -119,6 +178,8 @@ export type PackProblem =
   | "bad-release"
   | "bad-format"
   | "bad-bed"
+  | "below-bed-floor"
+  | "bad-plate-index"
   | "bad-name"
   | "empty"
   | "too-many"
@@ -186,6 +247,10 @@ export function resolvePack(input: {
   parts?: string | null;
   plate?: string | null;
   name?: string | null;
+  bedFrom?: string | null;
+  src?: string | null;
+  plateIndex?: string | null;
+  build?: string | null;
 }): PackResolution {
   const release = input.release ?? "";
   if (!RELEASE.test(release)) return { ok: false, problem: "bad-release" };
@@ -197,6 +262,20 @@ export function resolvePack(input: {
 
   const bed = parseBed(input.plate);
   if (bed === null) return { ok: false, problem: "bad-bed" };
+  // Inside the grammar but under the floor: a real bed we do not pack for.
+  if (bed.x < BED_FLOOR_MM || bed.y < BED_FLOOR_MM) {
+    return { ok: false, problem: "below-bed-floor" };
+  }
+
+  let plateIndex: number | undefined;
+  if (input.plateIndex != null) {
+    if (!PLATE_INDEX_RE.test(input.plateIndex)) {
+      return { ok: false, problem: "bad-plate-index" };
+    }
+    plateIndex = Number(input.plateIndex);
+    // A plate is a 3MF thing: the loose STL zip has no plates to index.
+    if (format !== "3mf") return { ok: false, problem: "bad-plate-index" };
+  }
 
   // THE NAME IS VALIDATED HERE, with every other field, and not at the point it
   // is written into a header. That is the whole reason it goes through
@@ -220,7 +299,93 @@ export function resolvePack(input: {
   if (!parts.every((p) => isHexPartSlug(p.slug)))
     return { ok: false, problem: "unknown-part" };
 
-  return { ok: true, request: { release, format, parts, bed, stem: name.stem } };
+  // SORTED, so the canonical URL has one spelling of a selection. Nothing
+  // downstream depends on the order the caller wrote: the packer sorts its own
+  // items, and the filename counts.
+  parts.sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0));
+
+  const bedFrom = readBedSource(input.bedFrom);
+  const src = readHexSource(input.src);
+  // DROPPED, not refused, when it is not a share code: the pack is the same
+  // pack without it, and the README simply carries no link. The canonical
+  // redirect then removes it from the URL. No database read -- a made-up code
+  // costs nothing and yields a dead link in the requester's own README.
+  const build =
+    input.build != null && BUILD_CODE_RE.test(input.build) ? input.build : undefined;
+  return {
+    ok: true,
+    request: {
+      release,
+      format,
+      parts,
+      bed,
+      stem: name.stem,
+      ...(bedFrom === undefined ? {} : { bedFrom }),
+      ...(src === undefined ? {} : { src }),
+      ...(plateIndex === undefined ? {} : { plateIndex }),
+      ...(build === undefined ? {} : { build }),
+    },
+  };
+}
+
+/** The route this module describes requests for. */
+export const PACK_PATH = "/api/printable-pack";
+
+/** A saved drawing's share code: `SHARE_CODE_LENGTH` (22) base-62 characters,
+ *  as `hex-cluster.ts` mints them. `hex-pack.test.ts` pins the two together. */
+export const BUILD_CODE_RE = /^[0-9A-Za-z]{22}$/;
+
+/** Percent-encode a query value, leaving `:` and `,` readable.
+ *
+ *  Only characters a WHATWG URL parser leaves untouched in a query come out of
+ *  this, which is what makes the canonical URL a FIXED POINT: a browser that
+ *  follows the redirect sends back exactly these bytes, so the second request
+ *  compares equal and is served instead of redirected again. */
+function q(value: string): string {
+  return encodeURIComponent(value).replace(/%3A/g, ":").replace(/%2C/g, ",");
+}
+
+/**
+ * The ONE query string a resolved request is served under.
+ *
+ * Built from `resolvePack`'s output and nothing else, so two URLs that mean the
+ * same pack produce the same string, and the route 307s every other spelling to
+ * it. That is what lets a plate URL carry a year-long CDN lifetime: the cache
+ * key is the request's meaning, not whatever order a caller typed it in.
+ *
+ * Fixed order: `release`, `parts` (sorted, a quantity of one written bare),
+ * `plate`, then only when they differ from the default: `format` (only `stl`),
+ * `name` (the sanitised stem, omitted when it is the fallback), `bedFrom` (the
+ * enum), `src` (the enum), `build` (a saved drawing's code), `plate_index`.
+ */
+export function canonicalPackQuery(req: PackRequest): string {
+  const parts = req.parts
+    .map((p) => (p.qty === 1 ? p.slug : `${p.slug}:${p.qty}`))
+    .join(",");
+  const out = [
+    `release=${q(req.release)}`,
+    `parts=${q(parts)}`,
+    `plate=${req.bed.x}x${req.bed.y}`,
+  ];
+  if (req.format !== "3mf") out.push(`format=${req.format}`);
+  if (req.stem !== PACK_NAME_FALLBACK) out.push(`name=${q(req.stem)}`);
+  if (req.bedFrom !== undefined) out.push(`bedFrom=${req.bedFrom}`);
+  if (req.src !== undefined) out.push(`src=${req.src}`);
+  if (req.build !== undefined) out.push(`build=${req.build}`);
+  if (req.plateIndex !== undefined) out.push(`plate_index=${req.plateIndex}`);
+  return out.join("&");
+}
+
+/** The canonical, host-free URL of each plate of a plan, in order. What the
+ *  over-budget 400 lists, and what the configurator's download links follow. */
+export function packPlateLinks(req: PackRequest, plateCount: number): string[] {
+  const links: string[] = [];
+  for (let i = 1; i <= plateCount; i++) {
+    links.push(
+      `${PACK_PATH}?${canonicalPackQuery({ ...req, format: "3mf", plateIndex: i })}`,
+    );
+  }
+  return links;
 }
 
 /** How many physical objects a pack contains, which is not the same as how many

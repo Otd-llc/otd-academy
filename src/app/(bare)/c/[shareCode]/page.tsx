@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/PageHeader";
-import {
-  loadClusterByShareCode,
-  type PublicCluster,
-} from "@/lib/hex-cluster-load";
+import { loadClusterByShareCode } from "@/lib/hex-cluster-load";
+import { sharedView } from "@/lib/hex-share-view";
+import { savedBuildPath } from "@/lib/hex-return-link";
 
 // The public record for one saved hex cluster — what a printed build sheet's
 // QR points at.
@@ -18,6 +17,12 @@ import {
 // the bill of materials against this page. Without the summary they have
 // nothing to compare, and the printed number becomes a claim rather than a
 // reference.
+//
+// A ROW THAT CANNOT BE READ gets one generic 200 page, "This build can't be
+// opened", decided in `sharedView` (@/lib/hex-share-view). Not `notFound()`: on
+// a prerendered route that serves the 404 BODY with status 200 anyway, and a
+// scanned sheet deserves a sentence, not a stack. Every string the page shows is
+// sanitised and length-capped there too.
 //
 // noindex, and robots.ts disallows /c/ — WITH the trailing slash, since
 // Disallow is a prefix match and bare /c would de-index /courses and /checkout.
@@ -48,8 +53,53 @@ export const metadata: Metadata = {
  * UNCONTROLLED on a build that is saved) is now a compile error rather than a
  * silent one.
  */
-function openInConfigurator(c: PublicCluster): string {
-  return `/hex?open=1&build=${encodeURIComponent(c.shareCode)}`;
+function openInConfigurator(shareCode: string): string {
+  return savedBuildPath(shareCode);
+}
+
+const SECTION = "mt-10 border-t border-panel-border/60 pt-6";
+const EYEBROW =
+  "font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold";
+const TH = "py-1 pr-3 font-normal";
+const TD = "py-1.5 pr-3";
+
+/** A table of numbered lines: the hub halves and the bought hardware. Their
+ *  item numbers continue the ballooned bill's, exactly as the sheet prints
+ *  them, so a reader can run a finger down paper and page together. */
+function SupplyTable({
+  title,
+  lines,
+  showSource,
+}: {
+  title: string;
+  lines: ReadonlyArray<{ item: number; qty: number; label: string; sourceFile?: string }>;
+  showSource: boolean;
+}) {
+  return (
+    <section className={SECTION}>
+      <p className={EYEBROW}>▸ {title}</p>
+      <table className="mt-3 w-full text-left">
+        <thead>
+          <tr className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
+            <th className={TH}>Item</th>
+            <th className={TH}>Qty</th>
+            <th className={TH}>Part</th>
+            {showSource ? <th className="py-1 font-normal">Source file</th> : null}
+          </tr>
+        </thead>
+        <tbody className="font-mono text-xs text-title">
+          {lines.map((line, i) => (
+            <tr key={`${line.item}-${i}`} className="border-t border-panel-border/40">
+              <td className={TD}>{line.item}</td>
+              <td className={TD}>{line.qty}×</td>
+              <td className={TD}>{line.label}</td>
+              {showSource ? <td className="py-1.5">{line.sourceFile}</td> : null}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -64,9 +114,9 @@ export default async function SharedClusterPage({
   params: Promise<{ shareCode: string }>;
 }) {
   const { shareCode } = await params;
-  const result = await loadClusterByShareCode(shareCode);
+  const view = sharedView(await loadClusterByShareCode(shareCode));
 
-  if (result.outcome === "unknown-code") {
+  if (view.kind === "unknown-code") {
     return (
       <Shell>
         <PageHeader
@@ -78,7 +128,7 @@ export default async function SharedClusterPage({
     );
   }
 
-  if (result.outcome === "archived") {
+  if (view.kind === "archived") {
     return (
       <Shell>
         <PageHeader
@@ -90,7 +140,19 @@ export default async function SharedClusterPage({
     );
   }
 
-  const c = result.cluster;
+  if (view.kind === "unreadable") {
+    return (
+      <Shell>
+        <PageHeader
+          eyebrow="SAVED BUILD"
+          title="This build can't be opened."
+          lead="The saved record for this link could not be read. The sheet you are holding is still a record of what was built."
+        />
+      </Shell>
+    );
+  }
+
+  const c = view.build;
   const s = c.summary;
 
   return (
@@ -98,12 +160,12 @@ export default async function SharedClusterPage({
       <PageHeader
         eyebrow="SAVED BUILD"
         title={c.drawingLabel}
-        lead={`Rev ${c.revLabel} · ${c.nameAtSave}`}
+        lead={`Rev ${c.revLabel} · ${c.name}`}
         meta={[
           { label: "Revision", value: c.revLabel },
-          { label: "Saved", value: c.savedAt.slice(0, 10) },
-          { label: "Cells", value: String(s?.cells ?? "·") },
-          { label: "Pieces", value: String(s?.pieces ?? "·") },
+          { label: "Saved", value: c.savedDate },
+          { label: "Cells", value: String(s.cells) },
+          { label: "Pieces", value: String(s.pieces) },
         ]}
       />
 
@@ -112,7 +174,7 @@ export default async function SharedClusterPage({
           ▸ Envelope
         </p>
         <p className="mt-2 font-mono text-sm text-title">
-          {s?.envelope
+          {s.envelope
             ? `${s.envelope.mm.join(" × ")} mm  ·  ${s.envelope.in.join(" × ")} in`
             : "·"}
         </p>
@@ -132,8 +194,8 @@ export default async function SharedClusterPage({
             </tr>
           </thead>
           <tbody className="font-mono text-xs text-title">
-            {(s?.bom ?? []).map((line) => (
-              <tr key={line.item} className="border-t border-panel-border/40">
+            {s.bom.map((line, i) => (
+              <tr key={`${line.item}-${i}`} className="border-t border-panel-border/40">
                 <td className="py-1.5 pr-3">{line.item}</td>
                 <td className="py-1.5 pr-3">{line.qty}×</td>
                 <td className="py-1.5 pr-3">{line.label}</td>
@@ -145,14 +207,62 @@ export default async function SharedClusterPage({
           </tbody>
         </table>
         <p className="mt-3 font-serif text-xs text-muted">
-          {s?.caps ?? 0} caps · {s?.spikes ?? 0} spikes
+          {s.caps} caps · {s.spikes} spikes
         </p>
       </section>
 
-      {result.outcome === "account-deleted" ? null : (
+      {/* THE REST OF THE BUILD (decision 9): what the drawing cannot balloon.
+          Each section shows only when the row has it; a build saved before
+          these existed shows the bill alone, as it always did. */}
+      {s.hubHalves && s.hubHalves.length > 0 ? (
+        <SupplyTable title="Hub halves" lines={s.hubHalves} showSource />
+      ) : null}
+
+      {s.hardware && s.hardware.length > 0 ? (
+        <SupplyTable title="Bought hardware" lines={s.hardware} showSource={false} />
+      ) : null}
+
+      {s.pipe ? (
+        <section className={SECTION}>
+          <p className={EYEBROW}>▸ PVC pipe</p>
+          <ul className="mt-2 space-y-1 font-mono text-xs text-title">
+            {s.pipe.buy.map((b, i) => (
+              <li key={`buy-${i}`}>{b}</li>
+            ))}
+          </ul>
+          {s.pipe.sticks.length > 0 ? (
+            <ol className="mt-3 space-y-1 font-mono text-xs text-title">
+              {s.pipe.sticks.map((st, i) => (
+                <li key={`stick-${i}`}>
+                  {st.flex ? "Roll" : "Stick"} {i + 1} · cut {st.cuts.join(", ")} mm · offcut{" "}
+                  {st.offcutMm} mm
+                </li>
+              ))}
+            </ol>
+          ) : null}
+          {s.pipe.warnings.length > 0 ? (
+            <ul className="mt-3 space-y-1 font-serif text-xs text-title">
+              {s.pipe.warnings.map((w, i) => (
+                <li key={`warn-${i}`}>
+                  <strong>{w}</strong>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {s.pipe.notes.length > 0 ? (
+            <ul className="mt-3 space-y-1 font-serif text-xs text-muted">
+              {s.pipe.notes.map((n, i) => (
+                <li key={`note-${i}`}>{n}</li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
+
+      {!view.canOpen ? null : (
         <section className="mt-10 border-t border-panel-border/60 pt-6">
           <a
-            href={openInConfigurator(c)}
+            href={openInConfigurator(c.shareCode)}
             className="font-mono text-[11px] uppercase tracking-[0.16em] text-command-gold underline underline-offset-4"
           >
             Open in the configurator

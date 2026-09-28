@@ -1,27 +1,27 @@
-// The generated outline + family table.
+// The outline table and the display families the package thumbnail draws with.
 //
-// A generated file is only as good as the thing that checks it, and the checks
-// that can run HERE are not the ones the generator runs: it has the meshes and
-// can compare a traced shape against the solid it came from; this repo has only
-// the committed numbers. So these rows hold the table to things it cannot
-// satisfy by accident -- the published slug list, the release the app ships, the
-// six families the vocabulary defines, and the geometric invariant that a
-// silhouette is exactly as big as the part casting it.
-//
-// The reason it is worth this much: the failure mode is SILENT AND PRETTY. A
-// table of outlines that is subtly wrong still draws a picture. It draws the
-// wrong picture, inside a file somebody downloaded, and nothing about it points
-// back at a committed data file.
+// The v2 outline table is EMPTY (see `hex-outlines.ts`): v1's silhouettes were
+// traced off v1 meshes, which left the live catalogue with launch readiness 4.6,
+// and the v2 tables are generated from the release manifest, which has no
+// meshes to trace. The shape invariants below still run over whatever rows the
+// table holds, so a future v2 outline table lands already guarded. The rows that
+// pinned v1 measurements went with the v1 parts they measured.
 import { describe, expect, it } from "vitest";
 
 import { HEX_PART_BOX } from "@/lib/hex-geometry";
 import {
   HEX_OUTLINE_RELEASE,
   HEX_OUTLINE_SCALE,
-  HEX_PART_FAMILY,
   HEX_PART_OUTLINE,
 } from "@/lib/hex-outlines";
-import { HEX_PART_FAMILIES, HEX_PART_SLUGS } from "@/lib/hex-parts";
+import {
+  HEX_DISPLAY_FAMILIES,
+  HEX_DISPLAY_FAMILY_OF,
+  HEX_PART_FAMILIES,
+  HEX_PART_SLUGS,
+  displayFamilyOf,
+} from "@/lib/hex-parts";
+import { HEX_PUBLISHED_RECORD_SLUGS } from "@/lib/hex-published-record";
 import { HEX_RELEASE } from "@/lib/hex-spec";
 
 /** Twice the signed area of a closed flat ring. Holes come out of the tracer
@@ -43,68 +43,18 @@ function fillFraction(slug: string): number {
 }
 
 describe("the outline table", () => {
-  it("was traced for the release the app publishes", () => {
-    // The staleness this file cannot notice about itself, and the same tripwire
-    // `hex-geometry.test.ts` carries: bumping HEX_RELEASE without re-running the
-    // generator leaves every shape here describing the previous cut, and the
-    // symptom is a thumbnail drawing last month's parts.
+  it("describes the release the app publishes", () => {
     expect(HEX_OUTLINE_RELEASE).toBe(HEX_RELEASE);
   });
 
-  it("covers every published slug, from both sides", () => {
-    // A slug with no outline is a part the thumbnail falls back to drawing as a
-    // rectangle -- silently, because the fallback is deliberate and exists for
-    // placements that are not ours. That is exactly what makes the gap invisible
-    // at runtime and worth asserting here.
-    for (const slug of HEX_PART_SLUGS) {
-      expect(HEX_PART_OUTLINE[slug], `no outline for ${slug}`).toBeDefined();
-      expect(HEX_PART_OUTLINE[slug].length, `${slug} has no rings`).toBeGreaterThan(0);
-      expect(HEX_PART_FAMILY[slug], `no family for ${slug}`).toBeDefined();
+  it("outlines only parts in the release, and only parts with a box", () => {
+    // A row for a part outside the release is a silhouette no plate can draw:
+    // exactly what the v1 rows became when v1 left the catalogue.
+    const live = new Set<string>(HEX_PART_SLUGS);
+    for (const slug of Object.keys(HEX_PART_OUTLINE)) {
+      expect(live.has(slug), slug).toBe(true);
+      expect(HEX_PART_BOX[slug], slug).toBeDefined();
     }
-    // And the same keys as the geometry table, so neither can grow a part the
-    // other has never heard of.
-    expect(Object.keys(HEX_PART_OUTLINE).sort()).toEqual(
-      Object.keys(HEX_PART_BOX).sort(),
-    );
-    expect(Object.keys(HEX_PART_FAMILY).sort()).toEqual(
-      Object.keys(HEX_PART_BOX).sort(),
-    );
-  });
-
-  it("gives every part one of the six families, and no other value", () => {
-    const known = new Set<string>(HEX_PART_FAMILIES);
-    for (const [slug, family] of Object.entries(HEX_PART_FAMILY)) {
-      expect(known.has(family), `${slug} is family "${family}"`).toBe(true);
-    }
-  });
-
-  it("puts a real number of parts in EVERY family, at the counts measured", () => {
-    // THE ROW THAT CAUGHT A REAL BUG. The lid rule was written
-    // `Hex-TB-Carrier-.*-Parts-Tray-Lid`, which needs a middle segment -- so it
-    // matched the four half-cell lids and MISSED `Hex-TB-Carrier-Parts-Tray-Lid`,
-    // which fell through to the next rule and became an insert. Every family was
-    // still occupied, every slug still had a family, and the only visible symptom
-    // was one hexagon painted one rung too dark.
-    //
-    // So the counts are pinned, not just the emptiness. They are measurements off
-    // the 2026-08-03 set and a re-cut that legitimately changes one fails here --
-    // which is the intended behaviour, the same argument the pinned `z0` in
-    // `hex-geometry.test.ts` is made on.
-    const counts: Record<string, number> = {};
-    for (const family of Object.values(HEX_PART_FAMILY)) {
-      counts[family] = (counts[family] ?? 0) + 1;
-    }
-    expect(counts).toEqual({
-      base: 17, // Hex-TB-Main + 16 half tiles
-      insert: 10, // 5 carriers x {solid, parts tray}
-      pcb: 5, // 5 carrier parts-tray lids
-      cap: 14, // 12 dovetail caps + 2 corner caps
-      spike: 4, // solid, ball joint, 2 platforms
-      accessory: 3, // ball platform, 2 ball zips
-    });
-    // Summing to the whole set is not implied by the six numbers above -- it is
-    // implied by them AND by nothing else existing, which is what this adds.
-    expect(Object.keys(HEX_PART_FAMILY)).toHaveLength(HEX_PART_SLUGS.length);
   });
 
   it("emits rings that are closed, integral, and inside the coordinate space", () => {
@@ -162,7 +112,7 @@ describe("the outline table", () => {
     //
     // The point budget is the other half. A simplifier that stops simplifying is
     // SILENT -- the outline is right, and twenty times bigger and slower. The
-    // busiest part on this set is `hex-tb-main` at 50 points.
+    // budget below is the ceiling every part in the set must stay under.
     for (const slug of Object.keys(HEX_PART_OUTLINE)) {
       const fill = fillFraction(slug);
       expect(fill, `${slug} fill`).toBeGreaterThan(0.3);
@@ -172,44 +122,34 @@ describe("the outline table", () => {
     }
   });
 
-  it("is SILHOUETTES and not bounding boxes", () => {
-    // THE ONE THAT MATTERS, and the reason the whole table exists. A table of
-    // four-point rings covering the full box would pass every row above: it
-    // reaches all four sides, it fills 100%, its rings are closed and integral.
-    // It would also draw exactly the picture this replaced.
-    //
-    // So: most parts must be concave, and the ones that really ARE rectangles
-    // are named rather than assumed.
-    const trueRectangles = new Set([
-      "dovetail-cap-double-f-solid",
-      "dovetail-cap-double-m-solid",
-      "dovetail-cap-single-f-solid",
-      "dovetail-cap-single-m-solid",
-    ]);
-    const shaped = Object.keys(HEX_PART_OUTLINE).filter(
-      (slug) => !trueRectangles.has(slug),
+});
+
+describe("the display families", () => {
+  it("fold every release family onto one of the six rungs", () => {
+    const rungs = new Set<string>(HEX_DISPLAY_FAMILIES);
+    expect(Object.keys(HEX_DISPLAY_FAMILY_OF).sort()).toEqual(
+      [...HEX_PART_FAMILIES].sort(),
     );
-    for (const slug of shaped) {
-      expect(fillFraction(slug), `${slug} fills its whole box`).toBeLessThan(0.95);
-    }
-    // CONTROL: the parts that are genuinely rectangles are still drawn as
-    // rectangles, so "less than its box" is not being satisfied by a table that
-    // shrank everything.
-    for (const slug of trueRectangles) {
-      expect(HEX_PART_OUTLINE[slug]).toHaveLength(1);
-      expect(HEX_PART_OUTLINE[slug][0]).toHaveLength(8); // four points
-      expect(fillFraction(slug), `${slug}`).toBeGreaterThan(0.99);
+    for (const [family, rung] of Object.entries(HEX_DISPLAY_FAMILY_OF)) {
+      expect(rungs.has(rung), `${family} -> ${rung}`).toBe(true);
     }
   });
 
-  it("keeps the through-holes that tell two caps apart", () => {
-    // A hex tile and a carrier tray are told apart by their boundary; a solid cap
-    // and a 3H cap are told apart ONLY by holes. A representation that carried
-    // just the outer boundary -- a convex hull, or the outer ring alone -- would
-    // draw these two identically, which is the specific failure this pins.
-    expect(HEX_PART_OUTLINE["dovetail-cap-double-f-solid"]).toHaveLength(1);
-    expect(HEX_PART_OUTLINE["dovetail-cap-double-f-1h"]).toHaveLength(2);
-    expect(HEX_PART_OUTLINE["dovetail-cap-double-f-2h"]).toHaveLength(3);
-    expect(HEX_PART_OUTLINE["dovetail-cap-double-f-3h"]).toHaveLength(4);
+  it("give every released part a display family, and none to a stranger", () => {
+    for (const slug of HEX_PART_SLUGS) {
+      expect(displayFamilyOf(slug), slug).toBeDefined();
+    }
+    // A part that is not in the release (here, a v1 slug from the published
+    // record) has no display family: membership, not a name rule.
+    expect(displayFamilyOf(HEX_PUBLISHED_RECORD_SLUGS[0])).toBeUndefined();
+  });
+
+  it("draw the parts that are what they say as that, and cells' fittings as inserts", () => {
+    expect(displayFamilyOf("hex-main")).toBe("base");
+    expect(displayFamilyOf("hex-spike-solid")).toBe("spike");
+    expect(displayFamilyOf("hex-cap-edge-1h-f")).toBe("cap");
+    expect(displayFamilyOf("hex-acc-hook")).toBe("accessory");
+    expect(displayFamilyOf("hex-main-cover")).toBe("insert");
+    expect(displayFamilyOf("hex-main-stack-collar")).toBe("insert");
   });
 });

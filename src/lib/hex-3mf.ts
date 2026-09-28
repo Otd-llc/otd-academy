@@ -166,7 +166,7 @@ export { escapeXml } from "@/lib/hex-xml";
  * decimals, "a tenth of a micron, orders of magnitude below anything an FDM
  * printer can express". True of a coordinate near 44 mm, where four decimals is
  * eight significant figures. FALSE of the Z translation, which is small by
- * construction: `Hex-TB-Spike-Ball-Joint` seats with `tz = -0.144338`, and four
+ * construction: a published ball-joint spike seated with `tz = -0.144338`, and four
  * decimals wrote `-0.1443`, leaving the part 3.8e-5 mm above a bed every other
  * object on the plate was sitting exactly on. Creality Print reads one object at
  * a different height as a separate OBJECT and offers to fuse the whole plate
@@ -320,8 +320,9 @@ export type PlateMeta = {
  *
  * The SLUG identifies the mesh; the placement's `name` is what the object is
  * called. They are not interchangeable -- the slug is a lossy projection of the
- * published filename -- so a plate names its parts `Hex-TB-Main`, the way the
- * reference plate does and the way the download page lists them.
+ * published filename -- so a plate names its parts by `HEX_PART_NAME`, the way
+ * the reference plate does and the way the download page lists them. (In v2 the
+ * published name equals the slug; the contract is still the name field.)
  */
 /**
  * `Metadata/model_settings.config` -- the per-object print settings, in the
@@ -520,8 +521,10 @@ function upwardFacetIndex(model: string): number {
  * regeneration so a re-cut cannot land without it: it walks every part on the support
  * list against the REAL published meshes, recomputes the painted facet's normal
  * from the emitted bytes, and exits non-zero if any part paints nothing, paints
- * more than once, or paints something not facing up. 27 parts, all passing at
- * normal.z 0.999-1.000 on release 2026-08-17. A re-orientation changes which
+ * more than once, or paints something not facing up. TODO(4.7): the v2 support
+ * list is still UNKNOWN (`hex-support.ts`), so until it lands there is nothing
+ * on it to check; the v1 run this used to cite does not describe v2 parts. A
+ * re-orientation changes which
  * facets face up, which is why the check is CHAINED to the regeneration rather
  * than written down as something to remember.
  */
@@ -621,8 +624,8 @@ export async function buildPlate3mf(
     // ONLY the parts the SLICER said need support, from `hex-support.ts`. A
     // tripwire on a part that needs nothing would fire the modal for a plate
     // that is already correct -- a false alarm that trains people to switch
-    // support on globally, which is wrong for the 28 parts measured not to
-    // need it. So the paint follows the collected list, never a guess.
+    // support on globally, which is wrong for every part the slice measured
+    // not to need it. So the paint follows the collected list, never a guess.
     const needsPaint = PART_REMEDY[p.slug]?.support === true;
     // Cura's per-object surface is narrower than the others -- no brim at all --
     // so the rows are filtered by what Cura can actually apply, from the one
@@ -651,10 +654,10 @@ export async function buildPlate3mf(
     });
     // The translation that carries the mesh's OWN minimum corner to the target,
     // and drops the part onto z = 0 whatever its authored height. `x - x0`, not
-    // `x`: a mesh carries its own origin, so `hex-tb-main` (x0 = -43.8786) would
-    // land 43.8786 mm left of where it was asked for. `-z0` is not decorative
-    // either -- `hex-tb-spike-ball-joint` rests 0.144338 mm above its own
-    // origin, and without the term it prints floating.
+    // `x`: a mesh carries its own origin, so a part whose box starts at
+    // x0 = -43.8786 would land 43.8786 mm left of where it was asked for. `-z0`
+    // is not decorative either -- a published spike rested 0.144338 mm above its
+    // own origin, and without the term it prints floating.
     //
     // THE SEAT IS EXACT, and it is exact by ARITHMETIC rather than by tolerance.
     // The slicer computes each vertex plus this translation; the mesh's lowest

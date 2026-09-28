@@ -1,74 +1,32 @@
-﻿// The published part list, as the SLUGS the R2 keys actually use.
+// The released part list, as the SLUGS the R2 keys actually use.
 //
-// Generated from `build/printables/manifest.json` in the hex-cluster repo,
-// minus the parts withheld on disclosure grounds, and sorted. Regenerate it
-// alongside HEX_RELEASE whenever the meshes are re-cut.
+// GENERATED UPSTREAM. The list itself lives in `hex-release-tables.ts`, written
+// by hex-cluster's `tools/gen_release_tables.py` from `tools/parts-licence.json`
+// and the release manifest (launch readiness 4.6): every `cc-by` part, minus the
+// parts owner decision 1.6 withholds. This module is the stable name the pack
+// route and its tests import. The v1 names are not here: they are the published
+// record in `hex-published-record.ts`, and nothing live reads them.
 //
 // WHY A LIST AT ALL, when the download proxy already validates a name grammar.
 // The grammar answers "is this a well-formed slug", which is enough when the
 // caller names one file and a miss is a 404. The custom pack endpoint takes
-// FIFTY-THREE names at once and fans them out into R2 reads, so a grammar-only
+// hundreds of names at once and fans them out into R2 reads, so a grammar-only
 // check would let a caller spray arbitrary well-formed slugs and use the
 // response as a probe for what exists. Membership answers "is this one of ours",
 // which is the question that actually bounds the work.
-//
-// It is also what lets the pack README list what is inside without a round trip
-// to the manifest, which does not ship with the app.
-export const HEX_PART_SLUGS = [
-  "dovetail-cap-double-f-1h",
-  "dovetail-cap-double-f-2h",
-  "dovetail-cap-double-f-3h",
-  "dovetail-cap-double-f-solid",
-  "dovetail-cap-double-m-1h",
-  "dovetail-cap-double-m-2h",
-  "dovetail-cap-double-m-3h",
-  "dovetail-cap-double-m-solid",
-  "dovetail-cap-single-f-1h",
-  "dovetail-cap-single-f-solid",
-  "dovetail-cap-single-m-1h",
-  "dovetail-cap-single-m-solid",
-  "hex-tb-carrier-bot-parts-tray",
-  "hex-tb-carrier-bot-parts-tray-lid",
-  "hex-tb-carrier-bot-solid",
-  "hex-tb-carrier-left-parts-tray",
-  "hex-tb-carrier-left-parts-tray-lid",
-  "hex-tb-carrier-left-solid",
-  "hex-tb-carrier-parts-tray",
-  "hex-tb-carrier-parts-tray-lid",
-  "hex-tb-carrier-right-parts-tray",
-  "hex-tb-carrier-right-parts-tray-lid",
-  "hex-tb-carrier-right-solid",
-  "hex-tb-carrier-solid",
-  "hex-tb-carrier-top-parts-tray",
-  "hex-tb-carrier-top-parts-tray-lid",
-  "hex-tb-carrier-top-solid",
-  "hex-tb-corner-f-solid",
-  "hex-tb-corner-m-solid",
-  "hex-tb-half-bot-1h",
-  "hex-tb-half-bot-2h",
-  "hex-tb-half-bot-3h",
-  "hex-tb-half-bot-solid",
-  "hex-tb-half-left-1h",
-  "hex-tb-half-left-2h",
-  "hex-tb-half-left-3h",
-  "hex-tb-half-left-solid",
-  "hex-tb-half-right-1h",
-  "hex-tb-half-right-2h",
-  "hex-tb-half-right-3h",
-  "hex-tb-half-right-solid",
-  "hex-tb-half-top-1h",
-  "hex-tb-half-top-2h",
-  "hex-tb-half-top-3h",
-  "hex-tb-half-top-solid",
-  "hex-tb-main",
-  "hex-tb-spike-ball-joint",
-  "hex-tb-spike-ball-platform-solid",
-  "hex-tb-spike-ball-zip-1h",
-  "hex-tb-spike-ball-zip-single",
-  "hex-tb-spike-platform-lrg",
-  "hex-tb-spike-platform-sm",
-  "hex-tb-spike-solid",
-] as const;
+import {
+  HEX_PART_FAMILY,
+  HEX_PART_SLUGS,
+  type HexReleaseFamily,
+} from "@/lib/hex-release-tables";
+
+export {
+  HEX_PART_COUNT,
+  HEX_PART_FAMILIES,
+  HEX_PART_FAMILY,
+  HEX_PART_SLUGS,
+  type HexReleaseFamily,
+} from "@/lib/hex-release-tables";
 
 export type HexPartSlug = (typeof HEX_PART_SLUGS)[number];
 
@@ -79,22 +37,17 @@ export function isHexPartSlug(value: string): value is HexPartSlug {
   return SLUG_SET.has(value);
 }
 
-/** What CLASS of part a slug is.
+/** What CLASS of part a slug is DRAWN as -- the thumbnail's vocabulary.
  *
  *  THE SAME SIX NAMES the configurator's `PartFamily` uses
  *  (`bs-cap-hex/src/hex/export/bom.ts`), spelled identically on purpose: that is
  *  the vocabulary the BOM, the exploded figures and the balloons over there are
  *  already banded by, so a reader who knows one knows the other. It is NOT
- *  imported -- the two repos deploy separately and share no package -- and it is
- *  not derived the same way either: over there a family comes from the glTF path
- *  a cell resolved to, and here from the published mesh FILENAME, because that is
- *  the only identity a printable carries.
+ *  imported -- the two repos deploy separately and share no package.
  *
- *  DELIBERATELY NOT the `family` field in the hex-cluster manifest, which is a
- *  DIFFERENT and coarser three-way grouping (`base`/`insert`/`cap`) belonging to
- *  the exporter. It disagrees with this one on nine of the fifty-three parts: it
- *  files both corner caps under `base`, and all seven spike parts under `insert`.
- *  Cross-checking the two would fail forever on a disagreement that is correct.
+ *  NOT the release's own families. The v2 manifest files every part under one
+ *  of twelve finer families (`HEX_PART_FAMILIES`, generated), and
+ *  `HEX_DISPLAY_FAMILY_OF` below folds those onto these six for drawing.
  *
  *  Declared HERE rather than beside the generated table, so the dependency runs
  *  one way -- the same arrangement `PartBox` has in `hex-plate.ts`. */
@@ -106,7 +59,7 @@ export type HexPartFamily =
   | "spike"
   | "accessory";
 
-/** Every family, in the order the thumbnail's value ramp walks them.
+/** Every display family, in the order the thumbnail's value ramp walks them.
  *
  *  ORDERED, and the order is the data rather than a detail of the palette: it is
  *  the assembly order (a base takes a carrier insert, which takes a lid, the caps
@@ -117,9 +70,9 @@ export type HexPartFamily =
  *  the smallest parts get the most contrast against the bed, which is where
  *  contrast is scarcest.
  *
- *  Exported so the generator can refuse a family it does not know and the palette
- *  can be held to a length, instead of both re-typing the list. */
-export const HEX_PART_FAMILIES = [
+ *  Exported so the palette can be held to a length instead of re-typing the
+ *  list. */
+export const HEX_DISPLAY_FAMILIES = [
   "base",
   "insert",
   "pcb",
@@ -127,3 +80,39 @@ export const HEX_PART_FAMILIES = [
   "spike",
   "accessory",
 ] as const satisfies readonly HexPartFamily[];
+
+/** Which display family a release family is drawn as.
+ *
+ *  The manifest's families (`hex-release-tables.ts`) are finer than the six the
+ *  thumbnail ladder has rungs for, so they are folded the way the configurator's
+ *  v2 bill folds them (`familyForPath` in bs-cap `src/hex/v2/export-bom.ts`): a
+ *  base is a base, a spike a spike, a spike accessory an accessory, and
+ *  everything fitted to a cell (covers, bins, collars, ports, inserts, joins, PVC
+ *  sections) reads as an insert. Caps keep their own rung, since the ladder has
+ *  one. The jigs are printed on their own and drawn as accessories.
+ *
+ *  A Record over the whole release vocabulary, so a family the generator adds
+ *  fails the typecheck here instead of falling through to "no family". */
+export const HEX_DISPLAY_FAMILY_OF: Readonly<
+  Record<HexReleaseFamily, HexPartFamily>
+> = {
+  accessory: "accessory",
+  base: "base",
+  bin: "insert",
+  cap: "cap",
+  collar: "insert",
+  cover: "insert",
+  insert: "insert",
+  jig: "accessory",
+  join: "insert",
+  port: "insert",
+  pvc: "insert",
+  spike: "spike",
+};
+
+/** The display family of a released part, or undefined for a slug that is not
+ *  in the release. */
+export function displayFamilyOf(slug: string): HexPartFamily | undefined {
+  const f = HEX_PART_FAMILY[slug];
+  return f === undefined ? undefined : HEX_DISPLAY_FAMILY_OF[f];
+}

@@ -16,7 +16,7 @@ import {
   readVersion,
   type Ready,
 } from "@/lib/hex-embed-protocol";
-import { BED_MAX, BED_MIN } from "@/lib/hex-pack";
+import { BED_FLOOR_MM, BED_MAX } from "@/lib/hex-pack";
 import { normalizeBed } from "@/lib/print-bed";
 
 const base = { channel: CHANNEL, protocolVersion: PROTOCOL_VERSION };
@@ -196,6 +196,7 @@ describe("parseMessage — the reply half", () => {
   it("accepts the frame-control messages", () => {
     expect(parseMessage({ ...base, type: "close-request" })?.type).toBe("close-request");
     expect(parseMessage({ ...base, type: "context-lost" })?.type).toBe("context-lost");
+    expect(parseMessage({ ...base, type: "restored" })?.type).toBe("restored");
     expect(parseMessage({ ...base, type: "save-cancelled", requestId: "r1" })?.type).toBe(
       "save-cancelled",
     );
@@ -240,7 +241,7 @@ describe("parseMessage — the bed is two integers or nothing", () => {
     [[220, 220], "an array"],
     ["220x220", "the URL spelling, which is not this spelling"],
     [null, "null"],
-    [{ x: BED_MIN - 1, y: 220 }, "one below the floor"],
+    [{ x: BED_FLOOR_MM - 1, y: 220 }, "one below the floor"],
     [{ x: 220, y: BED_MAX + 1 }, "one above the ceiling"],
     [{ x: 0, y: 0 }, "zero, a bed nothing fits on"],
     [{ x: -220, y: -220 }, "a negative bed"],
@@ -271,9 +272,9 @@ describe("parseMessage — the bed is two integers or nothing", () => {
   it("accepts BOTH edges of the range and refuses one step outside either", () => {
     // Edges, because an off-by-one on either side is exactly what a "roughly
     // right" range check ships with.
-    expect(parseMessage(setBed({ x: BED_MIN, y: BED_MIN }))?.type).toBe("set-bed");
+    expect(parseMessage(setBed({ x: BED_FLOOR_MM, y: BED_FLOOR_MM }))?.type).toBe("set-bed");
     expect(parseMessage(setBed({ x: BED_MAX, y: BED_MAX }))?.type).toBe("set-bed");
-    expect(parseMessage(setBed({ x: BED_MIN - 1, y: BED_MIN }))).toBeNull();
+    expect(parseMessage(setBed({ x: BED_FLOOR_MM - 1, y: BED_FLOOR_MM }))).toBeNull();
     expect(parseMessage(setBed({ x: BED_MAX, y: BED_MAX + 1 }))).toBeNull();
   });
 
@@ -354,7 +355,7 @@ describe("parseMessage — the bed is two integers or nothing", () => {
     // `normalizeBed` never even sees a `z` of), and that asymmetry is fine. The
     // direction that would hurt is this one.
     for (const bed of [
-      { x: BED_MIN, y: BED_MIN },
+      { x: BED_FLOOR_MM, y: BED_FLOOR_MM },
       { x: BED_MAX, y: BED_MAX },
       { x: 220, y: 220 },
       { x: 300, y: 250 },
@@ -369,7 +370,7 @@ describe("parseMessage — the bed is two integers or nothing", () => {
 
   it("takes the bounds from the pack module rather than restating them", () => {
     // Source-level, because a value check cannot see a copy that currently
-    // happens to agree. A third copy of BED_MIN/BED_MAX would go on agreeing
+    // happens to agree. A third copy of BED_FLOOR_MM/BED_MAX would go on agreeing
     // with itself while the endpoint's moved, and the symptom is a bed the
     // configurator sends, this file accepts, and the download then 400s on with
     // no stated cause.
@@ -378,8 +379,10 @@ describe("parseMessage — the bed is two integers or nothing", () => {
       "utf8",
     );
     expect(src).toMatch(
-      /import\s*\{[^}]*BED_MIN[^}]*\}\s*from\s*"@\/lib\/hex-pack"/,
+      /import\s*\{[^}]*BED_FLOOR_MM[^}]*\}\s*from\s*"@\/lib\/hex-pack"/,
     );
-    expect(src).not.toMatch(/(?:const|let|var)\s+BED_(?:MIN|MAX)\s*=/);
+    expect(src).not.toMatch(
+      /(?:const|let|var)\s+BED_(?:MIN|MAX|FLOOR_MM)\s*=/,
+    );
   });
 });

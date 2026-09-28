@@ -1,5 +1,16 @@
-// Platform masters: the silent loop, repeated to a useful runtime, with the
+// Platform masters: the silent v2 loop, repeated to a useful runtime, with the
 // percussion bed muxed in.
+//
+// SOURCE: `c:/zzz/_hex-promo/hex-<preset>[-text].mp4`, written by
+// tools/hex-promo-cuts.mjs from the v2 film (tools/hex-film.mjs: column -> PVC
+// -> explode -> plates). The v1 sources were named `hex-<preset>-orbit*.mp4`
+// after a v1 choreography that no longer exists; a master built from one of
+// those would ship v1 parts, so this reads the v2 name only.
+//
+// THE BED IS SCORED TO THE SAME GRID the v2 film lands on: 120 BPM, SNAP at
+// 4.0 s, DROP at 6.0 s (the explode), release at 8.0 s (the plates). The event
+// times are single-sourced in tools/hex-film.mjs `EVENTS`; tools/hex-bed.py
+// strikes on the same downbeats. Listen at the loop seam after any change.
 //
 // WHY LAPS RATHER THAN A LONGER RENDER. The cuts are verified exact loops, so
 // concatenating N of them is seamless BY CONSTRUCTION and costs one stream copy
@@ -53,7 +64,7 @@ if (!preset) {
   process.exit(1);
 }
 
-const src = `${DIR}/hex-${preset}-orbit${text ? "-text" : ""}.mp4`;
+const src = `${DIR}/hex-${preset}${text ? "-text" : ""}.mp4`;
 statSync(src); // fail loudly if the cut has not been rendered
 const seconds = laps * SECONDS_PER_LAP;
 const out = `${DIR}/social/hex-${preset}-${seconds}s${text ? "-text" : ""}${silent ? "-silent" : ""}.mp4`;

@@ -31,28 +31,28 @@ const MESH_DIR =
 /**
  * A build someone would plausibly configure and take.
  *
- * CHOSEN TO SPAN EVERY CASE THE WRITER HAS, so one slice exercises all of it:
- *   - a base and two halves        -> support, no brim  (the commonest case)
- *   - six dovetail caps            -> neither, and repeated, so the per-copy
+ * CHOSEN TO SPAN EVERY CASE THE WRITER HAS, so one slice exercises all of it.
+ * The remedies are the MEASURED v2 rows (`hex-support-data.ts`: 5 support,
+ * 3 brim, 0 both), so there is no "support AND brim" case left to carry:
+ *   - the main base and the E half -> neither: the bases most builds start from
+ *   - the W half                   -> support WITHOUT a brim (it stands on about
+ *                                     2172 sq mm; the slicer reports a floating
+ *                                     cantilever)
+ *   - six edge caps                -> neither, and repeated, so the per-copy
  *                                     naming and per-copy settings are visible
- *   - a corner                     -> support on a part with 417 sq mm on the
- *                                     bed, i.e. support WITHOUT a brim
- *   - the solid spike              -> support AND brim, the only part with both
- *   - the zip single               -> brim WITHOUT support, the mirror case
+ *   - a single pvc section         -> brim WITHOUT support, the mirror case
  *   - the large platform           -> neither: the negative control. If this
  *                                     one carries a painted facet, the tripwire
  *                                     is firing on parts that do not need it.
  */
 const BUILD: { slug: string; qty: number }[] = [
-  { slug: "hex-tb-main", qty: 1 },
-  { slug: "hex-tb-half-top-solid", qty: 1 },
-  { slug: "hex-tb-half-bot-solid", qty: 1 },
-  { slug: "hex-tb-corner-m-solid", qty: 1 },
-  { slug: "dovetail-cap-single-m-solid", qty: 3 },
-  { slug: "dovetail-cap-single-f-solid", qty: 3 },
-  { slug: "hex-tb-spike-solid", qty: 1 },
-  { slug: "hex-tb-spike-ball-zip-single", qty: 1 },
-  { slug: "hex-tb-spike-platform-lrg", qty: 1 },
+  { slug: "hex-main", qty: 1 },
+  { slug: "hex-half-e", qty: 1 },
+  { slug: "hex-half-w", qty: 1 },
+  { slug: "hex-cap-edge-solid-m", qty: 3 },
+  { slug: "hex-cap-edge-solid-f", qty: 3 },
+  { slug: "pvc-section-single", qty: 1 },
+  { slug: "spike-acc-platform-lrg", qty: 1 },
 ];
 
 /** The bed most people have. Larger beds mean fewer plates, never a failure. */

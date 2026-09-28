@@ -11,6 +11,7 @@
 import { useEffect } from "react";
 import { useConsentManager } from "@c15t/nextjs";
 import { setAnalyticsConsent } from "@/lib/consent-signal";
+import { otdSrcCookieWrite } from "@/lib/hex-attribution";
 import { getPosthog, getLoadedPosthog } from "@/lib/posthog-client";
 
 export function ConsentBridge() {
@@ -22,6 +23,20 @@ export function ConsentBridge() {
 
   useEffect(() => {
     setAnalyticsConsent(granted);
+    // The first-touch `otd_src` cookie (6.6): written from a listed `?src=` on
+    // the page only while measurement is granted, deleted on revoke. Every
+    // decision is in `otdSrcCookieWrite`; this line only applies it.
+    try {
+      const write = otdSrcCookieWrite({
+        granted,
+        search: window.location.search,
+        documentCookie: document.cookie,
+        secure: window.location.protocol === "https:",
+      });
+      if (write !== null) document.cookie = write;
+    } catch {
+      // Attribution must never break the consent bridge.
+    }
     if (granted) {
       // getPosthog now passes the gate → inits (or returns the live instance).
       void getPosthog().then((ph) => ph?.opt_in_capturing());

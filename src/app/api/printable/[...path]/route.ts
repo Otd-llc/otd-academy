@@ -13,8 +13,9 @@
 //   2. path fails the key grammar      → 404  (`@/lib/printable-key`: traversal is
 //      structurally impossible, every key is REBUILT from validated tokens)
 //   3. release not published           → 404  (`@/lib/printable-releases`)
-//   4. any query string                → 307 to the bare path (the route takes
-//      none; 307 while the launch settles, 308 once it has)
+//   4. any query string but a listed `src` → 307 to the canonical URL: the bare
+//      path, or the path plus `?src=<listed value>` (6.6 attribution). 307
+//      while the launch settles, 308 once it has.
 // Only then does GET touch R2: HEAD the object (absent → 404, any other error →
 // 503 no-store + `r2_error`), presign, count the download, 302.
 //
@@ -23,6 +24,7 @@
 import type { NextRequest } from "next/server";
 
 import { capture } from "@/lib/analytics";
+import { hexAttribution, readHexSource } from "@/lib/hex-attribution";
 import { env } from "@/env";
 import { headR2Object, presignGet } from "@/lib/part-r2";
 import { isR2NotFound } from "@/lib/r2-errors";
@@ -33,6 +35,10 @@ import {
 } from "@/lib/printable-key";
 import { isPublishedRelease } from "@/lib/printable-releases";
 import { distinctIdFromCookies } from "@/lib/posthog-distinct-id";
+
+/** A hard ceiling on one download's wall clock (launch readiness 5.5), so a
+ *  stalled R2 call cannot hold a function open for the platform maximum. */
+export const maxDuration = 30;
 
 /** One hour: long enough for a download manager or slicer to retry. */
 const PRESIGN_TTL_SECONDS = 3600;
@@ -60,6 +66,16 @@ function recordR2Error(op: string, e: unknown): void {
   }
 }
 
+/** The one query this route takes: `?src=` naming a LISTED source (6.6). Any
+ *  other spelling -- an unknown source, a stray or repeated parameter, a utm
+ *  tail -- has one canonical form, and it is this. An unlisted `src` canonicalises
+ *  to the bare path, which is counted as `src: "unknown"` under consent, exactly
+ *  what the enum would have said. */
+function canonicalSearch(params: URLSearchParams): string {
+  const src = readHexSource(params.get("src"));
+  return src === undefined || src === "unknown" ? "" : `?src=${src}`;
+}
+
 /** The shared refusals. Either a finished Response, or a resolved object. */
 async function admit(
   req: NextRequest,
@@ -72,12 +88,14 @@ async function admit(
   const resolved = resolvePrintable(path);
   if (!resolved || !isPublishedRelease(path[0])) return notFound();
 
-  if (req.nextUrl.search) {
-    // Built from the validated segments, never echoed from the request.
+  const canon = canonicalSearch(req.nextUrl.searchParams);
+  if (req.nextUrl.search !== canon) {
+    // Built from the validated segments and the closed `src` enum, never
+    // echoed from the request.
     return new Response(null, {
       status: 307,
       headers: {
-        Location: `/api/printable/${path.join("/")}`,
+        Location: `/api/printable/${path.join("/")}${canon}`,
         "Cache-Control": "no-store",
       },
     });
@@ -123,6 +141,15 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   // object is known to exist and the URL is signed, so a 404 or a 503 is never
   // counted as a download.
   try {
+    // ATTRIBUTION ONLY WITH CONSENT (6.6, 1.14): `src` (a closed enum, never
+    // the raw query value), the first-touch `otd_src` and the referrer. This
+    // is a class (b) event, so `capture()` drops ALL of it -- the download and
+    // its attribution -- without a c15t measurement grant. That one choke point
+    // is the consent gate; there is deliberately no second one here.
+    const attribution = hexAttribution(
+      req.nextUrl.searchParams.get("src"),
+      req.cookies,
+    );
     capture(
       "printable_downloaded",
       {
@@ -131,6 +158,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
         kind: resolved.ext,
         filename: resolved.filename,
         bytes: contentLength,
+        ...attribution,
         referrer: req.headers.get("referer") ?? undefined,
       },
       distinctIdFromCookies(req.cookies) ?? undefined,

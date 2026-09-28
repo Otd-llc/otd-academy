@@ -1,0 +1,153 @@
+# Hex v2 upload dry run (launch item 4.9), 2026-09-25
+
+**Status: the dry run passes against the real, unfiltered manifest.** The three
+defects the first run found are fixed (see "Defects fixed"). What still stops
+4.9 closing is the owner's wording, and that is by design: the README carries a
+marked slot for the 2.6 safety text, the LICENSE carries the 6.8 disclaimer
+slot, and `--write` refuses while either remains.
+
+## Re-run 2026-09-28 (2), after hex-cluster stamped the print poses
+
+hex-cluster `ceddb42` ran `check_orientation.py --stamp`: all 297 manifest parts
+now carry `printOrientationReviewed: true`. That changed only the manifest's
+hash (LF-normalised `798e4b2e...68cb44b`, now recorded by the regenerated
+`src/lib/hex-release-tables.ts`), and hex-cluster's support-data file re-cut
+against it (`src/lib/hex-support-data.ts` regenerated; counts unchanged, 5
+support, 3 brim). Same inputs otherwise, same scrubbed environment and
+non-credential placeholders as below, run twice.
+
+- **Exit 0, both runs. The two emit dirs are byte-identical** (`diff -r`).
+- Files: 290 `.3mf` (19,200,212 B), 290 `.stl` (94,029,160 B), 290 `.step`
+  (110,131,258 B), `LICENSE.txt` (1,131 B), `sets/hex-cluster.zip`. **872 files,
+  241,905,637 B.** Every mesh and the LICENSE are unchanged; only the README
+  (inside the zip) moved.
+- **Set zip: 18,543,876 B (1 B smaller), sha256
+  `f6b91eea60edf73781f42e2ec7cba7e0b6c7eec7040e6ec0193045bd3244a002`.** 292
+  entries, 19,213,371 B uncompressed (26 B more README text).
+  `HEX_V2_SET.sizeBytes` now holds 18,543,876.
+- **The orientation note now says reviewed:** "Orientation: 87 of the 290 parts
+  are exported already rotated for printing; the remaining 203 are in their CAD
+  orientation. Every orientation has been checked: each part rests on a flat
+  face. Nobody has printed the set yet, so this is a geometric check and not a
+  print-tested one." The "have NOT been reviewed by hand" sentence is gone.
+- Withheld: the same 7, none uploaded. Owner placeholders: none.
+  `manifest.json` in the output: none.
+
+## Re-run 2026-09-28, after 4.7 (support data + "where the rest lives")
+
+Run exactly as below, twice, against the NEW inputs: the manifest at
+`hex-cluster/build/printables/` (297 parts, now carrying the decision 1.4 `print`
+block; sha256 `aa5b6acd...a72b84d` raw, `6a4031c8...6f7e77` LF-normalised, the
+hash the 4.6 lock records) and the allow-list at
+`hex-cluster/build/release-tables/2026-10-01/printables-allowlist.json` (870 rows,
+7 withheld). No `.env.local` was present; every `R2_*`, `PROD_*`,
+`NEXT_PUBLIC_R2_*`, `DATABASE_URL`, `DIRECT_URL`, `AUTH_*` and `ALLOWED_EMAILS`
+variable was removed and replaced with the non-credential placeholders listed
+below, `R2_ENDPOINT=http://127.0.0.1:9`.
+
+- **Exit 0, both runs. The two emit dirs are byte-identical** (`diff -r`).
+- Files: 290 `.3mf` (19,200,212 B), 290 `.stl` (94,029,160 B), 290 `.step`
+  (110,131,258 B), `LICENSE.txt` (1,131 B), `sets/hex-cluster.zip`. **872 files,
+  241,905,638 B.** Mesh counts and bytes are unchanged from the first run.
+- **Set zip: 18,543,877 B, sha256
+  `e495fc86840b7820cd9c4055afe5330cc1e32614a9014588258ae103b9205246`.** 292 entries
+  (290 `.3mf`, README.txt, LICENSE.txt), 19,213,345 B uncompressed; no `.stl`,
+  `.step` or `manifest.json`. `HEX_V2_SET.sizeBytes` now holds 18,543,877.
+- **Owner placeholders: none.** The 2.6 safety text and the 6.8 disclaimer are
+  in, so `--write` would no longer refuse on wording.
+- **The README names supports and brims per part**, from the generated 4.7 data
+  (`src/lib/hex-support-data.ts`): a `Supports and brim --` line naming the 8
+  flagged parts, then one line each, e.g.
+  `hex-half-w -- needs support switched on: the slicer reports a floating
+  cantilever. It stands on about 2172 sq mm, so adhesion is not the problem.` and
+  `pvc-section-single -- give it a brim: it stands on about 11 sq mm, which the
+  slicer judges too little to hold it on its own.` The "not yet checked"
+  sentence is gone, and there is no v1 or carrier wording.
+- **"Where the rest lives"** (decision 1.3) is generated from the release id and
+  the formats the shipped parts carry: the archive is 3MF only, and STL/STEP are
+  per-part downloads at `/api/printable/2026-10-01/{stl,step}/<part>.{stl,step}`.
+- ~~Still open, not this run's: the README's orientation note says "87 of the 290
+  parts are exported already rotated ... have NOT been reviewed by hand",
+  because this manifest carries `printOrientationReviewed: false` on all 297
+  parts: it has not been stamped since its last export
+  (`python tools/check_orientation.py build/printables --stamp` in hex-cluster).~~
+  Closed by the stamp; see the second re-run above.
+
+## How it was run
+
+- Branch `launch/hex-v2-academy`, after merging 5.4 (`5fec1854`).
+- Inputs, read-only: the build manifest at `hex-cluster/build/printables/`
+  (built 2026-09-21, 297 parts, 0 failures), used AS IS, and the 4.6 allow-list
+  `hex-launch-tables/build/release-tables/2026-10-01/printables-allowlist.json`
+  regenerated by the fixed generator: 870 rows = 290 parts x 3 formats, all
+  `cc-by`, plus a `withheld` array naming the 7 withheld parts with reasons.
+- Default DRY-RUN mode with `PRINTABLES_EMIT` set to a scratch dir. No `.env.local` was present.
+  Every `R2_*`, `PROD_*`, `NEXT_PUBLIC_R2_*`, `DATABASE_URL`, `DIRECT_URL` and
+  `AUTH_*` variable was removed from the process. The dry run needs:
+  - `R2_ENABLED=true` and `R2_BUCKET=<any name>`, because the uploader refuses without them even in a dry run.
+  - Placeholder `DATABASE_URL`, `DIRECT_URL`, `AUTH_*` and `ALLOWED_EMAILS` values, because `src/env.ts` validates them on import.
+
+  None of these is a credential. `R2_ENDPOINT=http://127.0.0.1:9` was also set,
+  so any stray S3 call would hit a local discard port and never Cloudflare. The
+  code confirms a dry run returns before any `r2.send`, and the 5.4 test proves
+  the same with a throwing client.
+- No workaround this time: `PRINTABLES_DIR` is the real build folder. The first
+  run needed a filtered copy of the manifest; that copy is no longer used.
+
+## Numbers (release 2026-10-01, 290 parts)
+
+| | files | bytes |
+|---|---:|---:|
+| 3MF | 290 | 19,200,212 |
+| STL | 290 | 94,029,160 |
+| STEP | 290 | 110,131,258 |
+| LICENSE.txt | 1 | 903 |
+| set zip `sets/hex-cluster.zip` | 1 | 18,542,930 |
+| **total** | **872** | **241,904,463 (241.9 MB)** |
+
+- **Set zip: 18,542,930 B = 18.5 MB (17.7 MiB).** It holds 292 entries: 290 `.3mf`, README.txt and LICENSE.txt, with no `.stl`, `.step` or `manifest.json`. Uncompressed it is 19,210,629 B. It grew 43 B over the first run, all of it README text. The `/hex` label stays "~18.5 MB"; `HEX_V2_SET.sizeBytes` in `src/lib/hex-v2-page.ts` now holds 18,542,930, still `sizeMeasured: false`, because the owner's 2.6 text will change the README again before publish.
+- **Largest file:** the set zip. The largest single part file is `stl/hex-main-cover-cable.stl` at 2,751,584 B.
+- **Withheld parts:** the uploader logged all 7 as "withheld by the allow-list", each with its reason, and uploaded none of them. The 7 are pvc-wedge, hex-cover-handle, hex-acc-saddle, hex-acc-saddle-half, hex-acc-saddle-one, hex-acc-probe and hex-acc-trellis. None is in the emit dir, in the zip, or in the README's parts list. This time that tests the uploader's own withholding, not a pre-filtered manifest.
+- **`manifest.json` anywhere in the output:** none.
+- **Owner placeholders:** the dry run reports 3, and `--write` would refuse on them: the README's 2.6 slot, and the 6.8 disclaimer in both copies of LICENSE.txt.
+- **Determinism:** two runs gave the same 872 paths, and every file was byte-identical. The zip's sha256 was `1c723ad40a0644be439c08199fb2468373288fd5e43a65ef182c102efb58838c` both times. The first run's `d70668ee...0878` no longer applies, because the README bytes changed.
+- The 3MF, STL, STEP and LICENSE counts and bytes are identical to the first run, which confirms the allow-list skip ships exactly what the filtered manifest shipped.
+
+## Defects fixed
+
+1. **The uploader refused the real allow-list** (21 problems: the 7 withheld
+   parts x 3 formats). The generator (`hex-launch-tables`
+   `tools/gen_release_tables.py`) now writes `withheld: [{part, reason}]` into
+   the allow-list, naming every manifest part it does not release. A part
+   dropped as not cc-by is named there too. The format stays
+   `otd-printables-allowlist/1`, because the field is optional and additive: a
+   list without it parses and means what it meant. The uploader skips a part
+   named there, logs it, and never uploads it. It still refuses a manifest file
+   that is neither listed nor withheld, a part that is both listed and
+   withheld, a withheld entry with no reason, and a `withheld` that is not an
+   array. The generator's lock moved only in its own hash and the allow-list's
+   output hash.
+2. **The README had no 2.6 safety text and no slot for it.** It now carries
+   `Safety and warranty:` with `[OWNER-WORDING: safety and warranty text (launch
+   readiness 2.6)]` (`src/lib/hex-readme-safety.ts`). The `--write` refusal
+   used to check LICENSE.txt alone. It now scans every file the run would
+   upload, and every zip entry before compression, for any `[OWNER-WORDING:`
+   marker, so a placeholder added later is covered without touching the
+   guard. The uploader writes no per-part README.
+3. **README text.** The configurator link is `https://hex.onethousanddrones.com`
+   (decision 1.10). "with the two exceptions below" is gone. The sentence
+   mentions exceptions only when a support section follows it, and in the v2
+   set none does until 4.7 supplies support data.
+
+Each rule was mutation-checked: the rule removed, the test file run, the named
+test seen to fail.
+
+## Still open
+
+- **The owner's words:** the 2.6 safety text and the 6.8 disclaimer. `--write`
+  refuses until both are in.
+- `HEX_CONFIGURATOR_URL` in `src/lib/hex-spec.ts` still says
+  `demo.onethousanddrones.com/hex`. The `/hex` page and the configurator link
+  read it. The README carries its own literal, so it was fixed apart from that constant. Moving it is a 1.10 cutover call.
+- ~~Support data and the "where the rest lives" README prose belong to 4.7.~~
+  Done 2026-09-28; see the re-run above.

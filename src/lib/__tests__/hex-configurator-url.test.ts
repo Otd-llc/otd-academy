@@ -6,7 +6,7 @@
 // PostHog-instrumented so it would also reach `$current_url`.
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const PROD = "https://demo.onethousanddrones.com";
+const PROD = "https://hex.onethousanddrones.com";
 
 async function load() {
   vi.resetModules();

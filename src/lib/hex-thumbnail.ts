@@ -60,12 +60,8 @@
 import { constants, crc32, deflateSync } from "node:zlib";
 
 import type { Bed } from "@/lib/hex-pack";
-import {
-  HEX_OUTLINE_SCALE,
-  HEX_PART_FAMILY,
-  HEX_PART_OUTLINE,
-} from "@/lib/hex-outlines";
-import { HEX_PART_FAMILIES } from "@/lib/hex-parts";
+import { HEX_OUTLINE_SCALE, HEX_PART_OUTLINE } from "@/lib/hex-outlines";
+import { HEX_DISPLAY_FAMILIES, displayFamilyOf } from "@/lib/hex-parts";
 import type { Placement } from "@/lib/hex-plate";
 
 /** Where the image lives inside the 3MF package, and the relationship that
@@ -108,7 +104,7 @@ const MARGIN = 6;
  *  command gold (#c8963e, L* 65.3). The darkest still clears the bed at 3.6:1
  *  and the lightest reaches 12.5:1.
  *
- *  DARK TO LIGHT IN `HEX_PART_FAMILIES` ORDER, which is assembly order and --
+ *  DARK TO LIGHT IN `HEX_DISPLAY_FAMILIES` ORDER, which is assembly order and --
  *  because a part fitted later is a part fitted on the outside -- descending
  *  part size. The second reading is the one that matters here: the smallest
  *  parts get the lightest gold, i.e. the most contrast against the bed, which is
@@ -149,7 +145,7 @@ const PALETTE: readonly (readonly [number, number, number])[] = [
 const PAGE = 0;
 const BED = 1;
 const BED_EDGE = 2;
-/** The first family rung. Family `i` of `HEX_PART_FAMILIES` is `INK + i`. */
+/** The first family rung. Family `i` of `HEX_DISPLAY_FAMILIES` is `INK + i`. */
 const INK = 3;
 /** A part whose slug is in no table. Unreachable from the pack route, where
  *  every placement came out of `HEX_PART_BOX` -- but a `Placement` is a plain
@@ -157,12 +153,12 @@ const INK = 3;
  *  not to guess a gold. A desaturated slate is the one value in the picture that
  *  is visibly outside the ladder, so an unclassified part looks unclassified
  *  rather than looking like a `pcb`. */
-const NO_FAMILY = INK + HEX_PART_FAMILIES.length;
+const NO_FAMILY = INK + HEX_DISPLAY_FAMILIES.length;
 
 /** Where each family sits on the ladder, resolved once at module load rather
  *  than per part per plate. */
 const FAMILY_INK: Record<string, number> = Object.fromEntries(
-  HEX_PART_FAMILIES.map((family, i) => [family, INK + i]),
+  HEX_DISPLAY_FAMILIES.map((family, i) => [family, INK + i]),
 );
 
 /** Smallest part, in pixels on each axis, that gets a keyline drawn inside its
@@ -419,7 +415,8 @@ export function plateThumbnail(
     const x = ox + Math.round(p.x * scale);
     // The flip: the part's FAR edge in bed space is its TOP edge in image space.
     const y = oy + bh - Math.round(p.y * scale) - h;
-    const ink = FAMILY_INK[HEX_PART_FAMILY[p.slug]] ?? NO_FAMILY;
+    const family = displayFamilyOf(p.slug);
+    const ink = (family && FAMILY_INK[family]) ?? NO_FAMILY;
     const rings = HEX_PART_OUTLINE[p.slug];
 
     // NO OUTLINE, OR AN OUTLINE TOO SMALL TO LAND ON A PIXEL, FALLS BACK TO THE

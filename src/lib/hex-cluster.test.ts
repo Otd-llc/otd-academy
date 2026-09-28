@@ -73,35 +73,41 @@ describe("makeShareCode", () => {
 });
 
 describe("checkPayload", () => {
-  const body = "eJyrVkrKz1WyUkotLs1RqgUAJ8QEjA";
+  const body = "q1YqU7Iy1FEqVrKqVirITE1OLVayio7VUSrOSyyAMQsys2HCyfllqUUwNlxFZl5xalEJlJORmJeSg1Cfl5eaXJIP01NUmgdjZRZDTaqtBQA";
 
-  it("accepts a real compressed payload", () => {
-    expect(checkPayload(`s=${body}`)).toBeNull();
+  it("accepts a real v2 compressed payload", () => {
+    expect(checkPayload(`v2s=${body}`)).toBeNull();
   });
 
   it("splits on the FIRST equals, because the prefix contains one", () => {
     // Applying the character class to the whole string rejects every real
     // payload — the bug the design caught in review.
-    expect(checkPayload(`s=${body}`)).toBeNull();
-    expect(checkPayload("s=")).toBe("malformed");
+    expect(checkPayload(`v2s=${body}`)).toBeNull();
+    expect(checkPayload("v2s=")).toBe("malformed");
     expect(checkPayload("=abc")).toBe("malformed");
     expect(checkPayload(body)).toBe("malformed");
   });
 
-  it("refuses the uncompressed transport outright", () => {
-    // Not a larger byte cap: on the u= path the QR is over capacity entirely
-    // by nineteen cells, so any cap still admits an unscannable sheet.
-    expect(checkPayload(`u=${body}`)).toBe("uncompressed");
+  it("refuses the uncompressed v2 transport outright", () => {
+    // Not a larger byte cap: on the uncompressed path the QR is over capacity
+    // entirely by nineteen cells, so any cap still admits an unscannable sheet.
+    expect(checkPayload(`v2u=${body}`)).toBe("uncompressed");
+  });
+
+  it("refuses v1 in every form: there is no v1 path at all", () => {
+    expect(checkPayload(`s=${body}`)).toBe("malformed");
+    expect(checkPayload(`u=${body}`)).toBe("malformed");
   });
 
   it("rejects an unknown prefix and non-base64url bodies", () => {
     expect(checkPayload(`z=${body}`)).toBe("malformed");
-    expect(checkPayload("s=has spaces")).toBe("malformed");
-    expect(checkPayload("s=has/slash+plus")).toBe("malformed");
+    expect(checkPayload(`v3s=${body}`)).toBe("malformed");
+    expect(checkPayload("v2s=has spaces")).toBe("malformed");
+    expect(checkPayload("v2s=has/slash+plus")).toBe("malformed");
   });
 
   it("bounds the length", () => {
-    expect(checkPayload(`s=${"a".repeat(MAX_PAYLOAD_CHARS)}`)).toBe(
+    expect(checkPayload(`v2s=${"a".repeat(MAX_PAYLOAD_CHARS)}`)).toBe(
       "too-large",
     );
   });
@@ -164,8 +170,8 @@ describe("validateSummaryWire", () => {
         item: 1,
         qty: 3,
         label: "Hex base · full",
-        dims: "87.8 × 33.0 × 78.0",
-        sourceFile: "Hex-TB-Main.FCStd",
+        dims: "190.8 × 169.2 × 80.0",
+        sourceFile: "hex-main.FCStd",
       },
     ],
     details: [{ letter: "A", caption: "Detail A" }],
@@ -227,5 +233,78 @@ describe("validateSummaryWire", () => {
     expect(validateSummaryWire(null)).toBeNull();
     expect(validateSummaryWire([])).toBeNull();
     expect(validateSummaryWire("nope")).toBeNull();
+  });
+
+  // Decision 9 (2026-09-28): the rest of the build beside the ballooned bill.
+  describe("the rest of the build: hub halves, hardware, pipe", () => {
+    const everything = {
+      ...good,
+      hubHalves: [
+        { item: 2, qty: 2, label: "PVC hub · bottom half", sourceFile: "pvc-hub-bottom.FCStd" },
+        { item: 3, qty: 2, label: "PVC hub · top half", sourceFile: "pvc-hub-top.FCStd" },
+      ],
+      hardware: [
+        { item: 4, qty: 12, label: "M6 x 35 socket head cap screw, ISO 4762 (DIN 912)" },
+        { item: 5, qty: 12, label: "M6 hex nut, ISO 4032 (DIN 934)" },
+        { item: 6, qty: 1, label: "heatset-m6-short" },
+      ],
+      pipe: {
+        buy: ["buy 1 x 10 ft 3/4 in Sch 40 PVC pipe, OD 26.67 mm (US)."],
+        sticks: [{ cuts: [400, 701], offcutMm: 1946, flex: false }],
+        warnings: [],
+        notes: ["1 run STRUCTURAL -- DRY, NOT PRESSURE RATED."],
+      },
+    };
+
+    it("keeps every section, byte for byte", () => {
+      expect(validateSummaryWire(JSON.parse(JSON.stringify(everything)))).toEqual(everything);
+    });
+
+    it("reads a summary saved before them exactly as before: absent stays absent", () => {
+      const out = validateSummaryWire(good) as unknown as Record<string, unknown>;
+      expect(out).not.toHaveProperty("hubHalves");
+      expect(out).not.toHaveProperty("hardware");
+      expect(out).not.toHaveProperty("pipe");
+      expect(JSON.stringify(out)).toBe(JSON.stringify(good));
+    });
+
+    it("keeps empty sections and a null pipe", () => {
+      const empty = { ...good, hubHalves: [], hardware: [], pipe: null };
+      expect(validateSummaryWire(empty)).toEqual(empty);
+    });
+
+    it("refuses a bad section rather than dropping it", () => {
+      const bad: Array<[string, unknown]> = [
+        ["hubHalves not an array", { ...everything, hubHalves: "x" }],
+        ["hub half with no source file", { ...everything, hubHalves: [{ item: 2, qty: 2, label: "x" }] }],
+        ["hardware qty negative", { ...everything, hardware: [{ item: 4, qty: -1, label: "x" }] }],
+        ["hardware label an object", { ...everything, hardware: [{ item: 4, qty: 1, label: { $gt: "" } }] }],
+        ["pipe an array", { ...everything, pipe: [] }],
+        ["pipe buy not strings", { ...everything, pipe: { ...everything.pipe, buy: [1] } }],
+        ["pipe cut NaN", { ...everything, pipe: { ...everything.pipe, sticks: [{ cuts: [Number.NaN], offcutMm: 0, flex: false }] } }],
+        ["pipe cut negative", { ...everything, pipe: { ...everything.pipe, sticks: [{ cuts: [-5], offcutMm: 0, flex: false }] } }],
+        ["pipe flex not boolean", { ...everything, pipe: { ...everything.pipe, sticks: [{ cuts: [1], offcutMm: 0, flex: "no" }] } }],
+        ["pipe missing notes", { ...everything, pipe: { buy: [], sticks: [], warnings: [] } }],
+        ["too many hardware lines", { ...everything, hardware: Array.from({ length: 201 }, (_, i) => ({ item: i, qty: 1, label: "b" })) }],
+        ["too many cuts on a stick", { ...everything, pipe: { ...everything.pipe, sticks: [{ cuts: Array(65).fill(1), offcutMm: 0, flex: false }] } }],
+      ];
+      for (const [label, v] of bad) expect(validateSummaryWire(v), label).toBeNull();
+    });
+
+    it("drops unknown keys inside a section, as it does on a bom line", () => {
+      const out = validateSummaryWire({
+        ...everything,
+        hardware: [{ ...everything.hardware[0], href: "https://evil.example" }],
+      });
+      expect(out!.hardware![0]).toEqual(everything.hardware[0]);
+    });
+
+    it("counts the sections against the 8,192 cap", () => {
+      const huge = {
+        ...everything,
+        hardware: Array.from({ length: 150 }, (_, i) => ({ item: i, qty: 1, label: "x".repeat(60) })),
+      };
+      expect(validateSummaryWire(huge)).toBeNull();
+    });
   });
 });

@@ -98,11 +98,11 @@ async function cachedCluster(shareCode: string): Promise<ClusterLookup> {
   const cluster: PublicCluster = {
     drawingLabel: formatDrawingLabel(row.cluster.drawingNo),
     revLabel: formatRevLabel(row.revNo),
-    // The scrub in deleteStudent cannot reach summary.nameAtSave — it is frozen
-    // inside an immutable revision, and rewriting it would break "never
-    // UPDATEd". So fall back to the cluster's name whenever userId is null,
-    // which is exactly the deleted case: revisions stay immutable, and the
-    // public page stops showing a deleted user's title.
+    // userId null = a build orphaned by an account delete BEFORE 2026-09-28,
+    // when deleteStudent scrubbed the cluster name instead of deleting the
+    // build (it now deletes it outright, so new orphans cannot arise). That
+    // scrub could not reach summary.nameAtSave, frozen inside an immutable
+    // revision, so fall back to the cluster's (scrubbed) name for those rows.
     nameAtSave:
       row.cluster.userId === null
         ? row.cluster.name

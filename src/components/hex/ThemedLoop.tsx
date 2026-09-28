@@ -66,7 +66,9 @@ export function ThemedLoop({ className }: { className?: string }) {
     loop: true,
     playsInline: true,
     "aria-label":
-      "The hex cluster configurator: a carrier tray opens, tiles and caps are added, then removed",
+      "The Hex Cluster configurator: a PVC pipe slides through a row of bases beside a " +
+      "stacked column, the cover snaps on, the build explodes, and every printed part " +
+      "flies onto a print bed before the build reassembles",
   } as const;
 
   return (

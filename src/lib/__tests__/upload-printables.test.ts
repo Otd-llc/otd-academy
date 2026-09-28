@@ -20,6 +20,43 @@ const bucket = vi.hoisted(() => ({
   headError: null as null | (Error & { $metadata?: { httpStatusCode?: number } }),
 }));
 
+// Owner wording (launch items 2.6 and 6.8). The owner approved the LICENSE
+// disclaimer and the README safety text on 2026-09-28, so by default both
+// modules run REAL and the release carries no placeholder. The refusal must
+// still hold if a placeholder ever comes back, so each switch below turns ON a
+// reintroduced `[OWNER-WORDING: ...]` marker in its file (a mutation of the real
+// text), and the "owner wording" block proves `--write` refuses on it. The scan
+// (`ownerWordingIn`) is always the real one.
+const licence = vi.hoisted(() => ({ ownerSigned: true, readmeSigned: true }));
+const README_MARK =
+  "[OWNER-WORDING: safety and warranty text (launch readiness 2.6)]";
+const LICENSE_MARK = "[OWNER-WORDING: disclaimer (reintroduced, test only)]";
+
+vi.mock("@/lib/hex-readme-safety", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/lib/hex-readme-safety")>();
+  return {
+    ...real,
+    hexReadmeSafetyLines: () =>
+      licence.readmeSigned
+        ? real.hexReadmeSafetyLines()
+        : ["Safety:", `  ${README_MARK}`],
+  };
+});
+
+vi.mock("@/lib/hex-license-txt", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/lib/hex-license-txt")>();
+  return {
+    ...real,
+    hexLicenseTxt: (release: string) => {
+      const txt = real.hexLicenseTxt(release);
+      if (licence.ownerSigned) return txt;
+      const out = txt.replace(/^These files are provided as is.*$/m, LICENSE_MARK);
+      if (out === txt) throw new Error("test mutation matched nothing");
+      return out;
+    },
+  };
+});
+
 vi.mock("@/env", () => ({
   env: { R2_ENABLED: true, R2_BUCKET: "test-bucket" },
 }));
@@ -83,7 +120,13 @@ const savedEnv = { ...process.env };
 type Row = { path: string; part: string; licence?: string };
 
 function writeFixture(
-  opts: { rows?: Row[]; extraManifestFile?: boolean; step?: boolean } = {},
+  opts: {
+    rows?: Row[];
+    extraManifestFile?: boolean;
+    step?: boolean;
+    withheld?: unknown;
+    reviewed?: boolean;
+  } = {},
 ) {
   mkdirSync(join(dir, "3mf"), { recursive: true });
   mkdirSync(join(dir, "stl"), { recursive: true });
@@ -111,6 +154,12 @@ function writeFixture(
     bboxMm: { x: 1, y: 1, z: 1 },
     borderEdges: 0,
     files: files(p),
+    ...(opts.reviewed
+      ? {
+          printOrientation: [{ axis: "x", degrees: -90 }],
+          printOrientationReviewed: true,
+        }
+      : {}),
   }));
   if (opts.extraManifestFile) {
     writeFileSync(join(dir, "3mf", "hex-c.3mf"), "3mf bytes of hex-c");
@@ -139,6 +188,7 @@ function writeFixture(
       format: "otd-printables-allowlist/1",
       release: RELEASE,
       files: rows,
+      ...(opts.withheld === undefined ? {} : { withheld: opts.withheld }),
     }),
   );
 }
@@ -161,6 +211,8 @@ beforeEach(() => {
   bucket.store.clear();
   bucket.calls.length = 0;
   bucket.headError = null;
+  licence.ownerSigned = true;
+  licence.readmeSigned = true;
   errors = [];
   process.env.PRINTABLES_DIR = dir;
   process.env.PRINTABLES_RELEASE = RELEASE;
@@ -366,6 +418,89 @@ describe("upload-printables: allow-list", () => {
   });
 });
 
+describe("upload-printables: withheld parts (4.9 defect 1)", () => {
+  const zipNames = async (emit: string) =>
+    Object.keys(
+      (
+        await JSZip.loadAsync(
+          readFileSync(join(emit, `printables/${RELEASE}/sets/hex-cluster.zip`)),
+        )
+      ).files,
+    );
+
+  it("a manifest part the allow-list withholds is skipped: never emitted, never in the zip", async () => {
+    writeFixture({
+      extraManifestFile: true,
+      withheld: [{ part: "hex-c", reason: "1.6: withheld" }],
+    });
+    const emit = join(dir, "emit");
+    process.env.PRINTABLES_EMIT = emit;
+    expect(await run(allow())).toBe(0);
+    expect(bucket.calls).toHaveLength(0);
+    const tree = readFileSync(join(emit, `printables/${RELEASE}/3mf/hex-a.3mf`), "utf8");
+    expect(tree).toBe("3mf bytes of hex-a");
+    expect(() =>
+      readFileSync(join(emit, `printables/${RELEASE}/3mf/hex-c.3mf`)),
+    ).toThrow();
+    const names = await zipNames(emit);
+    expect(names).toContain("3mf/hex-a.3mf");
+    expect(names.some((n) => /hex-c\./.test(n))).toBe(false);
+    const readme = (
+      await (
+        await JSZip.loadAsync(
+          readFileSync(join(emit, `printables/${RELEASE}/sets/hex-cluster.zip`)),
+        )
+      )
+        .file("README.txt")!
+        .async("string")
+    );
+    expect(readme).not.toMatch(/  - hex-c$/m);
+  });
+
+  it("a withheld part is skipped under --write too: PUTs only what is listed", async () => {
+    writeFixture({
+      extraManifestFile: true,
+      withheld: [{ part: "hex-c", reason: "1.6: withheld" }],
+    });
+    expect(await run(allow(), "--write")).toBe(0);
+    expect(puts().some((c) => /\/hex-c\./.test(c.key))).toBe(false);
+    expect(puts().some((c) => c.key.includes("hex-a"))).toBe(true);
+  });
+
+  it("a manifest part neither listed nor withheld still refuses, even with a withheld list present", async () => {
+    writeFixture({
+      extraManifestFile: true,
+      withheld: [{ part: "hex-other", reason: "1.6: withheld" }],
+    });
+    expect(await run(allow())).toBe(1);
+    expect(bucket.calls).toHaveLength(0);
+    expect(errors.join("\n")).toMatch(/3mf\/hex-c\.3mf \(hex-c\): not on the allow-list/);
+  });
+
+  it("a part both listed and withheld refuses", async () => {
+    writeFixture({ withheld: [{ part: "hex-b", reason: "1.6: withheld" }] });
+    expect(await run(allow())).toBe(1);
+    expect(bucket.calls).toHaveLength(0);
+    expect(errors.join("\n")).toMatch(/hex-b\): part is both listed in files and withheld/);
+  });
+
+  it("a withheld entry with no reason refuses", async () => {
+    writeFixture({
+      extraManifestFile: true,
+      withheld: [{ part: "hex-c", reason: "  " }],
+    });
+    expect(await run(allow())).toBe(1);
+    expect(bucket.calls).toHaveLength(0);
+    expect(errors.join("\n")).toMatch(/withheld\[0\] \(hex-c\): no reason/);
+  });
+
+  it("a withheld field that is not an array refuses", async () => {
+    writeFixture({ withheld: { part: "hex-c", reason: "x" } });
+    expect(await run(allow())).toBe(1);
+    expect(errors.join("\n")).toMatch(/withheld must be an array/);
+  });
+});
+
 describe("upload-printables: dry run", () => {
   it("is the default and makes no R2 call at all (no PUT, not even a HEAD)", async () => {
     writeFixture();
@@ -383,6 +518,76 @@ describe("upload-printables: dry run", () => {
     writeFixture({ extraManifestFile: true });
     expect(await run(allow())).toBe(1);
     expect(bucket.calls).toHaveLength(0);
+  });
+});
+
+describe("upload-printables: owner wording (6.8)", () => {
+  it("--write refuses while LICENSE.txt carries an owner placeholder, before any R2 call", async () => {
+    writeFixture();
+    licence.ownerSigned = false;
+    expect(await run(allow(), "--write")).toBe(1);
+    expect(bucket.calls).toHaveLength(0);
+    const err = errors.join(" | ");
+    expect(err).toMatch(/still carries owner placeholders/);
+    expect(err).toMatch(/LICENSE\.txt: \[OWNER-WORDING: disclaimer \(reintroduced, test only\)\]/);
+  });
+
+  it("--write refuses while the README carries the 2.6 safety placeholder, before any R2 call", async () => {
+    writeFixture();
+    licence.readmeSigned = false;
+    expect(await run(allow(), "--write")).toBe(1);
+    expect(bucket.calls).toHaveLength(0);
+    const err = errors.join(" | ");
+    expect(err).toMatch(/still carries owner placeholders/);
+    expect(err).toMatch(/sets\/hex-cluster\.zip > README\.txt: \[OWNER-WORDING: safety and warranty text \(launch readiness 2\.6\)\]/);
+  });
+
+  it("--write refuses a placeholder in ANY uploaded file, not only the known ones", async () => {
+    writeFixture({ step: true });
+    writeFileSync(join(dir, "step", "hex-a.step"), "ISO-10303 [OWNER-WORDING: stray] END");
+    expect(await run(allow(), "--write")).toBe(1);
+    expect(bucket.calls).toHaveLength(0);
+    expect(errors.join(" | ")).toMatch(/step\/hex-a\.step: \[OWNER-WORDING: stray\]/);
+  });
+
+  it("the dry-run README carries the approved safety text, the configurator host, and no dangling exception", async () => {
+    writeFixture({ reviewed: true });
+    const emit = join(dir, "emit");
+    process.env.PRINTABLES_EMIT = emit;
+    expect(await run(allow())).toBe(0);
+    const zip = await JSZip.loadAsync(
+      readFileSync(join(emit, `printables/${RELEASE}/sets/hex-cluster.zip`)),
+    );
+    const readme = await zip.file("README.txt")!.async("string");
+    expect(readme).not.toMatch(/OWNER-WORDING/);
+    expect(readme).toMatch(/^Safety:$/m);
+    expect(readme).toMatch(/^  - Designed and tested for PETG only; other materials are untested\.$/m);
+    expect(readme).toMatch(/PETG softens around 70 °C\./);
+    expect(readme).toMatch(/NSF\/ANSI 61/);
+    expect(readme).toMatch(/^  https:\/\/hex\.onethousanddrones\.com$/m);
+    expect(readme).not.toMatch(/demo\.onethousanddrones\.com/);
+    expect(readme).toMatch(/Every orientation has been checked/);
+    expect(readme).not.toMatch(/exceptions? below|named below/);
+    expect(readme).not.toMatch(/\u2014/);
+  });
+
+  it("a dry run still runs with a reintroduced placeholder, and emits it where it sits", async () => {
+    writeFixture();
+    licence.ownerSigned = false;
+    const emit = join(dir, "emit");
+    process.env.PRINTABLES_EMIT = emit;
+    expect(await run(allow())).toBe(0);
+    expect(bucket.calls).toHaveLength(0);
+    expect(
+      readFileSync(join(emit, `printables/${RELEASE}/LICENSE.txt`), "utf8"),
+    ).toContain(LICENSE_MARK);
+  });
+
+  it("with the owner's approved texts in, --write passes the owner-wording guard", async () => {
+    writeFixture();
+    expect(await run(allow(), "--write")).toBe(0);
+    expect(errors.join(" | ")).not.toMatch(/owner placeholders/);
+    expect(puts().length).toBeGreaterThan(0);
   });
 });
 

@@ -19,15 +19,20 @@
 // MEMBERSHIP of the published list, and the keys are rebuilt by the same helpers
 // the uploader used. Nothing from the request reaches a key.
 //
-// TWO SHAPES OF RESPONSE, and which one you get is decided before any byte is
-// read:
+// WHAT COMES BACK, decided before any byte is read (launch readiness 5.5):
 //
-//   3MF, current release  ->  the parts PLATED. One plate is a bare .3mf; more
-//                             than one -- OR anything needing supports -- is a
-//                             zip of plates/ plus README and LICENSE. Quantity
-//                             becomes real repeated items.
-//   anything else         ->  the LOOSE zip, one file per distinct part, which
-//                             is what this route has always served.
+//   3MF, whole pack      ->  a zip of plates/ plus README and LICENSE, only when
+//                            the byte budget prices it at 8 MB or less.
+//                            Otherwise an actionable 400 listing one canonical
+//                            link per plate.
+//   3MF, `plate_index=N` ->  a zip of that ONE plate plus README and LICENSE,
+//                            reading only the parts on it. Year-long CDN life.
+//   STL                  ->  the LOOSE zip, one file per distinct part, under
+//                            the same budget.
+//
+// Every refusal (grammar, bed floor, unknown part, budget, plan) is arithmetic
+// on committed tables, so it costs zero R2 reads. Any non-canonical spelling of
+// a request is 307'd to the canonical one first.
 //
 // The two boxes hold different things, so their filenames COUNT different
 // things: a plate holds instances, the loose zip holds one file per name. That
@@ -36,6 +41,7 @@ import type { NextRequest } from "next/server";
 import JSZip from "jszip";
 
 import { capture } from "@/lib/analytics";
+import { hexAttribution } from "@/lib/hex-attribution";
 import { env } from "@/env";
 import { getR2ObjectBytes } from "@/lib/part-r2";
 import { HEX_LICENSE } from "@/lib/hex-spec";
@@ -45,15 +51,28 @@ import {
   HEX_PART_NAME,
 } from "@/lib/hex-geometry";
 import {
+  BED_FLOOR_MM,
+  MAX_PACK_INSTANCES,
+  PACK_PATH,
+  canonicalPackQuery,
   packFilename,
   packInstances,
+  packPlateLinks,
   platePath,
   resolvePack,
   type Bed,
+  type BedSource,
   type PackContents,
   type PackFormat,
   type PackPart,
+  type PackRequest,
 } from "@/lib/hex-pack";
+import {
+  PACK_BYTE_BUDGET,
+  estimatePackBytes,
+  estimatePlateBytes,
+  formatMegabytes,
+} from "@/lib/hex-pack-budget";
 import { asciiStem, contentDisposition } from "@/lib/hex-pack-name";
 import {
   packNeedsSupport,
@@ -71,28 +90,10 @@ import {
 import { printableKey, printableLicenseKey } from "@/lib/r2";
 import { isPublishedRelease } from "@/lib/printable-releases";
 import { distinctIdFromCookies } from "@/lib/posthog-distinct-id";
+import { hexFlag } from "@/lib/hex-flags";
 
 const SITE = "https://academy.onethousanddrones.com/hex";
 
-/** Where the configurator got the bed it is asking us to pack for. Analytics
- *  only -- it changes no byte of the response. */
-const BED_SOURCES = ["account", "local", "default"] as const;
-type BedSource = (typeof BED_SOURCES)[number] | "unknown";
-
-/**
- * Read `bedFrom`, and never trust it.
- *
- * An unrecognised value becomes the fixed token `"unknown"` rather than being
- * passed through. Two reasons, and only one of them is tidiness: a query
- * parameter forwarded verbatim into PostHog is an attacker-chosen property value
- * of unbounded cardinality, i.e. a way to write arbitrary text into our
- * analytics store and to shred a breakdown chart with a million one-row buckets.
- *
- * NOT a 400, unlike every other malformed field. This one cannot change a single
- * byte of the response, and the configurator deploys separately from this route
- * -- so refusing the download would mean denying someone their files because a
- * field they cannot see picked up a fourth value we had not shipped yet.
- */
 /**
  * The `Content-Disposition` for a response, in both spellings of the name.
  *
@@ -114,13 +115,6 @@ function disposition(
     filename: packFilename(parts, opts),
     ascii: packFilename(parts, { ...opts, stem: asciiStem(opts.stem) }),
   });
-}
-
-function readBedSource(raw: string | null): BedSource | undefined {
-  if (raw == null || raw === "") return undefined;
-  return (BED_SOURCES as readonly string[]).includes(raw)
-    ? (raw as BedSource)
-    : "unknown";
 }
 
 /** Join the request's parts to the geometry the packer needs.
@@ -150,12 +144,25 @@ type Tracked = {
   /** Absent when the response was not plated -- a loose zip has no plates, and
    *  reporting 0 would drag every average toward it. */
   plates?: number;
+  /** Set on a per-plate download: which plate of `plates` this was. */
+  plateIndex?: number;
   bytes: number;
   sourceBytes: number;
 };
 
 function track(req: NextRequest, t: Tracked): void {
   try {
+    // ATTRIBUTION ONLY WITH CONSENT (6.6, 1.14): `src` (a closed enum, never
+    // the raw query value), the first-touch `otd_src` and the referrer. This
+    // is a class (b) event, so `capture()` drops ALL of it -- the download and
+    // its attribution -- without a c15t measurement grant. That one choke point
+    // is the consent gate; there is deliberately no second one here.
+    // `src` is read off the URL being served, which is already the canonical
+    // one, and goes through the enum again anyway: the boundary is here.
+    const attribution = hexAttribution(
+      req.nextUrl.searchParams.get("src"),
+      req.cookies,
+    );
     capture(
       "printable_pack_downloaded",
       {
@@ -166,11 +173,13 @@ function track(req: NextRequest, t: Tracked): void {
         // of one cap is one part and six things on a bed.
         instances: packInstances(t.parts),
         plates: t.plates,
+        plate_index: t.plateIndex,
         bed_x: t.bed.x,
         bed_y: t.bed.y,
         bed_source: t.bedSource,
         bytes: t.bytes,
         source_bytes: t.sourceBytes,
+        ...attribution,
         referrer: req.headers.get("referer") ?? undefined,
       },
       distinctIdFromCookies(req.cookies) ?? undefined,
@@ -198,9 +207,36 @@ function track(req: NextRequest, t: Tracked): void {
  *  header. */
 const CACHE = "public, max-age=86400";
 
+/** The CDN lifetime of a per-plate URL (5.5): a year, purged by `pack-<release>`. */
+const PLATE_CDN_CACHE = "public, s-maxage=31536000";
+
+/** A hard ceiling on one request's wall clock (5.5). */
+export const maxDuration = 30;
+
+/** The actionable 400: a real request we will not serve as asked, with a
+ *  message that says what to do instead. */
+function tooBig(message: string): Response {
+  return new Response(message, {
+    status: 400,
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
 export async function GET(req: NextRequest) {
   if (!env.R2_ENABLED || !env.R2_BUCKET) {
     return new Response("Not found", { status: 404 });
+  }
+
+  // The kill switch (`hexPackEnabled`), checked before any parsing or R2 read.
+  // 503 with no-store so a CDN never pins the refusal past the flip back.
+  if (!(await hexFlag("hexPackEnabled"))) {
+    return new Response("Downloads are paused. Try again later.", {
+      status: 503,
+      headers: { "Cache-Control": "no-store", "Retry-After": "300" },
+    });
   }
 
   const q = req.nextUrl.searchParams;
@@ -214,66 +250,163 @@ export async function GET(req: NextRequest) {
     // HTTP header parameter. Everything that decides which is in
     // `hex-pack-name.ts`; nothing here touches the raw string.
     name: q.get("name"),
+    bedFrom: q.get("bedFrom"),
+    // Where the download was sent from (6.6). Read into a closed enum by
+    // `resolvePack`, so the canonical URL -- and the event -- only ever carry a
+    // listed value or `unknown`.
+    src: q.get("src"),
+    plateIndex: q.get("plate_index"),
+    build: q.get("build"),
   });
-  // One status for every malformed request. The problem code is not echoed:
-  // "unknown-part" vs "bad-format" would tell a prober which of its guesses was
-  // a real part name, which is the only thing this endpoint could leak.
-  if (!resolved.ok) return new Response("Bad request", { status: 400 });
+  if (!resolved.ok) {
+    // A real printer we do not pack for, so it is told why. This reveals
+    // nothing about the parts: the bed is checked before any name is.
+    if (resolved.problem === "below-bed-floor") {
+      return tooBig(
+        `Hex Cluster packs for print beds of at least ${BED_FLOOR_MM} x ` +
+          `${BED_FLOOR_MM} mm. The largest parts do not fit a smaller bed.`,
+      );
+    }
+    // One status for every malformed request. The problem code is not echoed:
+    // "unknown-part" vs "bad-format" would tell a prober which of its guesses
+    // was a real part name, which is the only thing this endpoint could leak.
+    return new Response("Bad request", { status: 400 });
+  }
 
-  const { release, format, parts, bed, stem } = resolved.request;
-  // The same allow-list as the single-file route, and for the same reason:
-  // uploading is not publishing. Without it an unlisted release sitting in the
-  // bucket would be served, packed, to anyone who guessed its date. 404, not
-  // 400, and before any R2 read.
+  const request = resolved.request;
+  const { release, format, parts, bed, stem, bedFrom, plateIndex } = request;
+
+  // ONLY THE RELEASE THE TABLES WERE MEASURED FROM. The plan needs the geometry
+  // table and the budget needs the byte table, and neither describes any other
+  // cut. v1 is dead: an older release is not served, loose or otherwise.
+  if (release !== HEX_GEOMETRY_RELEASE) {
+    return new Response("Not found", { status: 404 });
+  }
+  // AND ONLY ONCE IT IS PUBLISHED. The same allow-list as the single-file
+  // route, and for the same reason: uploading is not publishing. Without it a
+  // release sitting in the bucket would be served, packed, to anyone who
+  // guessed its date. So until the tables' release is added to
+  // `PUBLISHED_RELEASES` (a launch-day, one-line change) every pack 404s. 404,
+  // not 400, and before any R2 read.
   if (!isPublishedRelease(release)) {
     return new Response("Not found", { status: 404 });
   }
-  const bedSource = readBedSource(q.get("bedFrom"));
+
+  // ONE URL PER PACK. Any other spelling of the same request -- unsorted parts,
+  // `:1`, a raw name, an unknown `bedFrom`, a stray parameter -- is redirected
+  // to the canonical one, so the CDN holds one copy and the year-long plate
+  // lifetime is safe. 307 for launch week (a 308 is cached by browsers for
+  // good). The Location carries no host, so a Host header cannot steer it.
+  const canon = canonicalPackQuery(request);
+  if (req.nextUrl.search !== `?${canon}`) {
+    return new Response(null, {
+      status: 307,
+      headers: {
+        Location: `${PACK_PATH}?${canon}`,
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
+  // THE BUDGET, BEFORE ANY R2 READ. A part with no row cannot be priced, so it
+  // is an unknown part: the same flat 400.
+  const estimate = estimatePackBytes(parts, format);
+  if (estimate === null) return new Response("Bad request", { status: 400 });
 
   // PLATING IS 3MF-ONLY. An STL is a flat triangle soup: no transforms, no
   // units, no object names. Baking placements into its vertices would hand
   // someone one anonymous blob where fifteen named parts used to be, so STL
   // keeps shipping loose files and the configurator greys the bed picker out.
-  //
-  // AND ONLY FOR THE RELEASE THE GEOMETRY TABLE WAS MEASURED FROM. Release keys
-  // are immutable and old links stay alive, so `release=2026-07-31` is still a
-  // live request -- and 07-31's meshes are a DIFFERENT cut (twelve dovetail caps
-  // were exported upside down, which is why 08-03 exists). Packing those against
-  // 08-03's bounding boxes would place parts by numbers that do not describe
-  // them, and the symptom is parts overlapping in a stranger's slicer with
-  // nothing pointing back here. An old link therefore keeps getting exactly what
-  // it gets today: the loose zip. Nothing is refused, and nothing is plated
-  // against geometry we did not measure.
-  if (format !== "3mf" || release !== HEX_GEOMETRY_RELEASE) {
-    return looseZip(req, { release, format, parts, bed, bedSource, stem });
+  if (format === "stl") {
+    if (estimate > PACK_BYTE_BUDGET) {
+      return tooBig(
+        `These STL files come to about ${formatMegabytes(estimate)}, more than ` +
+          `the ${formatMegabytes(PACK_BYTE_BUDGET)} one download can carry. ` +
+          "Download fewer parts at a time, or download them as 3MF plates, " +
+          "one plate at a time.",
+      );
+    }
+    return looseZip(req, {
+      release,
+      format,
+      parts,
+      bed,
+      bedSource: bedFrom,
+      stem,
+    });
   }
-  return platedPack(req, { release, parts, bed, bedSource, stem });
+
+  const plates = planPlates(parts, bed);
+  if (plates instanceof Response) return plates;
+
+  if (plateIndex !== undefined) {
+    if (plateIndex > plates.length) {
+      return new Response("Not found", { status: 404 });
+    }
+    // The same budget, per plate. On a realistic bed a plate is a few meshes;
+    // a huge bed full of a heavy part is what this refuses.
+    const plateBytes = estimatePlateBytes(plates[plateIndex - 1]);
+    if (plateBytes === null) {
+      return new Response("Bad request", { status: 400 });
+    }
+    if (plateBytes > PACK_BYTE_BUDGET) {
+      return tooBig(
+        `Plate ${plateIndex} comes to about ${formatMegabytes(plateBytes)}, ` +
+          `more than the ${formatMegabytes(PACK_BYTE_BUDGET)} one download ` +
+          "can carry. Choose a smaller bed, so each plate holds fewer parts.",
+      );
+    }
+    return platedPack(req, {
+      release,
+      parts,
+      bed,
+      bedSource: bedFrom,
+      stem,
+      plates,
+      only: plateIndex,
+      build: request.build,
+    });
+  }
+
+  // The whole pack in one zip only when it fits the budget. Otherwise the
+  // answer is the plan: one link per plate, each its own small download.
+  if (estimate > PACK_BYTE_BUDGET) {
+    return tooBig(
+      [
+        `This build comes to about ${formatMegabytes(estimate)}, more than ` +
+          `the ${formatMegabytes(PACK_BYTE_BUDGET)} one download can carry.`,
+        `Download it one plate at a time instead (${plates.length} ` +
+          `${plates.length === 1 ? "plate" : "plates"}):`,
+        ...packPlateLinks(request, plates.length),
+      ].join("\n"),
+    );
+  }
+  return platedPack(req, {
+    release,
+    parts,
+    bed,
+    bedSource: bedFrom,
+    stem,
+    plates,
+    build: request.build,
+  });
 }
 
 /**
- * The plated path: pack, then read, then write.
+ * Lay the request out on plates: pure arithmetic on the committed geometry
+ * table, so every refusal below costs zero R2 reads.
  *
- * THE ORDER IS THE POINT. `packPlates` needs the committed geometry table and
- * nothing else, so a request over the plate cap is refused on pure arithmetic
- * with zero network calls. Reading first and counting after would let one
- * unauthenticated GET pull 53 objects out of the bucket before we decided to
- * refuse it -- which is the whole reason the cap exists.
+ * Returns the plan, or the Response that refuses it.
  */
-async function platedPack(
-  req: NextRequest,
-  ctx: {
-    release: string;
-    parts: PackPart[];
-    bed: Bed;
-    bedSource: BedSource | undefined;
-    stem: string;
-  },
-): Promise<Response> {
-  const { release, parts, bed, bedSource, stem } = ctx;
-
-  let plates: Placement[][];
+function planPlates(parts: readonly PackPart[], bed: Bed): Placement[][] | Response {
   try {
-    plates = packPlates(packInputs(parts), bed);
+    // THE PLATE CAP IS THE INSTANCE CAP. One plate per request means a plan's
+    // plate count no longer bounds any single response -- the byte budget does
+    // -- and a v2 `hex-main` (190.8 x 169.2 mm) is one to a plate even on a
+    // 350 mm bed, so a 20-cell build is dozens of plates. Each instance opens at most one plate, so
+    // passing the instance cap makes "too-many-plates" unreachable here; the
+    // case below stays as the answer if that ever stops being true.
+    return packPlates(packInputs(parts), bed, MAX_PACK_INSTANCES);
   } catch (err) {
     const reason = err instanceof PlatePackError ? err.reason : null;
     switch (reason) {
@@ -334,13 +467,52 @@ async function platedPack(
     }
   }
 
+}
+
+/**
+ * The plated path: read, then write, for a plan already made and priced.
+ *
+ * THE ORDER IS THE POINT. `GET` planned and priced this request on the
+ * committed tables alone, so everything refused was refused with zero network
+ * calls. By the time this runs, the response is known to fit the budget.
+ *
+ * `only` is a per-plate download: the archive holds that one plate of the plan,
+ * and only the parts ON it are read from R2.
+ */
+async function platedPack(
+  req: NextRequest,
+  ctx: {
+    release: string;
+    parts: PackPart[];
+    bed: Bed;
+    bedSource: BedSource | undefined;
+    stem: string;
+    plates: Placement[][];
+    only?: number;
+    /** A saved drawing's share code, for the README's reopen line. */
+    build?: string;
+  },
+): Promise<Response> {
+  const { release, parts, bed, bedSource, stem, plates, only, build } = ctx;
+  // The plates this archive holds, each with its number in the plan, so a
+  // per-plate file keeps its `i-of-N` name.
+  const held =
+    only === undefined
+      ? plates.map((plate, i) => ({ plate, n: i + 1 }))
+      : [{ plate: plates[only - 1], n: only }];
+  // What gets READ: the distinct parts on the held plates, in request order.
+  const reads =
+    only === undefined
+      ? parts
+      : parts.filter((p) => held[0].plate.some((x) => x.slug === p.slug));
+
   const multi = plates.length > 1;
-  const warned = packNeedsSupport(parts.map((p) => p.slug));
+  const warned = packNeedsSupport(reads.map((p) => p.slug));
   // EVERY DOWNLOAD IS AN ARCHIVE. This used to be `multi || warned`, so a
   // single plate of parts that needed no warning came back as a bare `.3mf`.
   // Two independent things killed that branch, and either alone would have.
   //
-  // THE LICENCE HAS TO TRAVEL. Owner, 2026-08-17: "we also have a license file
+  // THE LICENCE HAS TO TRAVEL. Owner, August 2026: "we also have a license file
   // we need to include, so zip is not optional." These are CC BY works and the
   // attribution is the one condition of the licence; a bare plate carried it
   // only as `<metadata>` inside the file, which is real but is not the notice.
@@ -349,13 +521,15 @@ async function platedPack(
   // argued the bare file was "the commonest response" and that only a build
   // containing a spike needed the zip. A calibration sweep -- every published
   // part on one plate, opened in Creality Print, warnings written down -- put
-  // 25 of 53 parts on the support list, including `hex-tb-main`, which is in
-  // very nearly every build anyone assembles. So "everything else still gets
+  // 25 of the 53 v1 parts on the support list, including the v1 main base,
+  // which is in very nearly every build anyone assembles. So "everything else still gets
   // the one file" had quietly become "almost nothing does". Keeping a branch
   // alive for the cases that no longer occur is how a rarely-taken path rots.
   //
   // `multi` and `warned` are still computed: they decide what the README SAYS,
-  // which is a different question from what shape the box is.
+  // which is a different question from what shape the box is. (For v2 the
+  // support data is UNKNOWN until 4.7, so `warned` is false and the README
+  // states that instead; see `hex-support.ts`.)
   const archived = true;
 
   const sources = new Map<string, string>();
@@ -367,7 +541,7 @@ async function platedPack(
     // few hundred KB each and the wall-clock difference does not justify it.
     // One read per DISTINCT part, however many of it are on the plates: the mesh
     // is embedded once as an `<object>` and repeated as `<item>` lines.
-    for (const part of parts) {
+    for (const part of reads) {
       const buf = await getR2ObjectBytes(
         printableKey(release, "3mf", part.slug, "3mf"),
       );
@@ -392,9 +566,9 @@ async function platedPack(
 
   const built: Buffer[] = [];
   try {
-    for (let i = 0; i < plates.length; i++) {
+    for (const { plate, n } of held) {
       built.push(
-        await buildPlate3mf(plates[i], sources, {
+        await buildPlate3mf(plate, sources, {
           // What the plate was packed for, and therefore the outline the package
           // thumbnail draws the parts inside. The same `bed` the packer used, not
           // a re-read of the query: a thumbnail showing the right parts against
@@ -410,12 +584,12 @@ async function platedPack(
           // the title and the filename, so a slicer's title bar and the file it
           // was opened from cannot be saying different things -- the same reason
           // the README lists plates through the helper that names them.
-          title: `${stem} -- plate ${i + 1} of ${plates.length}`,
+          title: `${stem}: plate ${n} of ${plates.length}`,
           credit: HEX_LICENSE.credit,
           // Per PLATE, not per pack: a plate with no spike on it says so, and
           // the one that has them names them. A pack-wide note would tell four
           // people out of five to support a part that is not in front of them.
-          description: plateDescription(plates[i]),
+          description: plateDescription(plate),
         }),
       );
     }
@@ -495,7 +669,9 @@ async function platedPack(
   // nobody reads. Same reasoning as inside each plate.
   zip.file("plates/", null, { dir: true, date: ZIP_EPOCH });
   built.forEach((buf, i) =>
-    zip.file(platePath(i + 1, plates.length, stem), buf, { date: ZIP_EPOCH }),
+    zip.file(platePath(held[i].n, plates.length, stem), buf, {
+      date: ZIP_EPOCH,
+    }),
   );
   zip.file(
     "README.txt",
@@ -509,6 +685,10 @@ async function platedPack(
       // and the zip's directory are compared by a human holding one against the
       // other, so they are built from one value or they are not checkable at all.
       stem,
+      only,
+      // A SAVED drawing's page, never an unsaved build's payload (see
+      // `PackRequest.build`). Absent, the README carries no link at all.
+      buildUrl: build ? new URL(`/c/${build}`, SITE).href : undefined,
     }),
     { date: ZIP_EPOCH },
   );
@@ -538,9 +718,33 @@ async function platedPack(
     bed,
     bedSource,
     plates: plates.length,
+    ...(only === undefined ? {} : { plateIndex: only }),
     bytes: out.byteLength,
     sourceBytes: bytesIn,
   });
+
+  if (only !== undefined) {
+    // Named after the PLATE, not the pack: this archive holds one plate of the
+    // plan, and a folder of them must sort and read as "plate 3 of 12".
+    const name = (s: string) => `${s}-plate-${only}-of-${plates.length}.zip`;
+    return new Response(new Uint8Array(out), {
+      headers: {
+        "Content-Type": "application/zip",
+        "Content-Length": String(out.byteLength),
+        "Content-Disposition": contentDisposition({
+          filename: name(stem),
+          ascii: name(asciiStem(stem)),
+        }),
+        "Cache-Control": CACHE,
+        // A DETERMINISTIC URL: the canonical query names the release (immutable
+        // keys), the parts, the bed, the name and the plate, and nothing else
+        // reaches the bytes. So the CDN may keep it for a year; a code change
+        // that alters plate bytes purges it by the release tag.
+        "Vercel-CDN-Cache-Control": PLATE_CDN_CACHE,
+        "Vercel-Cache-Tag": `pack-${release}`,
+      },
+    });
+  }
 
   return new Response(new Uint8Array(out), {
     headers: {
@@ -646,7 +850,7 @@ async function looseZip(
       "Content-Length": String(out.byteLength),
       // FILES, not instances, and this is the count the loop above just wrote:
       // one entry per DISTINCT part. Naming the box after the instance total
-      // shipped `?format=stl&parts=hex-tb-main:6` as `hex-cluster-6-parts.zip`
+      // shipped `?format=stl&parts=<one part>:6` as `hex-cluster-6-parts.zip`
       // holding one file, beside a README reading "1 of the published parts" --
       // the filename said six, the README said one, the box held one.
       //

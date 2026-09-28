@@ -35,7 +35,7 @@
 //       an unbounded number of cache entries.
 //
 //   REPAIRED (folded, deterministically)
-//     - everything else. Somebody who types `TB-1 / POWER` means a slash in
+//     - everything else. Somebody who types `BENCH-2 / POWER` means a slash in
 //       their title, not a directory. Refusing their download over it would be
 //       refusing to answer a question we can answer perfectly well, and a build
 //       name is not a field they can see the rules for.

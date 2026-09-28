@@ -28,76 +28,56 @@ import {
   INTENT_EVERY_PART,
   INTENT_EVERY_PART_DISPLAY,
 } from "@/lib/hex-print-intent";
+import {
+  HEX_RELEASE_FILES as GENERATED_RELEASE_FILES,
+  HEX_TABLES_RELEASE,
+} from "@/lib/hex-release-tables";
 
-/** Immutable release segment of the published mesh set. Mirrors
- *  `PRINTABLES_RELEASE` in `scripts/upload-printables.ts` — the R2 keys and the
- *  LICENSE.txt inside every published file are stamped with it.
+/** The release the app serves: the immutable R2 segment every download link,
+ *  the LICENSE.txt stamp and the pack route are keyed on.
  *
- *  2026-08-03 supersedes 2026-07-31, which is NOT deleted: the keys are
- *  immutable and carry a one-year cache header, so any URL already in the wild
- *  keeps resolving. Two things were wrong with that release and neither could be
- *  edited in place — the twelve FEMALE dovetail caps exported upside down (the
- *  exporter applied one X rotation to the whole cap family, which is correct for
- *  the male half and inverts the female one), and its README named PLA. Both are
- *  fixed here. */
-/** 2026-08-17 re-cuts the meshes again. What it changes, all of it orientation:
+ *  ONE CONSTANT, AND IT IS THE GENERATOR'S INPUT. Launch readiness 4.2 makes the
+ *  release id the input to hex-cluster's `tools/gen_release_tables.py`, which
+ *  stamps it into `hex-release-tables.ts` along with every table measured from
+ *  that release. Reading it from there means the id cannot disagree with the
+ *  tables: changing it is regenerating them, never editing a string here.
  *
- *  THE CAP FIX ABOVE ONLY FIXED HALF THE CAPS. 08-03's note says the twelve
- *  FEMALE caps had exported upside down and were corrected. Measured on 08-03's
- *  own meshes -- flat area at the extreme low against the extreme high, which is
- *  a test holes cannot invert -- the females are indeed outward-face-down and
- *  the six MALE variants are outward-face-up. The exporter mirrored the ROTATION
- *  to match a mirrored part, and mirroring a rotation on an already-mirrored
- *  part points the two outward faces in opposite directions. That is also the
- *  "why do they alternate in the slicer?" the owner spotted. Both families now
- *  carry the same entry, which is the fix stated as an assertion that they do
- *  not differ.
- *
- *  FOUR PARTS WERE RESTING ON ALMOST NOTHING. Measured as a real first-layer
- *  cross-section rather than by summing downward-facing facets (which reports
- *  ZERO on a curved contact, and did): the two corners stood 30 mm tall on
- *  19.58 sq mm, and the ball platform and zip-1H on 11.56. Re-oriented they
- *  measure 416.8, 655.3 and 1623.8 sq mm. The corners rest on a HEX FLANK, a
- *  pose no axis-aligned search can find, because a wedge's best face is not
- *  perpendicular to any axis -- cluster the mesh by face normal instead.
- *
- *  Ten further parts (ball platforms, carrier solids, parts trays) were turned
- *  onto their largest face. `Hex-TB-Spike-Ball-Zip-Single` was left alone at
- *  6.74 sq mm: every candidate pose was swept and the best alternative is 13.40
- *  sq mm at 17.3 mm tall, a worse aspect than 6.74 at 11.6. It keeps its brim.
- *  Do not move a part without somewhere better to move it to.
- *
- *  NO GEOMETRY CHANGED. Owner constraint: the models are what they are. */
-export const HEX_RELEASE = "2026-08-17";
+ *  The earlier releases (`HEX_PUBLISHED_RECORD_RELEASES`) are v1 and are not
+ *  deleted -- their keys are immutable and carry a one-year cache header. They
+ *  are the published record (`hex-published-record.ts`); nothing live reads
+ *  them. Which releases `/api/printable` serves is `PUBLISHED_RELEASES`, which
+ *  lives on its own branch, and the new id is added there only at launch. */
+export const HEX_RELEASE: string = HEX_TABLES_RELEASE;
 
 /** The configurator (a separate deploy). Also the URL printed in the release
  *  README and on every build sheet. */
-export const HEX_CONFIGURATOR_URL = "https://demo.onethousanddrones.com/hex";
+// The canonical host since launch (decision 1.10; 10.5, 2026-09-28). demo. and
+// *.pages.dev still serve it and redirect here, fragment intact.
+export const HEX_CONFIGURATOR_URL = "https://hex.onethousanddrones.com/hex";
 
-/** Number of parts in the published set (`build/printables/manifest.json`,
- *  TB-1-POWER withheld on disclosure grounds). Unchanged across both releases:
- *  2026-08-03 re-cut the geometry, it did not add or drop a part.
+/** Number of parts in the release, generated with the list it counts.
  *
- *  NOT PAGE COPY, deliberately. /hex used to print it three times -- in the
- *  hero line, in the spec list and on the download row -- and the set grows
- *  whenever a part is added, so every one of those was a promise the page could
- *  not keep on its own. The count now exists only where it is CHECKED: the pack
- *  test asserts it against HEX_PART_SLUGS.length, so a mismatch fails the suite
- *  instead of shipping a wrong number to a reader. */
-export const HEX_PART_COUNT = 53;
+ *  NOT PAGE COPY, deliberately. The set grows whenever a part is added, so a
+ *  count printed on /hex is a promise the page cannot keep on its own. The
+ *  count exists only where it is CHECKED: the pack test asserts it against
+ *  HEX_PART_SLUGS.length. */
+export { HEX_PART_COUNT } from "@/lib/hex-release-tables";
 
 /** Sizes of the published downloads, so the page can tell someone what a tap
  *  will cost them before they take it on a phone tether.
  *
- *  Safe as constants precisely because release keys are IMMUTABLE: a segment is
- *  never overwritten, so these bytes cannot change under the page. Re-cutting
- *  the meshes mints a new release, which is when these get updated alongside
- *  HEX_RELEASE. Measured from the published objects, not estimated. */
+ *  `set` is the 3MF-only full-set zip (decision 1.3), from the generated table:
+ *  its bytes are the SUM OF ITS MEMBERS, a floor rather than the object size,
+ *  because the zip is built by the uploader and its exact size is recorded by
+ *  the upload dry run (4.9).
+ *
+ *  `license` is the last v1 release's notice, 836 bytes, carried until the v2
+ *  LICENSE.txt wording lands (6.8) and is measured. */
 export const HEX_RELEASE_FILES = {
-  // HEAD'd off the published objects for 2026-08-17, not carried over: the set
-  // is a zip of re-oriented meshes, so its size moved (13_688_628 on 08-03).
-  // The licence is byte-identical because the text did not change.
-  set: { bytes: 13_718_988, label: "13.1 MB" },
+  set: {
+    bytes: GENERATED_RELEASE_FILES.set.contentBytes,
+    label: GENERATED_RELEASE_FILES.set.label,
+  },
   license: { bytes: 836, label: "836 B" },
 } as const;
 
@@ -179,17 +159,5 @@ export const HEX_ORIENTATION = {
     "loads interlayer bonds, the weak FDM axis; PETG layer adhesion compensates.",
 } as const;
 
-/** CC BY 4.0. One-way: files already published under it stay under it, and only
- *  a future release could carry different terms. Mirrors the LICENSE.txt built
- *  in `scripts/upload-printables.ts`. */
-export const HEX_LICENSE = {
-  name: "CC BY 4.0",
-  fullName: "Creative Commons Attribution 4.0 International",
-  deed: "https://creativecommons.org/licenses/by/4.0/",
-  legalCode: "https://creativecommons.org/licenses/by/4.0/legalcode",
-  holder: "One Thousand Drones, LLC",
-  /** The canonical attribution line a remixer can copy verbatim. */
-  credit:
-    "Hex Cluster by One Thousand Drones, LLC, licensed CC BY 4.0. " +
-    "Source: https://academy.onethousanddrones.com/hex",
-} as const;
+/** Re-exported from its own module; see `hex-license.ts` for why it moved. */
+export { HEX_LICENSE } from "@/lib/hex-license";

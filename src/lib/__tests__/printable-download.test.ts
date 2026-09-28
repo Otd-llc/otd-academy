@@ -7,6 +7,7 @@
 // reachable, however the path is bent.
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { HEX_PUBLISHED_RECORD_RELEASES } from "@/lib/hex-published-record";
 import { resolvePrintable } from "@/lib/printable-key";
 
 const RELEASE = "2026-07-31";
@@ -29,8 +30,8 @@ describe("resolvePrintable — what it serves", () => {
   });
 
   it.each(["3mf", "stl", "step"])("serves a %s mesh", (fmt) => {
-    const r = resolvePrintable([RELEASE, fmt, `hex-tb-main.${fmt}`]);
-    expect(r?.key).toBe(`printables/2026-07-31/${fmt}/hex-tb-main.${fmt}`);
+    const r = resolvePrintable([RELEASE, fmt, `hex-main.${fmt}`]);
+    expect(r?.key).toBe(`printables/2026-07-31/${fmt}/hex-main.${fmt}`);
     expect(r?.ext).toBe(fmt);
   });
 
@@ -54,12 +55,12 @@ describe("resolvePrintable — what it refuses", () => {
     [[RELEASE, "3mf"], "a format with no file"],
     [[RELEASE, "3mf", "a.3mf", "b.3mf"], "an over-long path"],
     [[RELEASE, "sets", "hex-cluster"], "a set with no .zip"],
-    [[RELEASE, "stl", "hex-tb-main.3mf"], "an extension that fights its folder"],
+    [[RELEASE, "stl", "hex-main.3mf"], "an extension that fights its folder"],
     [[RELEASE, "exe", "payload.exe"], "a format we never wrote"],
     [[RELEASE, "license.txt"], "the licence in the wrong case"],
     [["2026-7-31", "LICENSE.txt"], "an unpadded release"],
     [["latest", "LICENSE.txt"], "a non-date release"],
-    [[RELEASE, "3mf", "Hex-TB-Main.3mf"], "an unslugged part name"],
+    [[RELEASE, "3mf", "Hex-Main.3mf"], "an unslugged part name"],
     [[RELEASE, "3mf", "hex_tb_main.3mf"], "underscores in a part name"],
     [[], "an empty path"],
   ])("refuses %j (%s)", (path) => {
@@ -72,7 +73,7 @@ describe("resolvePrintable — what it refuses", () => {
     const probes = [
       [RELEASE, "sets", "hex-cluster.zip"],
       [RELEASE, "LICENSE.txt"],
-      [RELEASE, "stl", "hex-tb-main.stl"],
+      [RELEASE, "stl", "hex-main.stl"],
       ["..", "..", "etc.zip"],
       [RELEASE, "sets", "..zip"],
     ];
@@ -222,12 +223,12 @@ describe("the download route", () => {
     );
   });
 
-  it.each(["2026-07-31", "2026-08-03", "2026-08-17"])(
+  it.each([...HEX_PUBLISHED_RECORD_RELEASES])(
     "serves published release %s",
     async (release) => {
       const call = await load();
       stubFound();
-      const res = await call("GET", [release, "3mf", "hex-tb-main.3mf"]);
+      const res = await call("GET", [release, "3mf", "hex-main.3mf"]);
       expect(res.status).toBe(302);
     },
   );
@@ -235,14 +236,14 @@ describe("the download route", () => {
   it("two GETs record two downloads", async () => {
     const call = await load();
     stubFound();
-    await call("GET", [RELEASE, "stl", "hex-tb-main.stl"]);
-    await call("GET", [RELEASE, "stl", "hex-tb-main.stl"]);
+    await call("GET", [RELEASE, "stl", "hex-main.stl"]);
+    await call("GET", [RELEASE, "stl", "hex-main.stl"]);
     const downloads = captureMock.mock.calls.filter(
       (c) => c[0] === "printable_downloaded",
     );
     expect(downloads).toHaveLength(2);
     expect(downloads[0]![1]).toMatchObject({
-      key: "printables/2026-07-31/stl/hex-tb-main.stl",
+      key: "printables/2026-07-31/stl/hex-main.stl",
       release: RELEASE,
       kind: "stl",
       bytes: 1234,
@@ -343,14 +344,135 @@ describe("the download route", () => {
   });
 });
 
+// Attribution (6.6, 1.14), carried over from the v2 branch onto the 302 route.
+// `src` is the ONE query the route accepts, and only a listed value of it; the
+// rest canonicalise before R2 is touched, exactly like any other query did.
+describe("attribution on printable_downloaded (6.6, 1.14)", () => {
+  afterEach(() => {
+    r2.headR2Object.mockReset();
+    r2.presignGet.mockReset();
+    captureMock.mockReset();
+    vi.resetModules();
+    vi.unstubAllEnvs();
+  });
+
+  const GRANTED = "c.measurement:1,c.necessary:1";
+  const PATH = [RELEASE, "sets", "hex-cluster.zip"];
+
+  async function request(
+    method: "GET" | "HEAD",
+    query: string,
+    cookies: Record<string, string> = {},
+  ) {
+    vi.stubEnv("R2_ENABLED", "true");
+    vi.stubEnv("R2_BUCKET", "test-bucket");
+    vi.resetModules();
+    r2.headR2Object.mockResolvedValue({ contentLength: 1234 });
+    r2.presignGet.mockResolvedValue(SIGNED);
+    const { NextRequest } = await import("next/server");
+    const mod = await import("@/app/api/printable/[...path]/route");
+    const cookie = Object.entries(cookies)
+      .map(([k, v]) => `${k}=${v}`)
+      .join("; ");
+    const req = new NextRequest(
+      `https://academy.onethousanddrones.com/api/printable/${PATH.join("/")}${query}`,
+      {
+        method,
+        headers: {
+          referer: "https://example.test/",
+          ...(cookie ? { cookie } : {}),
+        },
+      },
+    );
+    return mod[method](req, { params: Promise.resolve({ path: PATH }) });
+  }
+
+  async function download(query: string, cookies: Record<string, string>) {
+    const res = await request("GET", query, cookies);
+    expect(res.status).toBe(302);
+    const downloads = captureMock.mock.calls.filter(
+      (c) => c[0] === "printable_downloaded",
+    );
+    expect(downloads).toHaveLength(1);
+    return downloads[0]![1] as Record<string, unknown>;
+  }
+
+  it("carries src and otd_src with consent", async () => {
+    const p = await download("?src=hex_page", { c15t: GRANTED, otd_src: "hackaday" });
+    expect(p).toMatchObject({ src: "hex_page", otd_src: "hackaday" });
+    expect(p).toHaveProperty("referrer", "https://example.test/");
+  });
+
+  it("a bare download with consent is src unknown, and a hostile otd_src is unknown", async () => {
+    const p = await download("", { c15t: GRANTED, otd_src: "x".repeat(2000) });
+    expect(p).toMatchObject({ src: "unknown", otd_src: "unknown" });
+    expect(JSON.stringify(p)).not.toMatch(/xxxx/);
+  });
+
+  it("hands attribution to capture() unconditionally: the consent gate is capture's, not the route's", async () => {
+    // `capture` is mocked in this file, so this proves only that the route
+    // builds no second gate. That the whole event is DROPPED without consent is
+    // proven through the real choke point in hex-download-consent-gate.test.ts.
+    const p = await download("?src=hex_page", { otd_src: "hackaday" });
+    expect(p).toMatchObject({ src: "hex_page", otd_src: "hackaday" });
+    expect(p).toHaveProperty("referrer", "https://example.test/");
+  });
+
+  it.each([
+    ["?src=etsy", ""],
+    [`?src=${encodeURIComponent("<b>x</b>")}`, ""],
+    ["?src=", ""],
+    ["?src=hex_page&utm_source=x", "?src=hex_page"],
+    ["?utm_source=x&src=configurator", "?src=configurator"],
+    ["?src=hex_page&src=hn", "?src=hex_page"],
+  ])(
+    "%s 307s to the canonical %j before R2, and counts nothing",
+    async (query, canon) => {
+      for (const method of ["GET", "HEAD"] as const) {
+        const res = await request(method, query, { c15t: GRANTED });
+        expect(res.status).toBe(307);
+        expect(res.headers.get("location")).toBe(
+          `/api/printable/${PATH.join("/")}${canon}`,
+        );
+      }
+      expect(r2.headR2Object).not.toHaveBeenCalled();
+      expect(captureMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("HEAD with a listed src answers 200 and counts nothing", async () => {
+    const res = await request("HEAD", "?src=hex_page", { c15t: GRANTED });
+    expect(res.status).toBe(200);
+    expect(captureMock).not.toHaveBeenCalled();
+  });
+
+  it("HEAD types a mesh by its format", async () => {
+    vi.stubEnv("R2_ENABLED", "true");
+    vi.stubEnv("R2_BUCKET", "test-bucket");
+    vi.resetModules();
+    const { NextRequest } = await import("next/server");
+    const { HEAD } = await import("@/app/api/printable/[...path]/route");
+    const path = [RELEASE, "stl", "hex-main.stl"];
+    const res = await HEAD(
+      new NextRequest(
+        `https://academy.example.test/api/printable/${path.join("/")}`,
+        { method: "HEAD" },
+      ),
+      { params: Promise.resolve({ path }) },
+    );
+    expect(res.headers.get("content-type")).toBe("model/stl");
+  });
+});
+
 describe("PUBLISHED_RELEASES", () => {
-  it("is exactly the three launch releases", async () => {
+  it("is the published record plus the v2 release, and nothing else", async () => {
+    // The v1 ids are pinned, as literals, by the published record's own test
+    // (`hex-release-tables.test.ts`); the v2 release joined at launch (10.4).
     const { PUBLISHED_RELEASES } = await import("@/lib/printable-releases");
-    expect([...PUBLISHED_RELEASES].sort()).toEqual([
-      "2026-07-31",
-      "2026-08-03",
-      "2026-08-17",
-    ]);
+    expect([...PUBLISHED_RELEASES].sort()).toEqual(
+      [...HEX_PUBLISHED_RECORD_RELEASES, "2026-10-01"].sort(),
+    );
+    expect(PUBLISHED_RELEASES.size).toBe(4);
   });
 });
 
