@@ -256,6 +256,7 @@ export async function GET(req: NextRequest) {
     // listed value or `unknown`.
     src: q.get("src"),
     plateIndex: q.get("plate_index"),
+    build: q.get("build"),
   });
   if (!resolved.ok) {
     // A real printer we do not pack for, so it is told why. This reveals
@@ -363,6 +364,7 @@ export async function GET(req: NextRequest) {
       stem,
       plates,
       only: plateIndex,
+      build: request.build,
     });
   }
 
@@ -386,6 +388,7 @@ export async function GET(req: NextRequest) {
     bedSource: bedFrom,
     stem,
     plates,
+    build: request.build,
   });
 }
 
@@ -486,9 +489,11 @@ async function platedPack(
     stem: string;
     plates: Placement[][];
     only?: number;
+    /** A saved drawing's share code, for the README's reopen line. */
+    build?: string;
   },
 ): Promise<Response> {
-  const { release, parts, bed, bedSource, stem, plates, only } = ctx;
+  const { release, parts, bed, bedSource, stem, plates, only, build } = ctx;
   // The plates this archive holds, each with its number in the plan, so a
   // per-plate file keeps its `i-of-N` name.
   const held =
@@ -681,6 +686,9 @@ async function platedPack(
       // other, so they are built from one value or they are not checkable at all.
       stem,
       only,
+      // A SAVED drawing's page, never an unsaved build's payload (see
+      // `PackRequest.build`). Absent, the README carries no link at all.
+      buildUrl: build ? new URL(`/c/${build}`, SITE).href : undefined,
     }),
     { date: ZIP_EPOCH },
   );

@@ -160,6 +160,12 @@ export type PackRequest = {
   src?: HexSource;
   /** One-based plate to serve on its own, or absent for the whole pack. */
   plateIndex?: number;
+  /** A SAVED drawing's share code, so the README can say where the build
+   *  reopens (7.6 README pick A, owner's option 1 of 2026-09-28: saved builds
+   *  only). Never the build itself: an unsaved build's payload lives in a URL
+   *  fragment precisely so it reaches no access log, and a query parameter
+   *  would put it in every one. Absent for an unsaved build. */
+  build?: string;
   /** The build's own name, already sanitised into something a filesystem will
    *  accept -- `OTD-Hex-Cluster` when the caller named nothing. Every filename
    *  this request produces, inside the archive and out, is built from this ONE
@@ -244,6 +250,7 @@ export function resolvePack(input: {
   bedFrom?: string | null;
   src?: string | null;
   plateIndex?: string | null;
+  build?: string | null;
 }): PackResolution {
   const release = input.release ?? "";
   if (!RELEASE.test(release)) return { ok: false, problem: "bad-release" };
@@ -299,6 +306,12 @@ export function resolvePack(input: {
 
   const bedFrom = readBedSource(input.bedFrom);
   const src = readHexSource(input.src);
+  // DROPPED, not refused, when it is not a share code: the pack is the same
+  // pack without it, and the README simply carries no link. The canonical
+  // redirect then removes it from the URL. No database read -- a made-up code
+  // costs nothing and yields a dead link in the requester's own README.
+  const build =
+    input.build != null && BUILD_CODE_RE.test(input.build) ? input.build : undefined;
   return {
     ok: true,
     request: {
@@ -310,12 +323,17 @@ export function resolvePack(input: {
       ...(bedFrom === undefined ? {} : { bedFrom }),
       ...(src === undefined ? {} : { src }),
       ...(plateIndex === undefined ? {} : { plateIndex }),
+      ...(build === undefined ? {} : { build }),
     },
   };
 }
 
 /** The route this module describes requests for. */
 export const PACK_PATH = "/api/printable-pack";
+
+/** A saved drawing's share code: `SHARE_CODE_LENGTH` (22) base-62 characters,
+ *  as `hex-cluster.ts` mints them. `hex-pack.test.ts` pins the two together. */
+export const BUILD_CODE_RE = /^[0-9A-Za-z]{22}$/;
 
 /** Percent-encode a query value, leaving `:` and `,` readable.
  *
@@ -338,7 +356,7 @@ function q(value: string): string {
  * Fixed order: `release`, `parts` (sorted, a quantity of one written bare),
  * `plate`, then only when they differ from the default: `format` (only `stl`),
  * `name` (the sanitised stem, omitted when it is the fallback), `bedFrom` (the
- * enum), `src` (the enum), `plate_index`.
+ * enum), `src` (the enum), `build` (a saved drawing's code), `plate_index`.
  */
 export function canonicalPackQuery(req: PackRequest): string {
   const parts = req.parts
@@ -353,6 +371,7 @@ export function canonicalPackQuery(req: PackRequest): string {
   if (req.stem !== PACK_NAME_FALLBACK) out.push(`name=${q(req.stem)}`);
   if (req.bedFrom !== undefined) out.push(`bedFrom=${req.bedFrom}`);
   if (req.src !== undefined) out.push(`src=${req.src}`);
+  if (req.build !== undefined) out.push(`build=${req.build}`);
   if (req.plateIndex !== undefined) out.push(`plate_index=${req.plateIndex}`);
   return out.join("&");
 }

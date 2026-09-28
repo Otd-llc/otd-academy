@@ -387,6 +387,9 @@ export function plateReadme(opts: {
    *  download). The manifest then lists just the file the archive holds, under
    *  the same `i-of-N` name the plan gives it. */
   only?: number;
+  /** Where this build reopens: a saved drawing's /c/ page (7.6 README pick A).
+   *  Absent for an unsaved build, which then gets no line at all. */
+  buildUrl?: string;
 }): string {
   const plateCount = opts.plates.length;
   const held =
@@ -409,6 +412,11 @@ export function plateReadme(opts: {
     "Hex Cluster modular tile system by One Thousand Drones, LLC",
     ascii(opts.specUrl),
     "",
+    // STRAIGHT AFTER THE SPEC ADDRESS (the owner's pick A), before anything
+    // about plates: where the build came from is the first thing to keep.
+    ...(opts.buildUrl
+      ? ["This build, to reopen or change it:", `  ${ascii(opts.buildUrl)}`, ""]
+      : []),
     ...wrap(
       `This is a SUBSET: ${scope}, packed for a ${bed} bed, as 3MF, ` +
         `chosen in the configurator. Release ${ascii(opts.release)}. The ` +
