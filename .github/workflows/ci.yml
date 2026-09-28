@@ -157,17 +157,24 @@ jobs:
       - name: Start an S3-compatible server
         run: |
           set -euo pipefail
+          # RUSTFS, PINNED, NOT MINIO. MinIO deleted minio/minio from Docker Hub
+          # (September 2026) and quay.io now refuses an anonymous pull, so this
+          # step failed on every run from 2026-09-28 06:05 on `main`. RustFS is an
+          # S3-compatible server that, like MinIO, verifies SigV4 signatures, so
+          # the suites below still prove the app signs requests correctly. A
+          # PINNED tag: an unpinned `latest` is exactly how this broke.
           docker run -d --name s3 -p 9000:9000 \
-            -e MINIO_ROOT_USER=ciminio \
-            -e MINIO_ROOT_PASSWORD=ciminio-secret \
-            minio/minio:latest server /data
+            -e RUSTFS_ACCESS_KEY=ciminio \
+            -e RUSTFS_SECRET_KEY=ciminio-secret \
+            -e RUSTFS_ADDRESS=":9000" \
+            rustfs/rustfs:1.0.0 /data
           # Poll rather than sleep: a fixed sleep is either wasted time or a flake.
           for i in $(seq 1 60); do
-            if curl -sf http://localhost:9000/minio/health/live >/dev/null; then
-              echo "minio ready after ${i}s"; break
+            if curl -sf http://localhost:9000/health >/dev/null; then
+              echo "s3 ready after ${i}s"; break
             fi
             if [ "$i" = "60" ]; then
-              echo "::error::minio never became ready"; docker logs s3; exit 1
+              echo "::error::s3 never became ready"; docker logs s3; exit 1
             fi
             sleep 1
           done
