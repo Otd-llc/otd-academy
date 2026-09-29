@@ -173,9 +173,9 @@ describe("setPrintBed", () => {
     await expect(setPrintBed({ x: 300, y: 300 })).rejects.toThrow();
   });
 
-  test("getPrintBed refuses when signed out", async () => {
+  test("getPrintBed answers null, not a throw, when signed out", async () => {
     mockAuth.mockResolvedValueOnce(null);
-    await expect(getPrintBed()).rejects.toThrow();
+    expect((await getPrintBed()).bed).toBeNull();
   });
 });
 

@@ -17,7 +17,7 @@
 // the plain `@/lib/print-bed`, because a "use server" file's non-function exports
 // become server references and crash when something reads them.
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth-helpers";
+import { currentUserId, requireUser } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
 import { bedFromColumns, normalizeBed, type Bed, type StoredBed } from "@/lib/print-bed";
 
@@ -136,10 +136,12 @@ export async function promotePrintBed(
   };
 }
 
-/** The stored bed for the signed-in user, or null. Refuses when signed out for
- *  the same reason the setter does: this is account state, and an anonymous read
- *  has no account to read from. */
+/** The stored bed for the signed-in user, or null. A signed-out caller gets
+ *  null too, not a throw: /hex calls this on every load to DISCOVER whether an
+ *  account is there, so anonymous is the ordinary case. A throw there logged a
+ *  500 for every anonymous visitor (seen in the launch abort watch). */
 export async function getPrintBed(): Promise<{ bed: StoredBed }> {
+  if (!(await currentUserId())) return { bed: null };
   const user = await requireUser();
   const { printBedXMm: x, printBedYMm: y } = user;
   if (x == null || y == null) return { bed: null };
