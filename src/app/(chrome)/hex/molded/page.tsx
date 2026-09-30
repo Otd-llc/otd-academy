@@ -89,7 +89,7 @@ export default function HexMoldedPage() {
         us which one to have made first.
       </p>
       <p className="mt-3 max-w-xl font-serif text-sm leading-relaxed text-muted">
-        Each design sits on the same {`${HEX_V2_PITCH_MM.toFixed(3)} mm`} pitch
+        Each design sits on the same {`${HEX_V2_PITCH_MM.toFixed(3)} mm `}pitch
         as the printed cells. Sizes are the CAD&rsquo;s; a molded part shrinks
         by an amount the tool is cut to allow for.
       </p>
