@@ -66,11 +66,22 @@ export async function notifyOnHexRelease(
   }
 
   // Best-effort: anonymous is the expected case here, not an edge case.
+  //
+  // STAMP ONLY THE SUBMITTER'S OWN ROW. This used to attach the session's user
+  // to ANY row for whatever email was typed, so a signed-in visitor entering
+  // someone else's address claimed that row -- and once account deletion
+  // removes waitlist rows by userId, would have had it deleted with them.
+  // Found by plan validation (2026-09-30). Case-insensitive on both sides,
+  // because the adapter keeps the provider's casing.
   let userId: string | null = null;
   const session = await auth();
-  if (session?.user?.email) {
+  const sessionEmailRaw = session?.user?.email ?? null;
+  if (
+    sessionEmailRaw &&
+    sessionEmailRaw.toLowerCase() === email.toLowerCase()
+  ) {
     const user = await db.user.findUnique({
-      where: { email: session.user.email },
+      where: { email: sessionEmailRaw },
       select: { id: true },
     });
     userId = user?.id ?? null;
@@ -86,9 +97,16 @@ export async function notifyOnHexRelease(
     // A repeat submit does NOT reset `release`: the first one is the honest
     // answer to "which release brought them in", and overwriting it would lose
     // that the moment they came back for the next one.
-    update: userId ? { userId } : {},
+    // NEVER OVERWRITE a userId already on the row (see the stamp note above).
+    update: {},
     create: { email, userId, release },
   });
+  if (userId) {
+    await db.hexReleaseNotify.updateMany({
+      where: { email, userId: null },
+      data: { userId },
+    });
+  }
 
   if (!prior) {
     try {
