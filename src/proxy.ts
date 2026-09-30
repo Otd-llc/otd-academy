@@ -166,6 +166,13 @@ export const config = {
     // Anchoring to `$` and naming the extensions makes an unrecognised dotted
     // path fail CLOSED: it stays gated (working, slightly more work per request)
     // rather than silently public. Add to the list when a new asset type ships.
-    "/((?!api/auth|api/avatar|api/part-model|api/printable|api/stripe/webhook|api/capture|api/cron|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico|.*\\.(?:ico|png|jpe?g|gif|svg|webp|avif|txt|xml|json|map|css|js|mjs|woff2?|ttf|otf|mp4|webm|pdf|3mf|stl|zip)$).*)",
+    //
+    // gltf + bin (2026-09-30): the molded-line concept models under
+    // public/hex/concept/, rendered on the public /hex/molded page. Every other
+    // glTF the academy shows streams through /api/part-model, which is exempt
+    // by prefix, so this was the first public/ glTF and it 307'd to /sign-in
+    // for exactly the visitor the page is for. Measured on the dev server:
+    // /hex/molded 200, its .gltf and .bin 307, before this line.
+    "/((?!api/auth|api/avatar|api/part-model|api/printable|api/stripe/webhook|api/capture|api/cron|sign-in|sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico|.*\\.(?:ico|png|jpe?g|gif|svg|webp|avif|txt|xml|json|map|css|js|mjs|woff2?|ttf|otf|mp4|webm|pdf|3mf|stl|zip|gltf|glb|bin)$).*)",
   ],
 };
