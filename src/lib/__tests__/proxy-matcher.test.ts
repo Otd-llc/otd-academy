@@ -23,7 +23,8 @@ function middlewareMatcher(): RegExp {
   // `[\s\S]` rather than `.` with the `s` flag: tsconfig targets ES2017, where
   // the dotAll flag is not available.
   const literal = src.match(/("\/\(\([\s\S]*?"),/);
-  if (!literal) throw new Error("could not find the matcher literal in src/proxy.ts");
+  if (!literal)
+    throw new Error("could not find the matcher literal in src/proxy.ts");
   return new RegExp(`^${JSON.parse(literal[1]) as string}$`);
 }
 
@@ -72,6 +73,10 @@ describe("middleware matcher", () => {
       "/fonts/bebas.woff2",
       "/images/hex/thumb.webp",
       "/apple-touch-icon.png",
+      // The molded-line concept models: the first glTF served from public/.
+      // Before 2026-09-30 these 307'd to /sign-in under a 200 page.
+      "/hex/concept/hex-molded-tub.gltf",
+      "/hex/concept/hex-molded-tub.bin",
     ]) {
       expect(runs(p), p).toBe(false);
     }

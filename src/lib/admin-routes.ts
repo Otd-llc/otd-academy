@@ -160,11 +160,17 @@ export function isPublicPath(pathname: string): boolean {
   // the `og:image` out of the rendered head rather than assuming the file name
   // is the route. Both metadata-image names are covered so adding a
   // twitter-image later does not reopen the same hole.
+  //
+  // /hex/molded is the SECOND named child (2026-09-30): the molded line's
+  // interest page. It exists to be reached from the configurator's build sheet
+  // as a printed URL by people who may have no account and never will, so a
+  // 307 here measures nothing. Exactly `molded`; anything under it stays gated.
   if (top === "hex") {
     return (
       segments.length === 1 ||
       (segments.length === 2 &&
-        /^(opengraph|twitter)-image(-[a-z0-9]+)?$/i.test(segments[1]))
+        (segments[1] === "molded" ||
+          /^(opengraph|twitter)-image(-[a-z0-9]+)?$/i.test(segments[1])))
     );
   }
   // The public page for one saved hex cluster (/c/[shareCode]). It is what a

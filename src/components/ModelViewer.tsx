@@ -23,7 +23,14 @@ import type { RenderBounds } from "@/lib/schemas/part-asset";
 import { RotateIcon } from "@/components/icons";
 
 // N5 lighting rig (sandbox winner). env = scene.environmentIntensity.
-const RIG = { exposure: 1.02, env: 0.3, hemi: 0.42, key: 1.9, fill: 0.55, rim: 1.1 };
+const RIG = {
+  exposure: 1.02,
+  env: 0.3,
+  hemi: 0.42,
+  key: 1.9,
+  fill: 0.55,
+  rim: 1.1,
+};
 
 export default function ModelViewer({
   src,
@@ -34,8 +41,11 @@ export default function ModelViewer({
   showHint = true,
   onFirstInteract,
   label,
+  unitScale = 1,
 }: {
   src: string;
+  /** Bounding sphere in VIEWER units (after `unitScale`). Drives the camera
+   *  fit and, in the framed mode, the floor grid's extent. */
   bounds?: RenderBounds | null;
   /** Tailwind height class for the canvas box. */
   heightClass?: string;
@@ -54,6 +64,12 @@ export default function ModelViewer({
   /** Accessible name for the canvas (e.g. the part's MPN). The three.js canvas
    *  is pointer-only, so without this the model is a nameless blank to AT. */
   label?: string;
+  /** Multiplier applied to the loaded scene. The part models here are authored
+   *  in millimetres; a glTF exported by the hex configurator's build-models.mjs
+   *  is in metres (the glTF convention), so it renders as a speck against the
+   *  default frame: measured 2026-09-30 on /hex/molded, a 573 mm tub showed as
+   *  an empty grid. Pass 1000 for those, with `bounds` in millimetres. */
+  unitScale?: number;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState(false);
@@ -70,9 +86,12 @@ export default function ModelViewer({
     (async () => {
       try {
         const THREE = await import("three");
-        const { OrbitControls } = await import("three/addons/controls/OrbitControls.js");
-        const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
-        const { RoomEnvironment } = await import("three/addons/environments/RoomEnvironment.js");
+        const { OrbitControls } =
+          await import("three/addons/controls/OrbitControls.js");
+        const { GLTFLoader } =
+          await import("three/addons/loaders/GLTFLoader.js");
+        const { RoomEnvironment } =
+          await import("three/addons/environments/RoomEnvironment.js");
         const mount = mountRef.current;
         if (!mount || disposed) return;
 
@@ -88,9 +107,10 @@ export default function ModelViewer({
         const width = mount.clientWidth || 600;
         const height = mount.clientHeight || 256;
         const scene = new THREE.Scene();
-        let loadedRoot:
-          | { rotation: { y: number }; traverse: (cb: (o: unknown) => void) => void }
-          | null = null;
+        let loadedRoot: {
+          rotation: { y: number };
+          traverse: (cb: (o: unknown) => void) => void;
+        } | null = null;
 
         // Scene bg + floor grid — FRAMED only. float/hero stay transparent (canvas
         // alpha) so the model sits on the page field in either theme.
@@ -107,7 +127,11 @@ export default function ModelViewer({
             grid.geometry.dispose();
             (grid.material as { dispose?: () => void }).dispose?.();
           }
-          grid = new THREE.GridHelper(10, 10, p.grid1, p.grid2);
+          // 10 units suits the millimetre part models the default frame was
+          // sized for; a framed model with its own bounds gets a grid that
+          // reaches past it, or the grid is a dot under a large part.
+          const gridSize = bounds ? bounds.radius * 4 : 10;
+          grid = new THREE.GridHelper(gridSize, 10, p.grid1, p.grid2);
           scene.add(grid);
         };
         const onThemeChange = () => applyTheme();
@@ -123,21 +147,43 @@ export default function ModelViewer({
         // HERO matches the ortho poster: an OrthographicCamera at the P3 true-iso
         // pose (dir 1,1,1), framed to the same fit, so the poster → live click-swap
         // has no jump in orientation or zoom. Other modes keep a perspective camera.
-        let camera: InstanceType<typeof THREE.OrthographicCamera> | InstanceType<typeof THREE.PerspectiveCamera>;
+        let camera:
+          | InstanceType<typeof THREE.OrthographicCamera>
+          | InstanceType<typeof THREE.PerspectiveCamera>;
         if (mode === "hero") {
           const fit = radius * 1.02;
           const halfH = aspect0 >= 1 ? fit : fit / aspect0;
           const halfW = aspect0 >= 1 ? fit * aspect0 : fit;
-          const oc = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, Math.max(radius / 100, 0.0001), radius * 40);
-          oc.position.copy(centerVec).add(new THREE.Vector3(1, 1, 1).normalize().multiplyScalar(radius * 12));
+          const oc = new THREE.OrthographicCamera(
+            -halfW,
+            halfW,
+            halfH,
+            -halfH,
+            Math.max(radius / 100, 0.0001),
+            radius * 40,
+          );
+          oc.position
+            .copy(centerVec)
+            .add(
+              new THREE.Vector3(1, 1, 1)
+                .normalize()
+                .multiplyScalar(radius * 12),
+            );
           oc.up.set(0, 1, 0);
           camera = oc;
         } else {
           const pc = new THREE.PerspectiveCamera(45, aspect0, 0.01, 10000);
-          pc.position.set(center[0] + radius * 2, center[1] + radius * 1.5, center[2] + radius * 2);
+          pc.position.set(
+            center[0] + radius * 2,
+            center[1] + radius * 1.5,
+            center[2] + radius * 2,
+          );
           camera = pc;
         }
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: transparent });
+        const renderer = new THREE.WebGLRenderer({
+          antialias: true,
+          alpha: transparent,
+        });
         if (transparent) renderer.setClearColor(0x000000, 0);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.setSize(width, height);
@@ -206,13 +252,16 @@ export default function ModelViewer({
             // Spin about the model's true center, not its GLB local origin.
             const pivot = new THREE.Group();
             pivot.position.copy(centerVec);
+            if (unitScale !== 1) gltf.scene.scale.setScalar(unitScale);
             gltf.scene.position.sub(centerVec);
             pivot.add(gltf.scene);
             loadedRoot = pivot;
             scene.add(pivot);
           },
           undefined,
-          () => { if (!disposed) setError(true); },
+          () => {
+            if (!disposed) setError(true);
+          },
         );
 
         // The JS auto-spin is the ONE unguarded motion in the app, so it respects
@@ -233,7 +282,8 @@ export default function ModelViewer({
         tick();
 
         const onResize = () => {
-          const w = mount.clientWidth, h = mount.clientHeight || 256;
+          const w = mount.clientWidth,
+            h = mount.clientHeight || 256;
           const a = w / h;
           if (camera instanceof THREE.OrthographicCamera) {
             const fit = radius * 1.02;
@@ -252,18 +302,25 @@ export default function ModelViewer({
         cleanup = () => {
           cancelAnimationFrame(raf);
           window.removeEventListener("resize", onResize);
-          if (!transparent) window.removeEventListener("otd-theme-change", onThemeChange);
+          if (!transparent)
+            window.removeEventListener("otd-theme-change", onThemeChange);
           if (grid) {
             grid.geometry.dispose();
             (grid.material as { dispose?: () => void }).dispose?.();
           }
           loadedRoot?.traverse((o: unknown) => {
-            const mesh = o as Partial<{ geometry: { dispose?: () => void }; material: unknown }>;
+            const mesh = o as Partial<{
+              geometry: { dispose?: () => void };
+              material: unknown;
+            }>;
             mesh.geometry?.dispose?.();
             const mat = mesh.material;
             const mats = Array.isArray(mat) ? mat : mat ? [mat] : [];
             for (const m of mats) {
-              const mm = m as Partial<{ map: { dispose?: () => void }; dispose: () => void }>;
+              const mm = m as Partial<{
+                map: { dispose?: () => void };
+                dispose: () => void;
+              }>;
               mm.map?.dispose?.();
               mm.dispose?.();
             }
@@ -277,7 +334,10 @@ export default function ModelViewer({
         setError(true);
       }
     })();
-    return () => { disposed = true; cleanup(); };
+    return () => {
+      disposed = true;
+      cleanup();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src, boundsKey, float, hero]);
 

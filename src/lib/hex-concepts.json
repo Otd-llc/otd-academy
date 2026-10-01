@@ -1,0 +1,39 @@
+{
+    "format": "otd-concept-models/1",
+    "note": "Written by hex-cluster/tools/export_concept_meshes.py, the SOLE writer. Same shape per part as model-fingerprint.json (volumeMm3, bboxMm). A stem here is displayed, never printed; gen_release_tables.py refuses it from the printables manifest.",
+    "parts": {
+        "hex-molded-tub": {
+            "name": "Rosette tub",
+            "use": "One molded tub over a seven-cell rosette; a 3/4\" riser passes the centre.",
+            "source": "concept/hex-molded-tub.FCStd",
+            "volumeMm3": 1421649.875,
+            "bboxMm": {
+                "x": 573.443,
+                "y": 496.616,
+                "z": 120.0
+            },
+            "originMm": {
+                "x": -286.721,
+                "y": -248.308,
+                "z": 0.0
+            },
+            "dfm": {
+                "pull": [
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "minDraftDeg": 0.0,
+                "draftMinDeg": 1.5,
+                "undercutFaces": 0,
+                "minWallMm": 2.998,
+                "maxWallMm": 4.0,
+                "wallBandMm": [
+                    2.0,
+                    6.0
+                ],
+                "overCapFaces": 14
+            }
+        }
+    }
+}
