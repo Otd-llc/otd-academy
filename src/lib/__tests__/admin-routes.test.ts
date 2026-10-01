@@ -36,7 +36,9 @@ describe("isAdminOnlyPath", () => {
 
   it("does NOT gate the learner guide hub or cards (under /projects/.../guide)", () => {
     expect(isAdminOnlyPath("/projects/wroom/v1/guide")).toBe(false);
-    expect(isAdminOnlyPath("/projects/wroom/v1/guide/REQUIREMENTS")).toBe(false);
+    expect(isAdminOnlyPath("/projects/wroom/v1/guide/REQUIREMENTS")).toBe(
+      false,
+    );
   });
 
   it("does NOT gate a project whose slug merely contains 'guide'", () => {
@@ -152,6 +154,17 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/tools")).toBe(true);
     expect(isPublicPath("/tools/lipo-battery-runtime")).toBe(true);
     expect(isPublicPath("/tools/ws2812-power-supply")).toBe(true);
+  });
+
+  it("admits the Hex Cluster attribution page, its share card and /hex/molded only", () => {
+    // Every released LICENSE.txt cites /hex; the build sheet prints /hex/molded.
+    // Both are read by people with no account. P.7 of the hex-v2 next plan:
+    // five rows, so a widening of the prefix shows up here first.
+    expect(isPublicPath("/hex")).toBe(true);
+    expect(isPublicPath("/hex/molded")).toBe(true);
+    expect(isPublicPath("/hex/opengraph-image-1qmjwd")).toBe(true);
+    expect(isPublicPath("/hex/x")).toBe(false);
+    expect(isPublicPath("/hex/molded/x")).toBe(false);
   });
 
   it("does NOT mark /tools as admin-only", () => {
