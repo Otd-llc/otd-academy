@@ -7,7 +7,7 @@
  * 2026-07-15, and the hex tables were created by the 2026-08-02 migration.
  * So the local sample against prod is zero, not two.
  *
- * Connects as the read-only role `foundry_ro` and proves the connection
+ * Connects as the read-only role `foundry_report` and proves the connection
  * cannot write before it reads (src/lib/prod-ro.ts). It used to say "opens a
  * READ ONLY transaction" while running as neondb_owner under `pnpm db:prod`
  * with no transaction at all; the claim was never measured. Now:

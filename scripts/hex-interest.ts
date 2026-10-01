@@ -5,7 +5,7 @@
  *
  * NOT under `pnpm db:prod`: that wrapper swaps the OWNER url into DATABASE_URL,
  * and this script refuses to start when it sees that (src/lib/prod-ro.ts). It
- * opens its own connection as `foundry_ro`, sets the session read-only, and
+ * opens its own connection as `foundry_report`, sets the session read-only, and
  * proves the role cannot write before it reads a row (hex-v2 next plan P.6,
  * owner R3-8). Counts only, never an address.
  *

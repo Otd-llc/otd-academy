@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { classifyProdRoUrl, PROD_RO_PLACEHOLDER } from "@/lib/prod-ro";
 
 const HOST = "ep-example-pooler.c-8.us-east-1.aws.neon.tech";
-const RO = `postgresql://foundry_ro:s3cret@${HOST}/neondb?sslmode=require`;
+const RO = `postgresql://foundry_report:s3cret@${HOST}/neondb?sslmode=require`;
 const OWNER = `postgresql://neondb_owner:0wner@${HOST}/neondb?sslmode=require`;
 const OWNER_DIRECT = `postgresql://neondb_owner:0wner@ep-example.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require`;
 const LOCAL = "postgresql://postgres:x@localhost:5432/foundry_dev";
@@ -16,7 +16,7 @@ const good = {
 };
 
 describe("classifyProdRoUrl (the read-only report guard)", () => {
-  it("admits the foundry_ro URL beside local DATABASE_URL and owner URLs on the owner role", () => {
+  it("admits the foundry_report URL beside local DATABASE_URL and owner URLs on the owner role", () => {
     expect(classifyProdRoUrl(good)).toEqual({ ok: true, host: HOST });
   });
 
@@ -29,7 +29,7 @@ describe("classifyProdRoUrl (the read-only report guard)", () => {
     ).toBe(false);
   });
 
-  it("refuses any role but foundry_ro, naming the role it saw", () => {
+  it("refuses any role but foundry_report, naming the role it saw", () => {
     const v = classifyProdRoUrl({ ...good, PROD_RO_DATABASE_URL: OWNER });
     expect(v.ok).toBe(false);
     if (!v.ok) expect(v.reason).toMatch(/connects as "neondb_owner"/);
@@ -38,7 +38,7 @@ describe("classifyProdRoUrl (the read-only report guard)", () => {
   it("refuses the placeholder password with the rotation instruction", () => {
     const v = classifyProdRoUrl({
       ...good,
-      PROD_RO_DATABASE_URL: `postgresql://foundry_ro:${PROD_RO_PLACEHOLDER}@${HOST}/neondb`,
+      PROD_RO_DATABASE_URL: `postgresql://foundry_report:${PROD_RO_PLACEHOLDER}@${HOST}/neondb`,
     });
     expect(v.ok).toBe(false);
     if (!v.ok) expect(v.reason).toMatch(/placeholder/);
@@ -51,7 +51,7 @@ describe("classifyProdRoUrl (the read-only report guard)", () => {
     expect(
       classifyProdRoUrl({
         ...good,
-        PROD_DIRECT_URL: `postgresql://foundry_ro:other@ep-example.c-8.us-east-1.aws.neon.tech/neondb`,
+        PROD_DIRECT_URL: `postgresql://foundry_report:other@ep-example.c-8.us-east-1.aws.neon.tech/neondb`,
       }).ok,
     ).toBe(false);
   });

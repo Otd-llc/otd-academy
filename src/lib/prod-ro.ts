@@ -2,11 +2,13 @@
 //
 // The owner URLs (PROD_DATABASE_URL / PROD_DIRECT_URL, role neondb_owner) can
 // write, and `pnpm db:prod` exists to make that deliberate. A report should
-// not be able to write even by mistake, so it connects as `foundry_ro`
+// not be able to write even by mistake, so it connects as `foundry_report`
 // instead: SELECT-only grants, a default ACL for future tables, and
-// `default_transaction_read_only = on` on the role (provisioned 2026-06, see
-// mcp/parts-server/README.md section 6; verified against pg_roles /
-// pg_default_acl 2026-09-30).
+// `default_transaction_read_only = on` on the role. Provisioned 2026-09-30 by
+// the same five statements mcp/parts-server/README.md section 6 gives for
+// `foundry_ro`; a SEPARATE role because foundry_ro's prod password was lost
+// and rotating it could have broken whatever still logs in with it (the
+// archive's export secret is opaque from here). Rollback: DROP ROLE.
 //
 // `classifyProdRoUrl` is PURE so the refusals can be unit-tested without a
 // database. `openReadOnly` then adds the two things only a connection can:
@@ -17,7 +19,7 @@
 // carried that claim for a month with no transaction at all.
 import pg from "pg";
 
-export const PROD_RO_ROLE = "foundry_ro";
+export const PROD_RO_ROLE = "foundry_report";
 export const PROD_RO_PLACEHOLDER = "REPLACE-WITH-NEW-PASSWORD";
 
 export type ProdRoVerdict =
@@ -26,7 +28,7 @@ export type ProdRoVerdict =
 /** The process environment, or any bag with these keys. Typed as a plain
  *  record so `process.env` passes without a cast (a property-only type would
  *  trip TypeScript's weak-type check against ProcessEnv). The keys read:
- *  PROD_RO_DATABASE_URL (the foundry_ro string), PROD_DATABASE_URL and
+ *  PROD_RO_DATABASE_URL (the foundry_report string), PROD_DATABASE_URL and
  *  PROD_DIRECT_URL (the owner strings, refused), and DATABASE_URL (what the
  *  process would use as "the" database: under `pnpm db:prod` it has been
  *  swapped to the owner URL, the one way a read-only script could end up
@@ -54,7 +56,7 @@ export function classifyProdRoUrl(env: ProdRoEnv): ProdRoVerdict {
     return {
       ok: false,
       reason:
-        "PROD_RO_DATABASE_URL is not set in .env.local (the foundry_ro connection string).",
+        "PROD_RO_DATABASE_URL is not set in .env.local (the foundry_report connection string).",
     };
   }
   const u = parse(raw);
