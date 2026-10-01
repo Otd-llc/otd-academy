@@ -87,6 +87,55 @@ describe("deleteStudent", () => {
     expect(await db.user.findUnique({ where: { id: target.id } })).toBeNull();
   });
 
+  test("takes the account's anonymous capture rows with it, by userId and by address", async () => {
+    // The capture tables carry the address with no FK to User, so without this
+    // sweep a deleted learner's waitlist and release-notice rows outlive the
+    // account they asked us to remove. Both routes in: a row stamped with the
+    // userId and no address match, and a row with the address (as typed before
+    // the account existed, so stored lowercase) and no userId.
+    const email = `admin-del-capture-${stamp}@example.com`;
+    const target = await db.user.create({ data: { email, role: "LEARNER" } });
+    const other = `admin-del-bystander-${stamp}@example.com`;
+    await db.passWaitlist.createMany({
+      data: [
+        { email: `stamped-${email}`, userId: target.id },
+        { email, userId: null },
+        { email: other, userId: null },
+      ],
+    });
+    await db.hexReleaseNotify.createMany({
+      data: [
+        { email, userId: null, release: "2026-10-01" },
+        { email: other, userId: null, release: "2026-10-01" },
+      ],
+    });
+    await db.waitlistSignup.createMany({
+      data: [
+        { email, projectId },
+        { email: other, projectId },
+      ],
+    });
+
+    await deleteStudent({ userId: target.id });
+
+    expect(
+      await db.passWaitlist.count({
+        where: { email: { in: [email, `stamped-${email}`] } },
+      }),
+    ).toBe(0);
+    expect(await db.hexReleaseNotify.count({ where: { email } })).toBe(0);
+    expect(await db.waitlistSignup.count({ where: { email } })).toBe(0);
+    // The bystander's rows are untouched.
+    expect(await db.passWaitlist.count({ where: { email: other } })).toBe(1);
+    expect(await db.hexReleaseNotify.count({ where: { email: other } })).toBe(
+      1,
+    );
+    expect(await db.waitlistSignup.count({ where: { email: other } })).toBe(1);
+    await db.passWaitlist.deleteMany({ where: { email: other } });
+    await db.hexReleaseNotify.deleteMany({ where: { email: other } });
+    await db.waitlistSignup.deleteMany({ where: { email: other } });
+  });
+
   test("cancels an active Stripe subscription BEFORE deleting the account", async () => {
     stripeCancel.mockReset();
     stripeCancel.mockResolvedValue({});
@@ -113,7 +162,9 @@ describe("deleteStudent", () => {
       });
       expect(sub?.userId).toBeNull();
     } finally {
-      await db.subscription.deleteMany({ where: { stripeSubscriptionId: subId } });
+      await db.subscription.deleteMany({
+        where: { stripeSubscriptionId: subId },
+      });
     }
   });
 });
@@ -179,7 +230,9 @@ describe("deleteStudent deletes the account's saved hex builds", () => {
       expect(updateTag).toHaveBeenCalledWith(hexClusterTag(doomed.clusterId));
       expect(updateTag).not.toHaveBeenCalledWith(hexClusterTag(kept.clusterId));
 
-      expect(await db.user.findUnique({ where: { id: doomed.userId } })).toBeNull();
+      expect(
+        await db.user.findUnique({ where: { id: doomed.userId } }),
+      ).toBeNull();
       expect(
         await db.hexCluster.findUnique({ where: { id: doomed.clusterId } }),
       ).toBeNull();
@@ -190,7 +243,9 @@ describe("deleteStudent deletes the account's saved hex builds", () => {
       ).toBe(0);
       // Nothing orphaned with userId NULL either.
       expect(
-        await db.hexCluster.count({ where: { name: "build doomed", userId: null } }),
+        await db.hexCluster.count({
+          where: { name: "build doomed", userId: null },
+        }),
       ).toBe(0);
 
       // /c/<code> of the deleted build is the generic "can't be opened" page.
@@ -234,9 +289,13 @@ describe("deleteStudent deletes the account's saved hex builds", () => {
       await expect(deleteStudent({ userId: author.userId })).rejects.toThrow(
         /authored curriculum content/,
       );
-      expect(await db.user.findUnique({ where: { id: author.userId } })).not.toBeNull();
       expect(
-        await db.hexClusterRevision.count({ where: { clusterId: author.clusterId } }),
+        await db.user.findUnique({ where: { id: author.userId } }),
+      ).not.toBeNull();
+      expect(
+        await db.hexClusterRevision.count({
+          where: { clusterId: author.clusterId },
+        }),
       ).toBe(2);
     } finally {
       await db.project.deleteMany({ where: { id: project.id } });

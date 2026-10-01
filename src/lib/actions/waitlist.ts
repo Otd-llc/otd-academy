@@ -23,7 +23,11 @@ const joinWaitlistSchema = z.object({
 });
 
 export async function joinWaitlist(input: unknown): Promise<{ ok: true }> {
-  const { email, projectId } = joinWaitlistSchema.parse(input);
+  const parsed = joinWaitlistSchema.parse(input);
+  // Lowercased at the boundary: one row per address per course, and the
+  // database refuses a case-variant (20261001120000_email_hygiene).
+  const email = parsed.email.toLowerCase();
+  const projectId = parsed.projectId;
 
   // Tier 2 abuse limit (design §2, §8): per-IP, FAIL-OPEN (a waitlist row is
   // reversible, so an Upstash outage should not block signups). Throws on a deny

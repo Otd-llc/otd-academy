@@ -16,7 +16,10 @@ import { defenseEnabled } from "@/lib/abuse-defense-flag";
 const joinPassWaitlistSchema = z.object({ email: z.email() });
 
 export async function joinPassWaitlist(input: unknown): Promise<{ ok: true }> {
-  const { email } = joinPassWaitlistSchema.parse(input);
+  // Lowercased at the boundary. The row is keyed on the address, and the
+  // database now refuses a second row that differs only in case
+  // (20261001120000_email_hygiene), so every comparison below is exact.
+  const email = joinPassWaitlistSchema.parse(input).email.toLowerCase();
 
   // Same fail-open per-IP guard as joinWaitlist (shared bucket — same abuse
   // class): this was the one anonymous public write with no rate limit, an

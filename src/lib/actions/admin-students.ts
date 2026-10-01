@@ -231,8 +231,21 @@ export async function deleteStudent(input: unknown): Promise<{ ok: true }> {
     hexClusterIds = await withTxRetry(() =>
       db.$transaction(
         async (tx) => {
+          // The address is read INSIDE the transaction, before the row goes:
+          // the anonymous capture tables (waitlists, release notice) carry it
+          // with no FK, so after the delete it would be unrecoverable and the
+          // learner's capture rows would outlive the account they asked us to
+          // remove. Stored lowercase since 20261001120000_email_hygiene.
+          const account = await tx.user.findUnique({
+            where: { id: userId },
+            select: { email: true },
+          });
+          const email = account?.email.toLowerCase();
           const ids = (
-            await tx.hexCluster.findMany({ where: { userId }, select: { id: true } })
+            await tx.hexCluster.findMany({
+              where: { userId },
+              select: { id: true },
+            })
           ).map((c) => c.id);
           if (ids.length > 0) {
             // Revisions first, explicitly, rather than trusting the FK
@@ -243,6 +256,18 @@ export async function deleteStudent(input: unknown): Promise<{ ok: true }> {
             await tx.hexCluster.deleteMany({ where: { id: { in: ids } } });
           }
           await tx.user.delete({ where: { id: userId } });
+          // Capture rows: by userId where the row was stamped, and by address
+          // where it was not (an anonymous signup before the account existed).
+          const byAddress = email ? [{ email }] : [];
+          await tx.passWaitlist.deleteMany({
+            where: { OR: [{ userId }, ...byAddress] },
+          });
+          await tx.hexReleaseNotify.deleteMany({
+            where: { OR: [{ userId }, ...byAddress] },
+          });
+          if (email) {
+            await tx.waitlistSignup.deleteMany({ where: { email } });
+          }
           return ids;
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },

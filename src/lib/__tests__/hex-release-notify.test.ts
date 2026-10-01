@@ -64,6 +64,16 @@ describe("notifyOnHexRelease", () => {
   beforeEach(() => vi.stubEnv("HEX_RELEASE_NOTIFY_OPEN", "1"));
   afterAll(() => vi.unstubAllEnvs());
 
+  test("a mixed-case address is stored lowercase, and its case-variant is the same row", async () => {
+    // 20261001120000_email_hygiene: one row per address whatever the typing.
+    await notifyOnHexRelease({ email: EMAIL.toUpperCase(), release: RELEASE });
+    await notifyOnHexRelease({ email: EMAIL, release: RELEASE });
+    const rows = await db.hexReleaseNotify.findMany({
+      where: { email: { in: [EMAIL, EMAIL.toUpperCase()] } },
+    });
+    expect(rows.map((r) => r.email)).toEqual([EMAIL]);
+  });
+
   test("an anonymous submit creates one row carrying the release", async () => {
     const res = await notifyOnHexRelease({ email: EMAIL, release: RELEASE });
     expect(res).toEqual({ ok: true });
@@ -137,11 +147,15 @@ describe("notifyOnHexRelease", () => {
       where: { email: { in: [typed, me!.email] } },
     });
     await notifyOnHexRelease({ email: typed, release: RELEASE });
+    // Stored lowercase since 20261001120000_email_hygiene: the row is under the
+    // canonical address, whatever the visitor typed.
     const row = await db.hexReleaseNotify.findUnique({
-      where: { email: typed },
+      where: { email: me!.email.toLowerCase() },
     });
     expect(row?.userId).toBe(me!.id);
-    await db.hexReleaseNotify.deleteMany({ where: { email: typed } });
+    await db.hexReleaseNotify.deleteMany({
+      where: { email: { in: [typed, me!.email.toLowerCase()] } },
+    });
   });
 
   test("an existing userId on a row is never overwritten", async () => {
