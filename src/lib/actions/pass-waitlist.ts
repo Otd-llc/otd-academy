@@ -28,13 +28,19 @@ export async function joinPassWaitlist(input: unknown): Promise<{ ok: true }> {
     }
   }
 
-  // Stamp the signed-in user's id when we have a session (best-effort; anon is
-  // fine). The email is still the unique key.
+  // Stamp the signed-in user's id ONLY when the submitted address is their own
+  // (best-effort; anon is fine). The email is still the unique key. Stamping
+  // any row for any typed address let a signed-in visitor claim a stranger's
+  // row; found by plan validation (2026-09-30). Case-insensitive on both sides.
   let userId: string | null = null;
   const session = await auth();
-  if (session?.user?.email) {
+  const sessionEmailRaw = session?.user?.email ?? null;
+  if (
+    sessionEmailRaw &&
+    sessionEmailRaw.toLowerCase() === email.toLowerCase()
+  ) {
     const user = await db.user.findUnique({
-      where: { email: session.user.email },
+      where: { email: sessionEmailRaw },
       select: { id: true },
     });
     userId = user?.id ?? null;
@@ -47,16 +53,27 @@ export async function joinPassWaitlist(input: unknown): Promise<{ ok: true }> {
 
   await db.passWaitlist.upsert({
     where: { email },
-    update: userId ? { userId } : {},
+    // NEVER OVERWRITE a userId already on the row.
+    update: {},
     create: { email, userId },
   });
+  if (userId) {
+    await db.passWaitlist.updateMany({
+      where: { email, userId: null },
+      data: { userId },
+    });
+  }
 
   // Funnel: `email_captured` — fire once on a new signup; best-effort; a no-op
   // when PostHog is unconfigured.
   if (!prior) {
     try {
       // No raw email in props — PII stays out of analytics (the DB row holds it).
-      capture("email_captured", { source: "pass_waitlist" }, userId ?? undefined);
+      capture(
+        "email_captured",
+        { source: "pass_waitlist" },
+        userId ?? undefined,
+      );
     } catch {
       // best-effort
     }
