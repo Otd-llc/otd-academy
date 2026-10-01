@@ -25,7 +25,8 @@ vi.mock("next/cache", () => ({
 // IP rule is skipped (the limiter is unconfigured in tests anyway).
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 
-vi.mock("@/auth", () => ({ auth: async () => null }));
+const mockAuth = vi.fn<() => Promise<unknown>>(async () => null);
+vi.mock("@/auth", () => ({ auth: () => mockAuth() }));
 
 import { db } from "@/lib/db";
 import { notifyOnHexRelease } from "@/lib/actions/hex-release-notify";
@@ -40,7 +41,11 @@ async function clean() {
   });
 }
 
-beforeEach(clean);
+beforeEach(async () => {
+  mockAuth.mockReset();
+  mockAuth.mockResolvedValue(null);
+  await clean();
+});
 afterAll(clean);
 
 describe("notifyOnHexRelease — closed by default", () => {
@@ -48,7 +53,9 @@ describe("notifyOnHexRelease — closed by default", () => {
     vi.stubEnv("HEX_RELEASE_NOTIFY_OPEN", "");
     const res = await notifyOnHexRelease({ email: EMAIL, release: RELEASE });
     expect(res.ok).toBe(false);
-    expect(await db.hexReleaseNotify.count({ where: { email: EMAIL } })).toBe(0);
+    expect(await db.hexReleaseNotify.count({ where: { email: EMAIL } })).toBe(
+      0,
+    );
     vi.unstubAllEnvs();
   });
 });
@@ -61,7 +68,9 @@ describe("notifyOnHexRelease", () => {
     const res = await notifyOnHexRelease({ email: EMAIL, release: RELEASE });
     expect(res).toEqual({ ok: true });
 
-    const row = await db.hexReleaseNotify.findUnique({ where: { email: EMAIL } });
+    const row = await db.hexReleaseNotify.findUnique({
+      where: { email: EMAIL },
+    });
     expect(row?.release).toBe(RELEASE);
     // Nothing has been sent yet, so the ledger is open.
     expect(row?.notifiedAt).toBeNull();
@@ -72,14 +81,18 @@ describe("notifyOnHexRelease", () => {
     await notifyOnHexRelease({ email: EMAIL, release: RELEASE });
     const res = await notifyOnHexRelease({ email: EMAIL, release: RELEASE });
     expect(res).toEqual({ ok: true });
-    expect(await db.hexReleaseNotify.count({ where: { email: EMAIL } })).toBe(1);
+    expect(await db.hexReleaseNotify.count({ where: { email: EMAIL } })).toBe(
+      1,
+    );
   });
 
   test("coming back for a LATER release keeps the release that brought them in", async () => {
     await notifyOnHexRelease({ email: EMAIL, release: RELEASE });
     await notifyOnHexRelease({ email: EMAIL, release: "2027-01-01" });
 
-    const row = await db.hexReleaseNotify.findUnique({ where: { email: EMAIL } });
+    const row = await db.hexReleaseNotify.findUnique({
+      where: { email: EMAIL },
+    });
     expect(row?.release).toBe(RELEASE);
   });
 
@@ -89,7 +102,9 @@ describe("notifyOnHexRelease", () => {
       release: RELEASE,
     });
     expect(res.ok).toBe(false);
-    expect(await db.hexReleaseNotify.count({ where: { email: EMAIL } })).toBe(0);
+    expect(await db.hexReleaseNotify.count({ where: { email: EMAIL } })).toBe(
+      0,
+    );
   });
 
   test("an off-grammar release is refused — this string comes from a stranger", async () => {
@@ -97,7 +112,50 @@ describe("notifyOnHexRelease", () => {
       const res = await notifyOnHexRelease({ email: OTHER, release });
       expect(res.ok).toBe(false);
     }
-    expect(await db.hexReleaseNotify.count({ where: { email: OTHER } })).toBe(0);
+    expect(await db.hexReleaseNotify.count({ where: { email: OTHER } })).toBe(
+      0,
+    );
+  });
+
+  test("a signed-in visitor submitting SOMEONE ELSE'S address does not claim the row", async () => {
+    mockAuth.mockResolvedValue({
+      user: { email: "signed-in-stranger@example.com" },
+    });
+    await notifyOnHexRelease({ email: EMAIL, release: RELEASE });
+    const row = await db.hexReleaseNotify.findUnique({
+      where: { email: EMAIL },
+    });
+    expect(row?.userId).toBeNull();
+  });
+
+  test("a signed-in visitor submitting THEIR OWN address is stamped, case-insensitively", async () => {
+    const me = await db.user.findFirst({ select: { id: true, email: true } });
+    expect(me, "the seed has no user").not.toBeNull();
+    mockAuth.mockResolvedValue({ user: { email: me!.email } });
+    const typed = me!.email.toUpperCase();
+    await db.hexReleaseNotify.deleteMany({
+      where: { email: { in: [typed, me!.email] } },
+    });
+    await notifyOnHexRelease({ email: typed, release: RELEASE });
+    const row = await db.hexReleaseNotify.findUnique({
+      where: { email: typed },
+    });
+    expect(row?.userId).toBe(me!.id);
+    await db.hexReleaseNotify.deleteMany({ where: { email: typed } });
+  });
+
+  test("an existing userId on a row is never overwritten", async () => {
+    const me = await db.user.findFirst({ select: { id: true, email: true } });
+    expect(me).not.toBeNull();
+    await db.hexReleaseNotify.create({
+      data: { email: OTHER, release: RELEASE, userId: "someone-else" },
+    });
+    mockAuth.mockResolvedValue({ user: { email: OTHER } });
+    await notifyOnHexRelease({ email: OTHER, release: RELEASE });
+    const row = await db.hexReleaseNotify.findUnique({
+      where: { email: OTHER },
+    });
+    expect(row?.userId).toBe("someone-else");
   });
 
   test("the refusal never leaks which field failed", async () => {
