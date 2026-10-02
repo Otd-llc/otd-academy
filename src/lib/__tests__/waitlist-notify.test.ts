@@ -40,9 +40,20 @@ beforeAll(async () => {
   comingProjectId = coming.id;
 
   await db.waitlistSignup.createMany({
+    // Confirmed, as every pre-P.5 row was grandfathered; the unconfirmed
+    // `-u` row is the one the send must skip (double opt-in).
     data: [
-      { email: `${TAG}-a@example.com`, projectId: live.id },
-      { email: `${TAG}-b@example.com`, projectId: coming.id },
+      {
+        email: `${TAG}-a@example.com`,
+        projectId: live.id,
+        confirmedAt: new Date(),
+      },
+      {
+        email: `${TAG}-b@example.com`,
+        projectId: coming.id,
+        confirmedAt: new Date(),
+      },
+      { email: `${TAG}-u@example.com`, projectId: live.id },
     ],
   });
 });
@@ -58,8 +69,9 @@ afterAll(async () => {
 
 describe("notifyWaitlist", () => {
   test("failed send releases the claim (retries next tick), unpublished untouched", async () => {
-    const failFetch = vi.fn(async () =>
-      new Response(JSON.stringify({ error: "down" }), { status: 500 }),
+    const failFetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ error: "down" }), { status: 500 }),
     ) as unknown as typeof fetch;
     const r = await notifyWaitlist(db, failFetch);
     expect(r.failed).toBeGreaterThanOrEqual(1);
@@ -80,6 +92,11 @@ describe("notifyWaitlist", () => {
     expect(r.sent).toBeGreaterThanOrEqual(1);
     expect(sentTo).toContain(`${TAG}-a@example.com`);
     expect(sentTo).not.toContain(`${TAG}-b@example.com`); // course not published
+    expect(sentTo).not.toContain(`${TAG}-u@example.com`); // never confirmed
+    const rowU = await db.waitlistSignup.findFirstOrThrow({
+      where: { email: `${TAG}-u@example.com` },
+    });
+    expect(rowU.notifiedAt).toBeNull();
 
     const rowA = await db.waitlistSignup.findFirstOrThrow({
       where: { email: `${TAG}-a@example.com` },

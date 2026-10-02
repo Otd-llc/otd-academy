@@ -110,6 +110,12 @@ export const env = createEnv({
     LAUNCH_WINDOW_END: z.string().datetime().optional(),
     REACTIVATION_DAYS: z.coerce.number().int().positive().default(7),
     LIFECYCLE_EMAIL_ENABLED: z.coerce.boolean().default(true),
+    //   WAITLIST_DOUBLE_OPT_IN — the three anonymous email captures start a new
+    //     row unconfirmed and send one confirmation (plan P.5). Default true. Set
+    //     false to fall back to single-step signup (rows confirm at creation, no
+    //     mail). Read LIVE from process.env by waitlist-confirm.ts as well, so a
+    //     test can flip it; this entry validates the shape.
+    WAITLIST_DOUBLE_OPT_IN: z.coerce.boolean().default(true),
     //   LAUNCH_WINDOW_DAYS — length of the launch window in days, used to pace the
     //     four launch beats (5.1 open, 5.2 mid, 5.3 48h-left, 5.4 last call) off the
     //     window END so they never all fire on one tick. Default 14.
@@ -245,6 +251,7 @@ export const env = createEnv({
     LAUNCH_WINDOW_END: process.env.LAUNCH_WINDOW_END,
     REACTIVATION_DAYS: process.env.REACTIVATION_DAYS,
     LIFECYCLE_EMAIL_ENABLED: process.env.LIFECYCLE_EMAIL_ENABLED,
+    WAITLIST_DOUBLE_OPT_IN: process.env.WAITLIST_DOUBLE_OPT_IN,
     LAUNCH_WINDOW_DAYS: process.env.LAUNCH_WINDOW_DAYS,
     LIFECYCLE_RESEND_FROM: process.env.LIFECYCLE_RESEND_FROM,
     LIFECYCLE_POSTAL_ADDRESS: process.env.LIFECYCLE_POSTAL_ADDRESS,
