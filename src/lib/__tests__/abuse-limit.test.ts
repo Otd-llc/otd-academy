@@ -9,7 +9,9 @@ const h = vi.hoisted(() => ({
     MAGIC_GLOBAL_DAILY_CAP: undefined as number | undefined,
   },
   // Per-prefix limit() behavior. May return a result or throw.
-  dispatch: (_prefix: string): { success: boolean; reason?: string } => ({ success: true }),
+  dispatch: (_prefix: string): { success: boolean; reason?: string } => ({
+    success: true,
+  }),
 }));
 
 vi.mock("@/env", () => ({ env: h.env }));
@@ -36,7 +38,8 @@ const CHECK = [{ rule: "magic:email:hour" as const, identity: "id" }];
 
 // Fresh module per test → a clean breaker + `configured` re-evaluated.
 async function load(opts?: { kv?: boolean }) {
-  h.env.KV_REST_API_URL = opts?.kv === false ? undefined : "https://x.upstash.io";
+  h.env.KV_REST_API_URL =
+    opts?.kv === false ? undefined : "https://x.upstash.io";
   h.env.KV_REST_API_TOKEN = opts?.kv === false ? undefined : "tok";
   vi.resetModules();
   return import("@/lib/abuse-limit");
@@ -61,7 +64,9 @@ describe("enforce", () => {
     const called: string[] = [];
     h.dispatch = (prefix) => {
       called.push(prefix);
-      return prefix.endsWith("magic:email:burst") ? { success: false } : { success: true };
+      return prefix.endsWith("magic:email:burst")
+        ? { success: false }
+        : { success: true };
     };
     const { enforce } = await load();
     const v = await enforce(magicLinkChecks("a@b.com"), "escalate-closed");
@@ -76,7 +81,9 @@ describe("enforce", () => {
     };
     const { enforce } = await load();
     // Breaker not yet tripped → grace allow, but crucially it did not throw.
-    await expect(enforce(CHECK, "escalate-closed")).resolves.toEqual({ ok: true });
+    await expect(enforce(CHECK, "escalate-closed")).resolves.toEqual({
+      ok: true,
+    });
   });
 
   it("reason:'timeout' degrades (is NOT read as success:true — D4)", async () => {
@@ -97,9 +104,15 @@ describe("enforce", () => {
     for (let i = 0; i < 19; i++) {
       expect(await enforce(CHECK, "escalate-closed")).toEqual({ ok: true });
     }
-    expect(await enforce(CHECK, "escalate-closed")).toEqual({ ok: false, rule: "degraded" });
+    expect(await enforce(CHECK, "escalate-closed")).toEqual({
+      ok: false,
+      rule: "degraded",
+    });
     // Now open → fast-fail → still closed.
-    expect(await enforce(CHECK, "escalate-closed")).toEqual({ ok: false, rule: "degraded" });
+    expect(await enforce(CHECK, "escalate-closed")).toEqual({
+      ok: false,
+      rule: "degraded",
+    });
   });
 
   it("failMode:'open' allows even under a tripped breaker (Tier 2)", async () => {
@@ -121,11 +134,41 @@ describe("enforce", () => {
     };
     const { enforce } = await load();
     for (let i = 0; i < 21; i++) await enforce(CHECK, "escalate-closed"); // trip (open)
-    expect(await enforce(CHECK, "escalate-closed")).toEqual({ ok: false, rule: "degraded" });
+    expect(await enforce(CHECK, "escalate-closed")).toEqual({
+      ok: false,
+      rule: "degraded",
+    });
     // Past the cooldown, Upstash healed → the probe succeeds → breaker closes.
     vi.setSystemTime(31_000);
     down = false;
     expect(await enforce(CHECK, "escalate-closed")).toEqual({ ok: true });
+  });
+
+  it("failMode:'closed' fails on EVERY degrade, with no grace, and under a keyless build", async () => {
+    // A counter's mode (plan 1.2.3): a tap nobody vouched for is not counted.
+    h.dispatch = () => {
+      throw new Error("upstash down");
+    };
+    const { enforce } = await load();
+    expect(await enforce(CHECK, "closed")).toEqual({
+      ok: false,
+      rule: "degraded",
+    });
+    h.dispatch = () => ({ success: true, reason: "timeout" });
+    expect(await enforce(CHECK, "closed")).toEqual({
+      ok: false,
+      rule: "degraded",
+    });
+    h.dispatch = () => ({ success: true });
+    expect(await enforce(CHECK, "closed")).toEqual({ ok: true });
+    const keyless = await load({ kv: false });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(await keyless.enforce(CHECK, "closed")).toEqual({
+      ok: false,
+      rule: "degraded",
+    });
+    // The other modes keep their meaning under the same keyless build.
+    expect(await keyless.enforce(CHECK, "open")).toEqual({ ok: true });
   });
 
   it("env unset → {ok:true} and logs once", async () => {

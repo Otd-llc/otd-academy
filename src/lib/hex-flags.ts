@@ -21,9 +21,16 @@ import { createClient, type EdgeConfigClient } from "@vercel/edge-config";
 export interface HexFlags {
   hexPackEnabled: boolean;
   hexSaveEnabled: boolean;
+  /** The molded-line tap counter (plan 1.2.3). FEATURE-OFF only: it stops the
+   *  button, never bypasses the limiter. */
+  hexInterestEnabled: boolean;
 }
 
-export const HEX_FLAG_KEYS = ["hexPackEnabled", "hexSaveEnabled"] as const;
+export const HEX_FLAG_KEYS = [
+  "hexPackEnabled",
+  "hexSaveEnabled",
+  "hexInterestEnabled",
+] as const;
 export type HexFlagKey = (typeof HEX_FLAG_KEYS)[number];
 
 const READ_TIMEOUT_MS = 200;
@@ -69,11 +76,13 @@ export async function hexFlag(key: HexFlagKey): Promise<boolean> {
  *  back whatever else someone put in the store, and the route's body is exactly
  *  these two keys. */
 export async function readHexFlags(): Promise<HexFlags> {
-  const [hexPackEnabled, hexSaveEnabled] = await Promise.all([
-    hexFlag("hexPackEnabled"),
-    hexFlag("hexSaveEnabled"),
-  ]);
-  return { hexPackEnabled, hexSaveEnabled };
+  const [hexPackEnabled, hexSaveEnabled, hexInterestEnabled] =
+    await Promise.all([
+      hexFlag("hexPackEnabled"),
+      hexFlag("hexSaveEnabled"),
+      hexFlag("hexInterestEnabled"),
+    ]);
+  return { hexPackEnabled, hexSaveEnabled, hexInterestEnabled };
 }
 
 /** The one origin allowed to read the flags cross-origin. STATIC: it comes from

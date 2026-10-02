@@ -15,6 +15,8 @@
 import type { Metadata } from "next";
 
 import ModelViewer from "@/components/ModelViewer";
+import { MoldedWaitlist, WantButton } from "@/components/hex/MoldedInterest";
+import { hexPartWaitlistOpen } from "@/lib/actions/hex-part-interest";
 import {
   HEX_CONCEPTS,
   HEX_CONCEPT_UNIT_SCALE,
@@ -71,7 +73,8 @@ function SpecRows({ rows }: { rows: Row[] }) {
   );
 }
 
-export default function HexMoldedPage() {
+export default async function HexMoldedPage() {
+  const open = await hexPartWaitlistOpen();
   return (
     <main className="mx-auto max-w-6xl px-4 pb-24 pt-10 sm:px-6">
       <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
@@ -130,6 +133,9 @@ export default function HexMoldedPage() {
                 <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
                   Concept. Not for sale, not printable.
                 </p>
+                <div className="mt-4">
+                  <WantButton stem={c.stem} name={c.name} />
+                </div>
               </div>
             </div>
           </section>
@@ -141,14 +147,11 @@ export default function HexMoldedPage() {
         className="mt-12 scroll-mt-24 border-t border-panel-border/60 pt-6"
       >
         <Heading>Want one made</Heading>
-        <p className="mt-4 max-w-xl font-serif text-base leading-relaxed text-text">
-          Write to{" "}
-          <a href={`mailto:${HEX_V2_SUPPORT_EMAIL}`} className={LINK}>
-            {HEX_V2_SUPPORT_EMAIL}
-          </a>{" "}
-          and name the part. A count of replies per design decides what goes to
-          a mold maker first. No account is needed, and nothing is charged.
-        </p>
+        <MoldedWaitlist
+          concepts={HEX_CONCEPTS.map((c) => ({ stem: c.stem, name: c.name }))}
+          open={open}
+          supportEmail={HEX_V2_SUPPORT_EMAIL}
+        />
         <p className="mt-3 max-w-xl font-serif text-sm leading-relaxed text-muted">
           The printed cells, covers and accessories are a separate, finished
           release:{" "}

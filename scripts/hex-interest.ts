@@ -54,7 +54,8 @@ async function main() {
           `SELECT stem,
                   count(*) FILTER (WHERE "confirmedAt" IS NOT NULL) AS confirmed,
                   count(*) FILTER (WHERE "confirmedAt" IS NULL) AS pending
-             FROM "HexPartWaitlist" GROUP BY stem ORDER BY confirmed DESC, stem`,
+             FROM "HexPartWaitlist", unnest(stems) AS stem
+            GROUP BY stem ORDER BY confirmed DESC, stem`,
         );
         console.table(w.rows);
       }
@@ -64,8 +65,8 @@ async function main() {
           ip_days: string;
           degraded: string;
         }>(
-          `SELECT stem, sum("ipDays") AS ip_days, sum("degradedDrops") AS degraded
-             FROM "HexPartInterest" GROUP BY stem ORDER BY ip_days DESC, stem`,
+          `SELECT stem, "ipDays" AS ip_days, "degradedDrops" AS degraded
+             FROM "HexPartInterest" ORDER BY "ipDays" DESC, stem`,
         );
         console.table(t.rows);
       }

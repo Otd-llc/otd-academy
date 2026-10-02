@@ -349,6 +349,37 @@ model HexReleaseNotify {
 
 // Stripe webhook idempotency (GTM Phase 3): record each processed event id so a
 // redelivered event is a no-op (the create() unique-violation = already handled).
+// "Tell me when one of the molded designs goes to the mold maker" (hex-v2 plan
+// 1.2.2). One row per lowercase address; `stems` are the concept stems chosen,
+// validated against the academy's concept allow-list before anything else.
+// Same double opt-in as the other captures; stems UNION only once confirmed.
+// Also UNIQUE on lower(email): HexPartWaitlist_lower_email_key (migration
+// 20261002120000_hex_part_interest).
+model HexPartWaitlist {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  stems         String[]  @default([])
+  userId        String?
+  createdAt     DateTime  @default(now())
+  confirmedAt   DateTime?
+  confirmSentAt DateTime?
+  /** Once-only ledger for the "your design went to the mold maker" digest. */
+  notifiedAt    DateTime?
+
+  @@index([userId])
+}
+
+// The tap counter for the molded designs (plan 1.2.3): one row per stem,
+// `ipDays` incremented once per IP-day as the rate limiter decides, running
+// CLOSED. A degraded or keyless limiter DROPS the tap and counts it in
+// `degradedDrops`, so the ranking can say how many it did not count.
+model HexPartInterest {
+  stem          String   @id
+  ipDays        Int      @default(0)
+  degradedDrops Int      @default(0)
+  updatedAt     DateTime @updatedAt
+}
+
 model ProcessedStripeEvent {
   eventId   String   @id
   type      String

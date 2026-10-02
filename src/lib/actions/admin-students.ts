@@ -265,6 +265,9 @@ export async function deleteStudent(input: unknown): Promise<{ ok: true }> {
           await tx.hexReleaseNotify.deleteMany({
             where: { OR: [{ userId }, ...byAddress] },
           });
+          await tx.hexPartWaitlist.deleteMany({
+            where: { OR: [{ userId }, ...byAddress] },
+          });
           if (email) {
             await tx.waitlistSignup.deleteMany({ where: { email } });
           }

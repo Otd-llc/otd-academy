@@ -196,6 +196,8 @@ function delegate(db: PrismaClient, table: WaitlistTable): Delegate {
       return db.passWaitlist as unknown as Delegate;
     case "HexReleaseNotify":
       return db.hexReleaseNotify as unknown as Delegate;
+    case "HexPartWaitlist":
+      return db.hexPartWaitlist as unknown as Delegate;
   }
 }
 
@@ -367,6 +369,7 @@ export async function sweepWaitlists(
     "WaitlistSignup",
     "PassWaitlist",
     "HexReleaseNotify",
+    "HexPartWaitlist",
   ] as const) {
     const d = delegate(db, table);
     unconfirmed += (

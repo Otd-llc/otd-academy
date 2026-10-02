@@ -116,6 +116,11 @@ export const env = createEnv({
     //     mail). Read LIVE from process.env by waitlist-confirm.ts as well, so a
     //     test can flip it; this entry validates the shape.
     WAITLIST_DOUBLE_OPT_IN: z.coerce.boolean().default(true),
+    //   HEX_PART_WAITLIST_OPEN — "1" opens the molded-line waitlist form on
+    //     /hex/molded (plan 1.2.2). Unset or anything else: the form is closed
+    //     and the action refuses. Read LIVE from process.env by the action as
+    //     well (the HEX_RELEASE_NOTIFY_OPEN pattern); this entry validates shape.
+    HEX_PART_WAITLIST_OPEN: z.string().optional(),
     //   LAUNCH_WINDOW_DAYS — length of the launch window in days, used to pace the
     //     four launch beats (5.1 open, 5.2 mid, 5.3 48h-left, 5.4 last call) off the
     //     window END so they never all fire on one tick. Default 14.
@@ -252,6 +257,7 @@ export const env = createEnv({
     REACTIVATION_DAYS: process.env.REACTIVATION_DAYS,
     LIFECYCLE_EMAIL_ENABLED: process.env.LIFECYCLE_EMAIL_ENABLED,
     WAITLIST_DOUBLE_OPT_IN: process.env.WAITLIST_DOUBLE_OPT_IN,
+    HEX_PART_WAITLIST_OPEN: process.env.HEX_PART_WAITLIST_OPEN,
     LAUNCH_WINDOW_DAYS: process.env.LAUNCH_WINDOW_DAYS,
     LIFECYCLE_RESEND_FROM: process.env.LIFECYCLE_RESEND_FROM,
     LIFECYCLE_POSTAL_ADDRESS: process.env.LIFECYCLE_POSTAL_ADDRESS,
