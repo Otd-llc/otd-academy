@@ -23,6 +23,10 @@ import { db } from "@/lib/db";
 import { capture } from "@/lib/analytics";
 import { clientIp, ipCheckFor } from "@/lib/abuse-policy";
 import { enforce } from "@/lib/abuse-limit";
+import {
+  doubleOptInEnabled,
+  sendWaitlistConfirmation,
+} from "@/lib/waitlist-confirm";
 import { defenseEnabled } from "@/lib/abuse-defense-flag";
 
 const schema = z.object({
@@ -102,13 +106,31 @@ export async function notifyOnHexRelease(
     // that the moment they came back for the next one.
     // NEVER OVERWRITE a userId already on the row (see the stamp note above).
     update: {},
-    create: { email, userId, release },
+    // Double opt-in (plan P.5): see pass-waitlist.ts.
+    create: {
+      email,
+      userId,
+      release,
+      confirmedAt: doubleOptInEnabled() ? null : new Date(),
+    },
   });
   if (userId) {
     await db.hexReleaseNotify.updateMany({
       where: { email, userId: null },
       data: { userId },
     });
+  }
+  try {
+    await sendWaitlistConfirmation(
+      db,
+      { table: "HexReleaseNotify", email },
+      {
+        list: "the Hex Cluster release notice",
+        promise: "when the next release lands",
+      },
+    );
+  } catch {
+    // logged inside; the row stands unconfirmed and the next submit retries
   }
 
   if (!prior) {

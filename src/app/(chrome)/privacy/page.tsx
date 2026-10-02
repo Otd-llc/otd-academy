@@ -273,6 +273,14 @@ export default function PrivacyPage() {
                 afterward to meet legal, accounting, and security obligations.
                 You can ask us to delete your account at any time.
               </p>
+              <p>
+                An address given without an account (section 2) is treated as
+                belonging to whoever reads that mailbox, shared mailboxes
+                included. It is deleted 7 days after signup if the confirmation
+                link is never used, and 12 months after the one email it was
+                confirmed for. Every such email carries a link that removes the
+                address at once.
+              </p>
             </Section>
 
             <Section n={6} title="Where your data is processed">
