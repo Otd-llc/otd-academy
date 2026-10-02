@@ -15,7 +15,7 @@
 //
 // BOTH THEMES, because a clip recorded on deep space is a black slab on the
 // ivory theme. `ThemedLoop` mounts both and CSS picks one; the POSTER carries
-// the reduced-motion case (HexStill shows the still, never the loop).
+// the reduced-motion case (ThemedLoop shows the poster, never the loop).
 //
 // BYTE BUDGET: one clip <= 500 KB (launch 8.2). The CRF starts where the v1 clip
 // shipped (31, ~459 KB) and steps up until the file fits, so the budget is a

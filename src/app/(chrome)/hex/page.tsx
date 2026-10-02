@@ -23,7 +23,8 @@ import type { Metadata } from "next";
 
 import { ConfiguratorLink } from "@/components/hex/ConfiguratorLink";
 import { HexConfiguratorFrame } from "@/components/hex/HexConfiguratorFrame";
-import { HexStill } from "@/components/hex/HexStill";
+import { ThemedLoop } from "@/components/hex/ThemedLoop";
+import { HEX_HERO_FILM } from "@/lib/hex-hero-film";
 import { env } from "@/env";
 import { HEX_LICENSE } from "@/lib/hex-license";
 import { hexLicenseTxt } from "@/lib/hex-license-txt";
@@ -192,10 +193,15 @@ export default function HexPage() {
     // The frame HOSTS the page: every `ConfiguratorLink` below reads its
     // context, and the frame portals to <body>, so wrapping costs no element.
     <HexConfiguratorFrame enabled={env.NEXT_PUBLIC_HEX_EMBED !== "off"}>
-      {/* ── hero: a static still, so reduced motion shows the same picture ── */}
+      {/* ── hero: the build film; under reduced motion, its poster frame ── */}
       <section className="relative mx-auto max-w-[100rem] px-4 sm:px-6">
         <div className="relative overflow-hidden border border-panel-border/60">
-          <HexStill className="h-[58vh] min-h-[380px] w-full object-cover" />
+          <ThemedLoop
+            className="h-[58vh] min-h-[380px] w-full object-cover"
+            dark={HEX_HERO_FILM.dark}
+            light={HEX_HERO_FILM.light}
+            label={HEX_HERO_FILM.label}
+          />
 
           {/* Bottom-up scrim: legibility only. */}
           <div
@@ -213,7 +219,8 @@ export default function HexPage() {
                 <span className="tdot">.</span>
               </h1>
               <p className="mt-4 max-w-xl font-serif text-[15px] leading-relaxed text-text">
-                A bench mounting standard you print yourself, {HEX_LICENSE.name}.
+                A bench mounting standard you print yourself, {HEX_LICENSE.name}
+                .
               </p>
               <p className="mt-7">
                 <ConfiguratorLink
@@ -383,7 +390,10 @@ export default function HexPage() {
                     value: first.spools.toFixed(2),
                   },
                 ].map((s) => (
-                  <div key={s.label} className="border-b border-panel-border/60 py-4">
+                  <div
+                    key={s.label}
+                    className="border-b border-panel-border/60 py-4"
+                  >
                     <p className="font-numeral text-3xl tabular-nums tracking-wide text-title">
                       {s.value}
                     </p>
@@ -543,8 +553,8 @@ export default function HexPage() {
                 <li>Flush cutters and a deburring blade, for brims</li>
                 <li>A 5 mm hex key, for the M6 side bolts</li>
                 <li>
-                  5 × 1 mm neodymium magnets for the covers that take them, and a
-                  4.5 mm steel BB in the base under each one
+                  5 × 1 mm neodymium magnets for the covers that take them, and
+                  a 4.5 mm steel BB in the base under each one
                 </li>
                 <li>
                   A soldering iron with a heat-set tip, for the inserts and the
@@ -559,8 +569,8 @@ export default function HexPage() {
             <Section id="jigs" title="Print these first">
               {/* The order, and the reading/action lines. */}
               <p className="max-w-xl font-serif text-sm leading-relaxed text-muted">
-                Small prints that tell you how your printer lands on this
-                system before you spend hours on a base.
+                Small prints that tell you how your printer lands on this system
+                before you spend hours on a base.
               </p>
               <ul className="mt-4 max-w-xl border-t border-panel-border/60">
                 {HEX_V2_JIGS.map((j) => (
@@ -642,7 +652,11 @@ export default function HexPage() {
               <Prose>
                 <p>
                   The geometry is released under the{" "}
-                  <a href={HEX_LICENSE.deed} rel="license noopener" className={LINK}>
+                  <a
+                    href={HEX_LICENSE.deed}
+                    rel="license noopener"
+                    className={LINK}
+                  >
                     {HEX_LICENSE.fullName} license
                   </a>{" "}
                   ({HEX_LICENSE.name}). You may share it and adapt it, for any
@@ -669,7 +683,11 @@ export default function HexPage() {
               <Note>
                 If you arrived from a LICENSE.txt inside a downloaded file, this
                 page is the source URL it cites. The full legal text is at{" "}
-                <a href={HEX_LICENSE.legalCode} rel="license noopener" className={LINK}>
+                <a
+                  href={HEX_LICENSE.legalCode}
+                  rel="license noopener"
+                  className={LINK}
+                >
                   creativecommons.org
                 </a>
                 . CC BY runs one way: files already published under it stay
@@ -701,11 +719,11 @@ export default function HexPage() {
                 <strong>What works.</strong> The /hex page, the downloads, the
                 build sheet and the saved-build pages are ordinary web pages you
                 can use from a keyboard, with their text in the page. In the
-                configurator, the menus and buttons can be reached with Tab,
-                the build sheet opens with Enter and closes with Escape, the
-                keys [ and ] cycle the part families, status messages are
-                written to live regions that screen readers can announce, and
-                animation is reduced when your system asks for reduced motion.
+                configurator, the menus and buttons can be reached with Tab, the
+                build sheet opens with Enter and closes with Escape, the keys [
+                and ] cycle the part families, status messages are written to
+                live regions that screen readers can announce, and animation is
+                reduced when your system asks for reduced motion.
               </p>
               <p className="mt-4 max-w-xl font-serif text-base leading-relaxed text-text">
                 <strong>What does not, yet.</strong> Placing and moving parts in
@@ -724,8 +742,9 @@ export default function HexPage() {
                 list or files for a build you describe.
               </p>
               <p className="mt-4 max-w-xl font-serif text-sm leading-relaxed text-muted">
-                We aim for WCAG 2.2 level AA on the web pages. This statement was
-                written on 28 September 2026, by us, without an outside audit.
+                We aim for WCAG 2.2 level AA on the web pages. This statement
+                was written on 28 September 2026, by us, without an outside
+                audit.
               </p>
             </Section>
           </div>
