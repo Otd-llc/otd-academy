@@ -32,6 +32,7 @@ import {
   captureTake,
   encodeMp4,
   probeMp4,
+  encodeProblem,
   freshDir,
 } from "./hex-film.mjs";
 
@@ -82,6 +83,11 @@ copyFileSync(`${RAW}/take.mp4`, mp4);
 const got = probeMp4(mp4);
 if (got.frames !== TOTAL || Math.abs(got.duration - SECONDS) > 0.0005) {
   console.error(`[GATE FAILED] ${mp4}: ${got.frames} frames / ${got.duration}s`);
+  process.exit(1);
+}
+// And the phone-safe encode, off the file, not off the flags we passed.
+if (encodeProblem(got)) {
+  console.error(`[GATE FAILED] ${mp4}: not High@4.0 avc1 (${encodeProblem(got)})`);
   process.exit(1);
 }
 
