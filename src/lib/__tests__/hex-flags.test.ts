@@ -50,7 +50,10 @@ beforeEach(() => {
   store.gets = [];
   vi.stubEnv("HEX_FLAGS_EDGE_CONFIG", CONN);
   vi.stubEnv("HEX_FLAGS_ALLOW_ORIGIN", undefined);
-  vi.stubEnv("EDGE_CONFIG", "https://edge-config.vercel.com/ecfg_abuse?token=t");
+  vi.stubEnv(
+    "EDGE_CONFIG",
+    "https://edge-config.vercel.com/ecfg_abuse?token=t",
+  );
 });
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -62,7 +65,11 @@ describe("readHexFlags (fail-OPEN)", () => {
     store.values = { hexPackEnabled: true, hexSaveEnabled: true };
     await readHexFlags();
     expect(store.conns.every((c) => c === CONN)).toBe(true);
-    expect(store.gets.sort()).toEqual(["hexPackEnabled", "hexSaveEnabled"]);
+    expect(store.gets.sort()).toEqual([
+      "hexInterestEnabled",
+      "hexPackEnabled",
+      "hexSaveEnabled",
+    ]);
   });
 
   it("only an explicit false disables", async () => {
@@ -71,6 +78,7 @@ describe("readHexFlags (fail-OPEN)", () => {
     expect(await readHexFlags()).toEqual({
       hexPackEnabled: false,
       hexSaveEnabled: true,
+      hexInterestEnabled: true,
     });
   });
 
@@ -81,6 +89,7 @@ describe("readHexFlags (fail-OPEN)", () => {
     expect(await readHexFlags()).toEqual({
       hexPackEnabled: true,
       hexSaveEnabled: true,
+      hexInterestEnabled: true,
     });
   });
 
@@ -90,6 +99,7 @@ describe("readHexFlags (fail-OPEN)", () => {
     expect(await readHexFlags()).toEqual({
       hexPackEnabled: true,
       hexSaveEnabled: true,
+      hexInterestEnabled: true,
     });
   });
 });
@@ -207,7 +217,9 @@ vi.mock("@/lib/auth-helpers", () => ({
   requireUser: async () => ({ id: "u1", email: "u1@example.invalid" }),
   currentUserId: async () => "u1",
 }));
-vi.mock("@/lib/abuse-defense-flag", () => ({ defenseEnabled: async () => false }));
+vi.mock("@/lib/abuse-defense-flag", () => ({
+  defenseEnabled: async () => false,
+}));
 vi.mock("@/lib/abuse-limit", () => ({ enforce: async () => ({ ok: true }) }));
 vi.mock("@/lib/cache-invalidate", () => ({ invalidateHexCluster: () => {} }));
 

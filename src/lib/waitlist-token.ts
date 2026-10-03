@@ -22,6 +22,7 @@ export const WAITLIST_TABLES = [
   "WaitlistSignup",
   "PassWaitlist",
   "HexReleaseNotify",
+  "HexPartWaitlist",
 ] as const;
 export type WaitlistTable = (typeof WAITLIST_TABLES)[number];
 

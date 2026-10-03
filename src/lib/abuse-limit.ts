@@ -24,7 +24,13 @@ export type Verdict = { ok: true } | { ok: false; rule: RuleName | "degraded" };
 
 /** Tier 1 escalates to fail-CLOSED under a sustained outage; Tier 2/guest-tip
  *  fail OPEN (reversible, cheap). The signature the whole plan uses (design §8). */
-export type FailMode = "escalate-closed" | "open";
+/**
+ * `closed` (plan 1.2.3): every degrade, AND a keyless build, answers
+ * `{ ok:false, rule:"degraded" }`. For a COUNTER that is the only honest mode:
+ * "open" would count taps nobody vouched for, "escalate-closed" would count
+ * them until the breaker trips. The caller records the drop instead.
+ */
+export type FailMode = "escalate-closed" | "open" | "closed";
 
 // ── Upstash client + per-rule limiters (constructed lazily on first use) ──────
 const configured = Boolean(env.KV_REST_API_URL && env.KV_REST_API_TOKEN);
@@ -117,6 +123,7 @@ const breaker = makeBreaker();
 
 function degradeVerdict(failMode: FailMode): Verdict {
   if (failMode === "open") return { ok: true }; // Tier 2/guest-tip: reversible
+  if (failMode === "closed") return { ok: false, rule: "degraded" };
   // Tier 1 escalate-closed: allow while the breaker is still gathering evidence
   // (a brief bounded grace so a transient blip does not block sign-ins), then
   // fail CLOSED once a sustained outage trips it.
@@ -131,13 +138,21 @@ let loggedUnconfigured = false;
  * an infrastructure failure OR a `reason:"timeout"`, DEGRADE per failMode. Never
  * throws; never silently allows on Tier 1.
  */
-export async function enforce(checks: Check[], failMode: FailMode): Promise<Verdict> {
+export async function enforce(
+  checks: Check[],
+  failMode: FailMode,
+): Promise<Verdict> {
   if (!redis) {
     if (!loggedUnconfigured) {
-      console.warn("[abuse-limit] KV_REST_API_* unset — rate limiting is OFF (keyless build).");
+      console.warn(
+        "[abuse-limit] KV_REST_API_* unset — rate limiting is OFF (keyless build).",
+      );
       loggedUnconfigured = true;
     }
-    return { ok: true };
+    // Keyless is a degrade too for a closed caller: nothing vouched for the call.
+    return failMode === "closed"
+      ? { ok: false, rule: "degraded" }
+      : { ok: true };
   }
 
   // Open and not yet probe-time → fast-fail without touching Redis.
@@ -145,15 +160,23 @@ export async function enforce(checks: Check[], failMode: FailMode): Promise<Verd
 
   for (const check of checks) {
     const rl = limiterFor(check.rule);
-    if (!rl) return { ok: true };
+    if (!rl)
+      return failMode === "closed"
+        ? { ok: false, rule: "degraded" }
+        : { ok: true };
     try {
       const res = await rl.limit(check.identity);
       if (res.reason === "timeout") {
         // DIAGNOSTIC (2026-07-18): the degrade path was silent, so a Preview where
         // every call timed out looked like "the limiter does nothing". Log the rule
         // and cause so a redeploy shows WHY enforce degrades (timeout vs error).
-        console.warn(`[abuse-limit] degrade: Upstash TIMEOUT on ${check.rule} (>1000ms)`);
-        capture("abuse_limiter_degraded", { rule: check.rule, cause: "timeout" });
+        console.warn(
+          `[abuse-limit] degrade: Upstash TIMEOUT on ${check.rule} (>1000ms)`,
+        );
+        capture("abuse_limiter_degraded", {
+          rule: check.rule,
+          cause: "timeout",
+        });
         breaker.record(false);
         return degradeVerdict(failMode);
       }

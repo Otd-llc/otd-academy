@@ -27,6 +27,8 @@ function corsHeaders(): Record<string, string> {
 
 export async function GET(): Promise<Response> {
   await connection();
+  // The configurator reads exactly these two; hexInterestEnabled is an
+  // academy-side switch and stays off the cross-origin body.
   const { hexPackEnabled, hexSaveEnabled } = await readHexFlags();
   return Response.json(
     { hexPackEnabled, hexSaveEnabled },
