@@ -1,6 +1,6 @@
 "use client";
 
-// The configurator loop, in the palette the visitor is actually looking at.
+// A looping clip, in the palette the visitor is actually looking at.
 //
 // A `<source media="...">` cannot do this. Media queries see the OS preference,
 // and this site's theme is a `data-theme` attribute the visitor sets with a
@@ -20,10 +20,16 @@
 // attribute the toggle sets, so it lands in the SAME paint. There is no window
 // for the wrong one to show.
 //
-// It does not cost a second download. Only the active clip gets
-// `preload="auto"`; the other is `preload="none"` and has nothing but its
-// poster (~20 kB) until it is needed. `useSyncExternalStore` still tracks the
-// theme -- but only to steer that hint, never to do the swap.
+// REDUCED MOTION IS A POSTER, AND NOTHING IS FETCHED FOR IT. Both clips render
+// with preload="none" and no autoplay attribute, so the server HTML asks for no
+// video at all. After mount, and only when the visitor has not asked for
+// reduced motion, the active clip is told to load and play. The poster is a
+// real frame of the film, so the reduced-motion picture is the film's own
+// still rather than a separate render. tools/check-hex-hero.mjs measures this
+// in a browser: zero .mp4 requests under `reducedMotion: 'reduce'`.
+//
+// It does not cost a second download: only the active clip is ever loaded; the
+// other has nothing but its poster (~20 kB) until the theme flips to it.
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 
@@ -31,44 +37,103 @@ const CHANGE_EVENT = "otd-theme-change";
 
 function subscribe(callback: () => void) {
   window.addEventListener(CHANGE_EVENT, callback);
-  return () => window.removeEventListener(CHANGE_EVENT, callback);
+  // The attribute itself, too: the theme's first paint comes from a script
+  // that sets `data-theme` from the stored or OS preference without firing the
+  // toggle's event. Measured 2026-10-02 in a light-scheme browser: the
+  // snapshot stayed "dark", the effect loaded and played the HIDDEN dark clip,
+  // and the visible light clip sat on its poster.
+  const mo = new MutationObserver(callback);
+  mo.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"],
+  });
+  return () => {
+    window.removeEventListener(CHANGE_EVENT, callback);
+    mo.disconnect();
+  };
 }
-
 function getSnapshot(): "light" | "dark" {
   return document.documentElement.dataset.theme === "light" ? "light" : "dark";
 }
-
 function getServerSnapshot(): "light" | "dark" {
   return "dark";
 }
 
-export function ThemedLoop({ className }: { className?: string }) {
+export type LoopClip = { src: string; poster: string };
+
+const CONFIGURATOR_DARK: LoopClip = {
+  src: "/hex/configurator.mp4",
+  poster: "/hex/configurator-poster.jpg",
+};
+const CONFIGURATOR_LIGHT: LoopClip = {
+  src: "/hex/configurator-light.mp4",
+  poster: "/hex/configurator-light-poster.jpg",
+};
+const CONFIGURATOR_LABEL =
+  "The Hex Cluster configurator: a PVC pipe slides through a row of bases beside a " +
+  "stacked column, the cover snaps on, the build explodes, and every printed part " +
+  "flies onto a print bed before the build reassembles";
+
+/** True when the visitor asked for reduced motion; false on the server. */
+function reducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+export function ThemedLoop({
+  className,
+  dark = CONFIGURATOR_DARK,
+  light = CONFIGURATOR_LIGHT,
+  label = CONFIGURATOR_LABEL,
+}: {
+  className?: string;
+  dark?: LoopClip;
+  light?: LoopClip;
+  /** What the clip shows, for assistive tech. The canvas is pointer-only. */
+  label?: string;
+}) {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const darkRef = useRef<HTMLVideoElement>(null);
   const lightRef = useRef<HTMLVideoElement>(null);
 
-  // A clip hidden with `display: none` is not playing, and autoplay does not
-  // re-fire when it is revealed. Nudge whichever one just became visible.
+  // Start the ACTIVE clip, once the visitor's motion preference is known. A
+  // clip hidden with `display: none` is not playing and autoplay would not
+  // re-fire on reveal, so this also nudges whichever clip a theme flip just
+  // revealed.
   useEffect(() => {
-    const el = theme === "light" ? lightRef.current : darkRef.current;
+    if (reducedMotion()) return;
+    // Read the theme off the DOM here, not from the closed-over `theme`: the
+    // hydration commit's effect runs with the SERVER snapshot ("dark") even
+    // though the no-flash bootstrap already set `data-theme="light"`, and that
+    // started the hidden dark clip in a light browser (measured: both clips
+    // loaded and playing, 4 range requests instead of 2). `theme` stays the
+    // dependency so a flip re-runs this.
+    const live = getSnapshot();
+    const el = live === "light" ? lightRef.current : darkRef.current;
+    const other = live === "light" ? darkRef.current : lightRef.current;
+    if (other && !other.paused) other.pause();
     if (!el) return;
+    el.preload = "auto";
     const play = () => void el.play().catch(() => {});
     if (el.readyState >= 2) play();
-    else el.addEventListener("loadeddata", play, { once: true });
+    else {
+      el.addEventListener("loadeddata", play, { once: true });
+      el.load();
+    }
   }, [theme]);
 
   const common = {
-    // Silent, looping, and started without asking: this is furniture, not
-    // media. `playsInline` matters most on iOS, where the default is to take
-    // the video fullscreen the moment it plays.
-    autoPlay: true,
+    // Silent, looping, inline: this is furniture, not media. `playsInline`
+    // matters most on iOS, where the default is to take the video fullscreen
+    // the moment it plays. NOT autoPlay: that is a fetch the reduced-motion
+    // visitor never asked for; the effect above starts the clip instead.
     muted: true,
     loop: true,
     playsInline: true,
-    "aria-label":
-      "The Hex Cluster configurator: a PVC pipe slides through a row of bases beside a " +
-      "stacked column, the cover snaps on, the build explodes, and every printed part " +
-      "flies onto a print bed before the build reassembles",
+    preload: "none",
+    "aria-label": label,
   } as const;
 
   return (
@@ -81,23 +146,21 @@ export function ThemedLoop({ className }: { className?: string }) {
         ref={darkRef}
         data-loop="dark"
         className={className}
-        preload={theme === "dark" ? "auto" : "none"}
         // The poster carries the first paint, so the hero is never an empty box
-        // while ~350 kB of video arrives -- and on a toggle it is what shows
-        // while the newly-revealed clip loads.
-        poster="/hex/configurator-poster.jpg"
+        // while the video arrives -- and on a toggle it is what shows while the
+        // newly-revealed clip loads. Under reduced motion it IS the hero.
+        poster={dark.poster}
       >
-        <source src="/hex/configurator.mp4" type="video/mp4" />
+        <source src={dark.src} type="video/mp4" />
       </video>
       <video
         {...common}
         ref={lightRef}
         data-loop="light"
         className={className}
-        preload={theme === "light" ? "auto" : "none"}
-        poster="/hex/configurator-light-poster.jpg"
+        poster={light.poster}
       >
-        <source src="/hex/configurator-light.mp4" type="video/mp4" />
+        <source src={light.src} type="video/mp4" />
       </video>
     </>
   );

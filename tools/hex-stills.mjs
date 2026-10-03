@@ -1,6 +1,6 @@
 // The /hex stills, v2, in four kinds:
 //
-//   hero/   the /hex hero (HexStill), dark + light. Also what the page shows
+//   hero/   the former /hex hero still (replaced by the build film, 2026-10-02).
 //           under reduced motion, since a still has nothing to pause.
 //   og      the transparent cutout the /hex share card composes (1200x630 card,
 //           src/app/(chrome)/hex/opengraph-image.tsx).

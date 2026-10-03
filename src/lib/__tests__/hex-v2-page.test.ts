@@ -29,9 +29,10 @@ const ROOT = process.cwd();
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf-8");
 const PAGE = read("src/app/(chrome)/hex/page.tsx");
 const OG = read("src/app/(chrome)/hex/opengraph-image.tsx");
-const STILL = read("src/components/hex/HexStill.tsx");
+const LOOP = read("src/components/hex/ThemedLoop.tsx");
+const HERO = read("src/lib/hex-hero-film.ts");
 const DATA = read("src/lib/hex-v2-page.ts");
-const SURFACES = { page: PAGE, og: OG, still: STILL, data: DATA };
+const SURFACES = { page: PAGE, og: OG, loop: LOOP, hero: HERO, data: DATA };
 
 describe("v2 geometry", () => {
   it("derives the 165.705 mm pitch from the vars", () => {
@@ -127,7 +128,7 @@ describe("/hex copy rules", () => {
   );
 
   it("has no em-dash anywhere on the page", () => {
-    for (const src of [PAGE, DATA, STILL]) expect(src).not.toContain("—");
+    for (const src of [PAGE, DATA, LOOP, HERO]) expect(src).not.toContain("—");
   });
 
   it("states the pipe spec and the time caveat verbatim", () => {

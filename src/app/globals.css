@@ -2679,13 +2679,13 @@ fieldset:has(.qzh-opt[data-st="ok"]) [role="status"] > div > p:last-child {
    elements keyed `data-still`, for the same reason. */
 video[data-loop="light"],
 img[data-still="light"] {
-  display: none;
+  display: none !important;
 }
 :root[data-theme="light"] video[data-loop="light"],
 :root[data-theme="light"] img[data-still="light"] {
-  display: block;
+  display: block !important;
 }
 :root[data-theme="light"] video[data-loop="dark"],
 :root[data-theme="light"] img[data-still="dark"] {
-  display: none;
+  display: none !important;
 }
