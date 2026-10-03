@@ -35,6 +35,17 @@ beforeEach(async () => {
 afterAll(clean);
 
 describe("joinPassWaitlist userId stamp", () => {
+  test("a mixed-case address is stored lowercase, and its case-variant is the same row", async () => {
+    // 20261001120000_email_hygiene: one row per address whatever the typing.
+    // Before it, these were two rows and two digests.
+    await joinPassWaitlist({ email: EMAIL.toUpperCase() });
+    await joinPassWaitlist({ email: EMAIL });
+    const rows = await db.passWaitlist.findMany({
+      where: { email: { in: [EMAIL, EMAIL.toUpperCase()] } },
+    });
+    expect(rows.map((r) => r.email)).toEqual([EMAIL]);
+  });
+
   test("anonymous submit leaves userId null", async () => {
     await joinPassWaitlist({ email: EMAIL });
     const row = await db.passWaitlist.findUnique({ where: { email: EMAIL } });
@@ -59,9 +70,15 @@ describe("joinPassWaitlist userId stamp", () => {
     });
     mockAuth.mockResolvedValue({ user: { email: me!.email } });
     await joinPassWaitlist({ email: typed });
-    const row = await db.passWaitlist.findUnique({ where: { email: typed } });
+    // Stored lowercase since 20261001120000_email_hygiene: the row is under the
+    // canonical address, whatever the visitor typed.
+    const row = await db.passWaitlist.findUnique({
+      where: { email: me!.email.toLowerCase() },
+    });
     expect(row?.userId).toBe(me!.id);
-    await db.passWaitlist.deleteMany({ where: { email: typed } });
+    await db.passWaitlist.deleteMany({
+      where: { email: { in: [typed, me!.email.toLowerCase()] } },
+    });
   });
 
   test("an existing userId on a row is never overwritten", async () => {

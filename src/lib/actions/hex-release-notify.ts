@@ -50,7 +50,10 @@ export async function notifyOnHexRelease(
   if (!parsed.success) {
     return { ok: false, error: "That does not look like an email address." };
   }
-  const { email, release } = parsed.data;
+  // Lowercased at the boundary: one row per address, and the database refuses
+  // a case-variant (20261001120000_email_hygiene).
+  const email = parsed.data.email.toLowerCase();
+  const { release } = parsed.data;
 
   // Same fail-open per-IP guard, and the same shared bucket, as the two other
   // anonymous public writes: this is the identical abuse class (arbitrary-email

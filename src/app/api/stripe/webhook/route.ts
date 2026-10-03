@@ -156,7 +156,8 @@ export async function POST(req: Request): Promise<Response> {
     // transaction — see header). Non-null = money moved but no Purchase row was
     // recordable (null amount_total): a revenue-audit hole that console alone
     // left invisible.
-    let purchaseRecordMissing: { sessionId: string; kind: string } | null = null;
+    let purchaseRecordMissing: { sessionId: string; kind: string } | null =
+      null;
 
     // 5d. Claim + grant + Purchase in ONE transaction (atomicity — see header).
     try {
@@ -176,7 +177,8 @@ export async function POST(req: Request): Promise<Response> {
             create: {
               stripeSessionId: tip.stripeSessionId,
               userId: tip.userId,
-              email: tip.email,
+              // Lowercased like every other stored address (email_hygiene).
+              email: tip.email ? tip.email.toLowerCase() : tip.email,
               amountCents: tip.amountCents,
               currency: tip.currency,
             },
@@ -310,7 +312,8 @@ export async function POST(req: Request): Promise<Response> {
         // The session id is for whoever repairs the row: server log only.
         // PostHog gets the kind (class (a), `@/lib/analytics`). (Re-typed:
         // assigned inside the transaction callback, so TS narrows it to never.)
-        const missing: { sessionId: string; kind: string } = purchaseRecordMissing;
+        const missing: { sessionId: string; kind: string } =
+          purchaseRecordMissing;
         console.error(
           `[stripe-webhook] purchase record missing: ${missing.kind} ${missing.sessionId}`,
         );
@@ -530,7 +533,9 @@ export async function POST(req: Request): Promise<Response> {
     });
     if (early) return early;
     const customerId =
-      typeof inv.customer === "string" ? inv.customer : inv.customer?.id ?? null;
+      typeof inv.customer === "string"
+        ? inv.customer
+        : (inv.customer?.id ?? null);
     if (customerId) {
       const user = await db.user.findUnique({
         where: { stripeCustomerId: customerId },
@@ -561,7 +566,9 @@ export async function POST(req: Request): Promise<Response> {
     // Log-only for ops visibility; access still follows the subscription status.
     const inv = event.data.object;
     const cust =
-      typeof inv.customer === "string" ? inv.customer : inv.customer?.id ?? "?";
+      typeof inv.customer === "string"
+        ? inv.customer
+        : (inv.customer?.id ?? "?");
     console.warn(
       `[stripe-webhook] ${event.type} for invoice ${inv.id} (customer ${cust}) — access follows the subscription status`,
     );

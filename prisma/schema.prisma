@@ -277,6 +277,8 @@ model WaitlistSignup {
   // null = owed when the course publishes; set = sent (src/lib/waitlist-notify.ts).
   notifiedAt DateTime?
 
+  // Also UNIQUE on (lower(email), projectId): WaitlistSignup_lower_email_projectId_key,
+  // hand migration 20261001120000_email_hygiene. Stored lowercase.
   @@unique([email, projectId])
 }
 
@@ -285,9 +287,14 @@ model WaitlistSignup {
 // signed-in learner joins. Idempotent on the unique email.
 model PassWaitlist {
   id        String   @id @default(cuid())
+  // Stored lowercase; the actions lowercase at their boundary. A UNIQUE index
+  // on lower(email) also exists (PassWaitlist_lower_email_key, hand migration
+  // 20261001120000_email_hygiene) that this schema cannot express.
   email     String   @unique
   userId    String?
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 // "Tell me when the next hex release lands." Anonymous email capture, offered
@@ -306,6 +313,8 @@ model PassWaitlist {
 // out" send can tell a first-timer from someone already on their third.
 model HexReleaseNotify {
   id        String   @id @default(cuid())
+  // Stored lowercase, with a UNIQUE index on lower(email) beside this one
+  // (HexReleaseNotify_lower_email_key, 20261001120000_email_hygiene).
   email     String   @unique
   userId    String?
   /** The release segment they were downloading when they signed up. */
@@ -321,6 +330,8 @@ model HexReleaseNotify {
    *  lives only in that migration -- named here so grepping the index name finds
    *  something. (WaitlistSignup deliberately has no equivalent index.) */
   notifiedAt DateTime?
+
+  @@index([userId])
 }
 
 // Stripe webhook idempotency (GTM Phase 3): record each processed event id so a
