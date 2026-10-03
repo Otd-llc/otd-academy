@@ -54,6 +54,7 @@ import {
   filmFrame,
   filmExtent,
   probeMp4,
+  encodeProblem,
 } from "./hex-film.mjs";
 
 const RAW =
@@ -869,6 +870,10 @@ emitted.push(`${base}.mp4`);
 const got = probeMp4(`${base}.mp4`);
 if (got.frames !== TOTAL || Math.abs(got.duration - TOTAL / FPS) > 0.0005) {
   console.error(`[GATE FAILED] encoded ${got.frames} frames / ${got.duration}s, wanted ${TOTAL} / ${TOTAL / FPS}s`);
+  process.exitCode = 1;
+}
+if (encodeProblem(got)) {
+  console.error(`[GATE FAILED] ${base}.mp4 is not High@4.0 avc1 (${encodeProblem(got)})`);
   process.exitCode = 1;
 }
 
