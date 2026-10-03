@@ -276,6 +276,13 @@ model WaitlistSignup {
   // Once-only ledger for the promised "we'll email you when it opens" send:
   // null = owed when the course publishes; set = sent (src/lib/waitlist-notify.ts).
   notifiedAt DateTime?
+  // Double opt-in (20261001130000_waitlist_double_opt_in): null until the
+  // confirm link's page is submitted; nothing is sent to an unconfirmed row and
+  // the lifecycle sweep deletes it after 7 days. confirmSentAt is the ledger
+  // for the one confirmation mail. Rows older than the migration are confirmed
+  // as of their createdAt.
+  confirmedAt   DateTime?
+  confirmSentAt DateTime?
 
   // Also UNIQUE on (lower(email), projectId): WaitlistSignup_lower_email_projectId_key,
   // hand migration 20261001120000_email_hygiene. Stored lowercase.
@@ -293,6 +300,9 @@ model PassWaitlist {
   email     String   @unique
   userId    String?
   createdAt DateTime @default(now())
+  // Double opt-in: see WaitlistSignup.
+  confirmedAt   DateTime?
+  confirmSentAt DateTime?
 
   @@index([userId])
 }
@@ -330,6 +340,9 @@ model HexReleaseNotify {
    *  lives only in that migration -- named here so grepping the index name finds
    *  something. (WaitlistSignup deliberately has no equivalent index.) */
   notifiedAt DateTime?
+  // Double opt-in: see WaitlistSignup.
+  confirmedAt   DateTime?
+  confirmSentAt DateTime?
 
   @@index([userId])
 }

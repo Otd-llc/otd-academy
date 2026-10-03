@@ -15,6 +15,10 @@ import { db } from "@/lib/db";
 import { capture } from "@/lib/analytics";
 import { clientIp, ipCheckFor } from "@/lib/abuse-policy";
 import { enforce } from "@/lib/abuse-limit";
+import {
+  doubleOptInEnabled,
+  sendWaitlistConfirmation,
+} from "@/lib/waitlist-confirm";
 import { defenseEnabled } from "@/lib/abuse-defense-flag";
 
 const joinWaitlistSchema = z.object({
@@ -41,7 +45,7 @@ export async function joinWaitlist(input: unknown): Promise<{ ok: true }> {
 
   const project = await db.project.findUniqueOrThrow({
     where: { id: projectId },
-    select: { accessTier: true, publishedRevisionId: true },
+    select: { accessTier: true, publishedRevisionId: true, name: true },
   });
   const isComingSoon = project.publishedRevisionId === null;
   if (!isComingSoon && project.accessTier !== "PREMIUM") {
@@ -62,8 +66,25 @@ export async function joinWaitlist(input: unknown): Promise<{ ok: true }> {
   await db.waitlistSignup.upsert({
     where: { email_projectId: { email, projectId } },
     update: {},
-    create: { email, projectId },
+    // Double opt-in (plan P.5): see pass-waitlist.ts.
+    create: {
+      email,
+      projectId,
+      confirmedAt: doubleOptInEnabled() ? null : new Date(),
+    },
   });
+  try {
+    await sendWaitlistConfirmation(
+      db,
+      { table: "WaitlistSignup", email, projectId },
+      {
+        list: `the waitlist for ${project.name}`,
+        promise: "the moment the course opens",
+      },
+    );
+  } catch {
+    // logged inside; the row stands unconfirmed and the next submit retries
+  }
 
   // Funnel: `email_captured` — anonymous demand signal at the top of the funnel.
   // No user id here (capture falls back to an anonymous distinctId). Fire only
