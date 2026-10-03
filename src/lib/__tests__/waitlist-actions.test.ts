@@ -91,7 +91,9 @@ afterAll(async () => {
   // WaitlistSignup + Revision have ON DELETE CASCADE on project, so deleting the
   // projects clears any rows this suite created.
   await db.project.deleteMany({
-    where: { id: { in: [premiumProjectId, freeComingSoonId, freePublishedId] } },
+    where: {
+      id: { in: [premiumProjectId, freeComingSoonId, freePublishedId] },
+    },
   });
   await db.user.deleteMany({ where: { id: ownerId } });
 });
@@ -128,6 +130,22 @@ describe("joinWaitlist", () => {
       where: { email: SIGNUP_EMAIL, projectId: premiumProjectId },
     });
     expect(count).toBe(1);
+  });
+
+  test("a mixed-case address is stored lowercase and is the same row as its variant", async () => {
+    // 20261001120000_email_hygiene: one row per address per course.
+    await joinWaitlist({
+      email: SIGNUP_EMAIL.toUpperCase(),
+      projectId: premiumProjectId,
+    });
+    await joinWaitlist({ email: SIGNUP_EMAIL, projectId: premiumProjectId });
+    const rows = await db.waitlistSignup.findMany({
+      where: {
+        projectId: premiumProjectId,
+        email: { in: [SIGNUP_EMAIL, SIGNUP_EMAIL.toUpperCase()] },
+      },
+    });
+    expect(rows.map((r) => r.email)).toEqual([SIGNUP_EMAIL]);
   });
 
   test("a join on a PUBLISHED non-PREMIUM (FREE) course is rejected", async () => {

@@ -104,6 +104,15 @@ export function isPublicPath(pathname: string): boolean {
   // token in the path is the gate (verified in the route), so it must be reachable
   // signed-out — a recipient clicking from their inbox has no session. noindex.
   if (top === "email" && segments[1] === "unsubscribe") return true;
+  // The double opt-in pair (plan P.5): the confirmation link and the removal
+  // link in every waitlist mail. Same footing as unsubscribe: the token in the
+  // path is the gate, the recipient has no session. Exactly these two names.
+  if (
+    top === "email" &&
+    (segments[1] === "confirm" || segments[1] === "remove")
+  ) {
+    return segments.length === 3;
+  }
   // Dev/CI-only diagram render surface (the diagram exporter screenshots these
   // via a headless browser with no session). The page itself 404s in production
   // unless DIAGRAM_EXPORT is set, so exposing the prefix is safe.

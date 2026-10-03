@@ -11,12 +11,19 @@ import { db } from "@/lib/db";
 import { capture } from "@/lib/analytics";
 import { clientIp, ipCheckFor } from "@/lib/abuse-policy";
 import { enforce } from "@/lib/abuse-limit";
+import {
+  doubleOptInEnabled,
+  sendWaitlistConfirmation,
+} from "@/lib/waitlist-confirm";
 import { defenseEnabled } from "@/lib/abuse-defense-flag";
 
 const joinPassWaitlistSchema = z.object({ email: z.email() });
 
 export async function joinPassWaitlist(input: unknown): Promise<{ ok: true }> {
-  const { email } = joinPassWaitlistSchema.parse(input);
+  // Lowercased at the boundary. The row is keyed on the address, and the
+  // database now refuses a second row that differs only in case
+  // (20261001120000_email_hygiene), so every comparison below is exact.
+  const email = joinPassWaitlistSchema.parse(input).email.toLowerCase();
 
   // Same fail-open per-IP guard as joinWaitlist (shared bucket — same abuse
   // class): this was the one anonymous public write with no rate limit, an
@@ -55,13 +62,35 @@ export async function joinPassWaitlist(input: unknown): Promise<{ ok: true }> {
     where: { email },
     // NEVER OVERWRITE a userId already on the row.
     update: {},
-    create: { email, userId },
+    // Double opt-in (plan P.5): a new row starts unconfirmed and gets one
+    // confirmation mail below. With the switch off it confirms at creation.
+    create: {
+      email,
+      userId,
+      confirmedAt: doubleOptInEnabled() ? null : new Date(),
+    },
   });
   if (userId) {
     await db.passWaitlist.updateMany({
       where: { email, userId: null },
       data: { userId },
     });
+  }
+
+  // The confirmation, inline. A send failure leaves the row unconfirmed with
+  // its ledger released, so the next submit retries; the visitor's submit has
+  // already succeeded and is not failed for it.
+  try {
+    await sendWaitlistConfirmation(
+      db,
+      { table: "PassWaitlist", email },
+      {
+        list: "the All-Access Pass waitlist",
+        promise: "when the pass goes on sale",
+      },
+    );
+  } catch {
+    // logged inside; nothing more to do here
   }
 
   // Funnel: `email_captured` — fire once on a new signup; best-effort; a no-op

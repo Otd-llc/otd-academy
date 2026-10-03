@@ -16,6 +16,7 @@ import {
 import { sendLifecycleEmail } from "@/lib/lifecycle-send";
 import { drainDunningPending } from "@/lib/dunning-retry";
 import { notifyWaitlist } from "@/lib/waitlist-notify";
+import { sweepWaitlists } from "@/lib/waitlist-confirm";
 import { sendReviewDueNudges } from "@/lib/review-nudge";
 import { capture, errorNameOf } from "@/lib/analytics";
 import {
@@ -90,7 +91,9 @@ interface SequencePlan {
 // stable (welcome → nudges → activation → purchase → launch → win-back).
 async function plan(now: Date): Promise<SequencePlan[]> {
   const days = env.REACTIVATION_DAYS;
-  const windowEnd = env.LAUNCH_WINDOW_END ? new Date(env.LAUNCH_WINDOW_END) : null;
+  const windowEnd = env.LAUNCH_WINDOW_END
+    ? new Date(env.LAUNCH_WINDOW_END)
+    : null;
   const windowDays = env.LAUNCH_WINDOW_DAYS;
 
   // 3.1 (activation → upsell) tells a just-activated learner to go start L2.01.
@@ -157,11 +160,21 @@ export async function GET(req: Request): Promise<Response> {
   if (!cronAuthorized(req.headers.get("authorization"), env.CRON_SECRET)) {
     return new Response("Unauthorized", { status: 401 });
   }
+  // Retention for the anonymous email captures (/privacy section 5: an
+  // unconfirmed address goes after 7 days, a notified one 12 months after its
+  // email). BEFORE the kill switch below: pausing marketing mail must never
+  // pause a deletion promise.
+  const now = new Date();
+  const retention = await sweepWaitlists(db, now);
+
   if (!env.LIFECYCLE_EMAIL_ENABLED) {
-    return Response.json({ ok: true, skipped: "lifecycle email disabled" });
+    return Response.json({
+      ok: true,
+      skipped: "lifecycle email disabled",
+      retention,
+    });
   }
 
-  const now = new Date();
   const plans = await plan(now);
 
   // Entry board's live published label for deep links (fallback "v1" only when
@@ -222,7 +235,10 @@ export async function GET(req: Request): Promise<Response> {
         // body can echo the address), so PostHog gets the sequence and the
         // error NAME, under no person (class (a), `@/lib/analytics`).
         console.error(`[lifecycle] ${sequence} send failed: ${detail}`);
-        capture("lifecycle_send_failed", { sequence, errorName: errorNameOf(e) });
+        capture("lifecycle_send_failed", {
+          sequence,
+          errorName: errorNameOf(e),
+        });
       }
       if (++batched % BATCH === 0) await sleep(BATCH_PAUSE_MS);
     }
@@ -248,6 +264,7 @@ export async function GET(req: Request): Promise<Response> {
     errors,
     dunning,
     waitlist,
+    retention,
     reviewNudge,
   });
 }

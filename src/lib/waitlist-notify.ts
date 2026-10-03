@@ -133,6 +133,8 @@ export async function notifyWaitlist(
   const due = await db.waitlistSignup.findMany({
     where: {
       notifiedAt: null,
+      // Double opt-in: an unconfirmed address asked for nothing yet.
+      confirmedAt: { not: null },
       project: { publishedRevisionId: { not: null }, archivedAt: null },
     },
     select: {
