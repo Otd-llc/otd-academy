@@ -24,6 +24,13 @@ export const RULES = {
     window: "24 h",
   },
   "waitlist:ip:hour": { limit: 20, window: "1 h" },
+  // Per ADDRESS, in front of the double opt-in confirmation send: three forms
+  // can each put the same stranger's address on a list, and each would mail
+  // it. Keyed on the aliased + HMAC'd address like the magic-link rules.
+  "waitlist:email:day": { limit: 3, window: "24 h" },
+  // The molded-line tap counter (plan 1.2.3): one count per IP per stem per
+  // day. Run CLOSED: a tap the limiter cannot vouch for is not counted.
+  "interest:ip:day": { limit: 1, window: "24 h" },
   "tip:ip:hour": { limit: 10, window: "1 h" },
   "checkout:user": { limit: 15, window: "1 h" }, // Tier 3: authenticated Stripe actions
   // Burst only. The real bounds on saved hex clusters are row COUNTS (50
@@ -137,6 +144,23 @@ export function magicLinkChecks(rawEmail: string): Check[] {
     { rule: "magic:email:day", identity: emailId },
     { rule: "magic:global:day", identity: "global" }, // shared counter, not PII
   ];
+}
+
+/** The tap counter's check: IP /64 prefix AND the stem in one HMAC identity,
+ *  so one address can count once per design per day. Null when no IP, which
+ *  the caller treats as degraded (a tap with no identity is not counted). */
+export function interestCheck(ip: string | null, stem: string): Check | null {
+  const prefix = ipPrefix(ip);
+  if (!prefix) return null;
+  return { rule: "interest:ip:day", identity: hmacKey(`${prefix}|${stem}`) };
+}
+
+/** The per-address check for a double opt-in confirmation send (plan P.5). */
+export function waitlistEmailCheck(rawEmail: string): Check {
+  return {
+    rule: "waitlist:email:day",
+    identity: hmacKey(emailAlias(rawEmail)),
+  };
 }
 
 /** Build an IP-keyed check for any IP rule (normalize → /64 → HMAC). Null when no IP. */

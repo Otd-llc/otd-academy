@@ -285,6 +285,12 @@ export function encodeMp4(framesDir, out, { crf = 30, scale = null } = {}) {
     "-an",
     ...(scale ? ["-vf", `scale=${scale}:flags=lanczos`] : []),
     "-c:v", "libx264", "-preset", "slow", "-crf", String(crf),
+    // PHONE-SAFE (owner, 2026-09-29: "Several mp4s have errors"). Left to itself
+    // x264 picks High@5.0 for 1080p, which some phone and in-app players refuse
+    // to open. 1080p30 fits High@4.0; avc1 is the tag Apple's players expect.
+    // probeMp4() reads these back off the FILE and every caller gates on them.
+    "-profile:v", "high", "-level:v", "4.0", "-maxrate", "6M", "-bufsize", "12M",
+    "-tag:v", "avc1",
     "-pix_fmt", "yuv420p",
     // A keyframe a second, so a rewind lands near one.
     "-g", "30",
@@ -297,22 +303,36 @@ export function encodeMp4(framesDir, out, { crf = 30, scale = null } = {}) {
   return statSync(out).size;
 }
 
-/** Duration + frame count of an encoded file, read back from the file. */
+/** Duration, frame count and the encode's profile/level/tag, read back from the file. */
 export function probeMp4(file) {
   const out = execFileSync(
     "ffprobe",
     ["-v", "error", "-count_frames", "-select_streams", "v:0",
-      "-show_entries", "stream=nb_read_frames,width,height:format=duration",
+      "-show_entries", "stream=nb_read_frames,width,height,profile,level,codec_tag_string:format=duration",
       "-of", "default=nw=1", file],
     { encoding: "utf8" },
   );
   const get = (k) => Number(out.match(new RegExp(`${k}=([\\d.]+)`))?.[1]);
+  const str = (k) => out.match(new RegExp(`${k}=(.+)`))?.[1]?.trim();
   return {
     frames: get("nb_read_frames"),
     duration: get("duration"),
     w: get("width"),
     h: get("height"),
+    profile: str("profile"),
+    level: get("level"),
+    tag: str("codec_tag_string"),
   };
+}
+
+/** The phone-safe encode, as the FILE reports it: null when fine, else why not.
+ *  Every encoder here passes the flags; this is what proves they took. */
+export function encodeProblem(got) {
+  const bad = [];
+  if (got.profile !== "High") bad.push(`profile ${got.profile}`);
+  if (got.level !== 40) bad.push(`level ${got.level}`);
+  if (got.tag !== "avc1") bad.push(`tag ${got.tag}`);
+  return bad.length ? bad.join(", ") : null;
 }
 
 /** Pull frames out of an ENCODED file at the given times, for looking at. */

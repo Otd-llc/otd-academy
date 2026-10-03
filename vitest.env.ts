@@ -89,6 +89,12 @@ function sleepMs(ms: number): void {
 export function loadBaseEnv(): void {
   loadEnv({ path: ".env.local" });
   loadEnv({ path: ".env.test.local" });
+  // Double opt-in is OFF for the suite by default: the three waitlist actions
+  // would otherwise mail a real confirmation through Resend on every signup a
+  // test makes, with whatever AUTH_RESEND_KEY the environment holds. The module
+  // that owns the send (waitlist-confirm.test.ts) switches it on for itself and
+  // injects its own fetch.
+  process.env.WAITLIST_DOUBLE_OPT_IN ??= "false";
   const fallback = poolUrls()[0] ?? process.env.TEST_DATABASE_URL;
   if (fallback) setDbUrls(fallback);
 }
@@ -176,7 +182,8 @@ export function leaseTestBranch(): () => void {
         if (released) return;
         released = true;
         clearInterval(beat);
-        if (process.env.__CURRENT_LOCK === lock) delete process.env.__CURRENT_LOCK;
+        if (process.env.__CURRENT_LOCK === lock)
+          delete process.env.__CURRENT_LOCK;
         try {
           unlinkSync(lock);
         } catch {

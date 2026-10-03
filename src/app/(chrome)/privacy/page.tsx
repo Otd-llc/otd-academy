@@ -34,7 +34,8 @@ const REGISTRATION: { label: string; value: string }[] = [
 const EFFECTIVE = "18 July 2026";
 
 // Registered-agent postal address (the mailable address of record).
-const CONTROLLER_ADDRESS = "9905 S Pennsylvania Ave, Ste A, Oklahoma City, OK 73159, USA";
+const CONTROLLER_ADDRESS =
+  "9905 S Pennsylvania Ave, Ste A, Oklahoma City, OK 73159, USA";
 
 function Section({
   n,
@@ -54,7 +55,9 @@ function Section({
         §{n}
       </span>
       <div>
-        <h2 className="font-display text-lg tracking-wide text-title">{title}</h2>
+        <h2 className="font-display text-lg tracking-wide text-title">
+          {title}
+        </h2>
         <div className="mt-2 space-y-3 font-serif text-base leading-relaxed text-text">
           {children}
         </div>
@@ -85,7 +88,11 @@ function PrivacyEmail() {
 }
 function ContactForm() {
   return (
-    <a href="https://onethousanddrones.com/contact" rel="noopener" className={linkClass}>
+    <a
+      href="https://onethousanddrones.com/contact"
+      rel="noopener"
+      className={linkClass}
+    >
       onethousanddrones.com/contact
     </a>
   );
@@ -128,56 +135,74 @@ export default function PrivacyPage() {
             <Section n={1} title="Who we are">
               <p>
                 One Thousand Drones, LLC runs One Thousand Drones Academy at
-                academy.onethousanddrones.com. We are the controller for the personal data
-                described here. Our registered address is {CONTROLLER_ADDRESS}. To reach us about
-                privacy, email <PrivacyEmail /> or use <ContactForm />.
+                academy.onethousanddrones.com. We are the controller for the
+                personal data described here. Our registered address is{" "}
+                {CONTROLLER_ADDRESS}. To reach us about privacy, email{" "}
+                <PrivacyEmail /> or use <ContactForm />.
               </p>
               <p>
-                We collect only what a specific feature needs, and we name the legal basis for
-                each use below.
+                We collect only what a specific feature needs, and we name the
+                legal basis for each use below.
               </p>
             </Section>
 
             <Section n={2} title="What we collect, and the basis for it">
               <p>
-                <Cat>Sign-in.</Cat> To create and secure your account we use your email address.
-                You sign in with a one-time magic link, or with Google or GitHub, in which case
-                we receive your verified email and basic profile (name and avatar). Basis:
-                performance of our agreement with you, and our legitimate interest in keeping
+                <Cat>Sign-in.</Cat> To create and secure your account we use
+                your email address. You sign in with a one-time magic link, or
+                with Google or GitHub, in which case we receive your verified
+                email and basic profile (name and avatar). Basis: performance of
+                our agreement with you, and our legitimate interest in keeping
                 accounts secure.
               </p>
               <p>
-                <Cat>Learning content and progress.</Cat> Your enrollments, lesson progress, exam
-                results, certificates, and any files you upload are stored so the product works
-                for you. Basis: performance of our agreement with you.
+                <Cat>Learning content and progress.</Cat> Your enrollments,
+                lesson progress, exam results, certificates, and any files you
+                upload are stored so the product works for you. Basis:
+                performance of our agreement with you.
               </p>
               <p>
-                <Cat>Payments.</Cat> If you buy something, our payment processor collects your
-                payment details directly. We receive a confirmation and the amount, never your
-                full card number. Basis: performance of our agreement with you.
+                <Cat>Payments.</Cat> If you buy something, our payment processor
+                collects your payment details directly. We receive a
+                confirmation and the amount, never your full card number. Basis:
+                performance of our agreement with you.
               </p>
               <p>
-                <Cat>Product analytics.</Cat> We record how the site is used (pages viewed,
-                features used) to improve it. Basis: our legitimate interest in understanding and
-                improving the product.
+                <Cat>Product analytics.</Cat> We record how the site is used
+                (pages viewed, features used) to improve it. Basis: our
+                legitimate interest in understanding and improving the product.
               </p>
               <p>
-                <Cat>Email.</Cat> We send transactional email you asked for, such as sign-in links
-                and receipts. We send course and marketing email only if you opt in, and you can
-                unsubscribe from those at any time from the link in every message.
+                <Cat>Email you give us without an account.</Cat> Some pages take
+                an address on its own: a course waitlist, the Hex Cluster
+                release notice, and the All-Access Pass waitlist. We store the
+                address, when you gave it, and what you asked to hear about, and
+                we use it for that one thing. Basis: your consent, which you can
+                withdraw by writing to <PrivacyEmail />.
+              </p>
+              <p>
+                <Cat>Email.</Cat> We send transactional email you asked for,
+                such as sign-in links and receipts. We send course and marketing
+                email only if you opt in, and you can unsubscribe from those at
+                any time from the link in every message.
               </p>
             </Section>
 
             <Section n={3} title="Abuse and spam prevention">
               <p>
-                When you use a form on the site, such as signing in or requesting a field guide,
-                we run <strong className="font-semibold text-title">Cloudflare Turnstile</strong>{" "}
-                to tell real visitors apart from automated abuse. When the widget loads, before you
-                submit the form, Turnstile receives your IP address, a TLS fingerprint, your
-                browser&apos;s User-Agent, and the site identifier. In the managed mode we use, it
-                sets no cookies. Cloudflare uses these signals to secure our site as our processor,
-                and also acts as an independent controller to improve its own bot detection; that
-                use is described in{" "}
+                When you use a form on the site, such as signing in or
+                requesting a field guide, we run{" "}
+                <strong className="font-semibold text-title">
+                  Cloudflare Turnstile
+                </strong>{" "}
+                to tell real visitors apart from automated abuse. When the
+                widget loads, before you submit the form, Turnstile receives
+                your IP address, a TLS fingerprint, your browser&apos;s
+                User-Agent, and the site identifier. In the managed mode we use,
+                it sets no cookies. Cloudflare uses these signals to secure our
+                site as our processor, and also acts as an independent
+                controller to improve its own bot detection; that use is
+                described in{" "}
                 <a
                   href="https://www.cloudflare.com/turnstile-privacy-policy/"
                   rel="noopener"
@@ -188,26 +213,35 @@ export default function PrivacyPage() {
                 .
               </p>
               <p>
-                We also run a rate limiter (<strong className="font-semibold text-title">Upstash
-                Redis</strong>) that counts sign-in and form attempts. The counters are keyed by a
-                one-way HMAC hash of your email address and IP, so the store holds no readable list
-                of addresses, and every counter expires on its own within minutes to a day.
+                We also run a rate limiter (
+                <strong className="font-semibold text-title">
+                  Upstash Redis
+                </strong>
+                ) that counts sign-in and form attempts. The counters are keyed
+                by a one-way HMAC hash of your email address and IP, so the
+                store holds no readable list of addresses, and every counter
+                expires on its own within minutes to a day.
               </p>
               <p>
-                The basis for both is our legitimate interest in preventing the email bombing and
-                spam that would harm you and our ability to deliver real mail. Both are strictly
-                necessary to run the service safely, so they are always on.
+                The basis for both is our legitimate interest in preventing the
+                email bombing and spam that would harm you and our ability to
+                deliver real mail. Both are strictly necessary to run the
+                service safely, so they are always on.
               </p>
             </Section>
 
             <Section n={4} title="Who we share data with">
               <p>
-                We do not sell your data. We share it only with the service providers that run the
-                product on our behalf, each bound to use it only for that purpose:
+                We do not sell your data. We share it only with the service
+                providers that run the product on our behalf, each bound to use
+                it only for that purpose:
               </p>
               <ul className="space-y-2 border-t border-panel-border/60 pt-3">
                 {[
-                  ["Cloudflare", "bot detection (Turnstile), file storage, and content delivery"],
+                  [
+                    "Cloudflare",
+                    "bot detection (Turnstile), file storage, and content delivery",
+                  ],
                   ["Upstash", "rate-limit counters"],
                   ["Resend", "email delivery"],
                   ["Neon", "our application database"],
@@ -223,7 +257,9 @@ export default function PrivacyPage() {
                     <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-command-gold sm:w-40 sm:shrink-0">
                       {name}
                     </span>
-                    <span className="font-serif text-sm text-muted">{role}</span>
+                    <span className="font-serif text-sm text-muted">
+                      {role}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -231,77 +267,94 @@ export default function PrivacyPage() {
 
             <Section n={5} title="How long we keep it">
               <p>
-                The abuse-prevention counters expire automatically, within minutes to a day. We
-                keep your account and learning data for as long as your account is active, and for
-                a reasonable period afterward to meet legal, accounting, and security obligations.
+                The abuse-prevention counters expire automatically, within
+                minutes to a day. We keep your account and learning data for as
+                long as your account is active, and for a reasonable period
+                afterward to meet legal, accounting, and security obligations.
                 You can ask us to delete your account at any time.
+              </p>
+              <p>
+                An address given without an account (section 2) is treated as
+                belonging to whoever reads that mailbox, shared mailboxes
+                included. It is deleted 7 days after signup if the confirmation
+                link is never used, and 12 months after the one email it was
+                confirmed for. Every such email carries a link that removes the
+                address at once.
               </p>
             </Section>
 
             <Section n={6} title="Where your data is processed">
               <p>
-                Our providers process data in the United States. Where your data is transferred
-                from another region, we rely on the appropriate safeguards for that transfer, such
-                as standard contractual clauses.
+                Our providers process data in the United States. Where your data
+                is transferred from another region, we rely on the appropriate
+                safeguards for that transfer, such as standard contractual
+                clauses.
               </p>
             </Section>
 
             <Section n={7} title="Security and breach notice">
               <p>
-                We protect your data with access controls and encryption in transit, and we work
-                only with providers that do the same. No system is perfectly secure. If a breach
-                affects your personal data, we will notify you and the relevant authorities as
+                We protect your data with access controls and encryption in
+                transit, and we work only with providers that do the same. No
+                system is perfectly secure. If a breach affects your personal
+                data, we will notify you and the relevant authorities as
                 required by law.
               </p>
             </Section>
 
             <Section n={8} title="Cookies">
               <p>
-                We use a small number of essential cookies: one to keep you signed in, and one to
-                remember your light or dark theme. Turnstile, in the managed mode we use, sets no
-                cookie. Our analytics may set a cookie to measure usage. We do not use advertising
-                cookies.
+                We use a small number of essential cookies: one to keep you
+                signed in, and one to remember your light or dark theme.
+                Turnstile, in the managed mode we use, sets no cookie. Our
+                analytics may set a cookie to measure usage. We do not use
+                advertising cookies.
               </p>
               <p>
-                We do not track you across other websites, and we do not sell your data, so a
-                browser Do Not Track or Global Privacy Control signal has nothing to opt out of on
-                our site. We treat it as already honored.
+                We do not track you across other websites, and we do not sell
+                your data, so a browser Do Not Track or Global Privacy Control
+                signal has nothing to opt out of on our site. We treat it as
+                already honored.
               </p>
             </Section>
 
             <Section n={9} title="Children's privacy">
               <p>
-                One Thousand Drones Academy is meant for adults and older students. It is not
-                directed at children under 13, or under 16 in the European Union. We do not
-                knowingly collect personal data from children below those ages. If you believe a
-                child has given us their data, email <PrivacyEmail /> and we will delete it.
+                One Thousand Drones Academy is meant for adults and older
+                students. It is not directed at children under 13, or under 16
+                in the European Union. We do not knowingly collect personal data
+                from children below those ages. If you believe a child has given
+                us their data, email <PrivacyEmail /> and we will delete it.
               </p>
             </Section>
 
             <Section n={10} title="Your rights">
               <p>
-                Depending on where you live, you can ask to see the data we hold about you, correct
-                it, delete it, export it, or object to a particular use. If you are in the European
-                Union or United Kingdom, the GDPR (and UK GDPR) gives you these rights; if you are
-                in California, the CCPA, as amended by the CPRA, does.
+                Depending on where you live, you can ask to see the data we hold
+                about you, correct it, delete it, export it, or object to a
+                particular use. If you are in the European Union or United
+                Kingdom, the GDPR (and UK GDPR) gives you these rights; if you
+                are in California, the CCPA, as amended by the CPRA, does.
               </p>
               <p>
-                To make a request, email <PrivacyEmail /> or use <ContactForm />. We will respond
-                within the time the law allows.
+                To make a request, email <PrivacyEmail /> or use <ContactForm />
+                . We will respond within the time the law allows.
               </p>
             </Section>
 
             <Section n={11} title="Changes to this policy">
               <p>
-                We will update this page when our practices change, and we will move the effective
-                date at the top. Significant changes will be called out on the site.
+                We will update this page when our practices change, and we will
+                move the effective date at the top. Significant changes will be
+                called out on the site.
               </p>
             </Section>
 
             <Section n={12} title="Contact">
               <p>
-                Questions about this policy or your data go to <PrivacyEmail /> or <ContactForm />,
-                or by mail to One Thousand Drones, LLC, {CONTROLLER_ADDRESS}.
+                Questions about this policy or your data go to <PrivacyEmail />{" "}
+                or <ContactForm />, or by mail to One Thousand Drones, LLC,{" "}
+                {CONTROLLER_ADDRESS}.
               </p>
             </Section>
           </div>

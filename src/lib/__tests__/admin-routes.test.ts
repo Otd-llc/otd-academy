@@ -167,6 +167,14 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/hex/molded/x")).toBe(false);
   });
 
+  it("admits the waitlist confirm and remove links, token in the path, nothing else under /email", () => {
+    expect(isPublicPath("/email/confirm/abc.def")).toBe(true);
+    expect(isPublicPath("/email/remove/abc.def")).toBe(true);
+    expect(isPublicPath("/email/confirm")).toBe(false);
+    expect(isPublicPath("/email/confirm/abc.def/extra")).toBe(false);
+    expect(isPublicPath("/email/other/abc.def")).toBe(false);
+  });
+
   it("does NOT mark /tools as admin-only", () => {
     expect(isAdminOnlyPath("/tools")).toBe(false);
     expect(isAdminOnlyPath("/tools/lipo-battery-runtime")).toBe(false);
