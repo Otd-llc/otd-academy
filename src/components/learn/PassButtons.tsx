@@ -15,7 +15,7 @@ import {
   createUpgradeCheckoutSession,
 } from "@/lib/actions/pass";
 import { formatUsd } from "@/lib/format-money";
-import { trackCtaClicked } from "@/lib/analytics-client";
+import { trackBeginCheckout, trackCtaClicked } from "@/lib/analytics-client";
 
 const BTN =
   "inline-flex items-center justify-center gap-1.5 rounded border border-command-gold bg-deep-space px-6 py-3 font-mono text-sm uppercase tracking-wider text-command-gold transition-colors hover:bg-command-gold hover:text-deep-space disabled:opacity-50";
@@ -30,6 +30,7 @@ export function BuyPassButton({ priceCents }: { priceCents: number }) {
       setError(null);
       try {
         const { url } = await createPassCheckoutSession();
+        trackBeginCheckout("pass");
         window.location.href = url;
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not start checkout.");
@@ -61,6 +62,7 @@ export function UpgradePassButton({ chargeCents }: { chargeCents: number }) {
       setError(null);
       try {
         const result = await createUpgradeCheckoutSession();
+        if (result.url) trackBeginCheckout("upgrade");
         // Already covered → granted directly, no checkout.
         window.location.href = result.url ?? "/learn?pass=1";
       } catch (e) {

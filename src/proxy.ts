@@ -7,6 +7,7 @@ import { isUnknownStaticParam } from "@/lib/static-param-404";
 import { resolveSlugMove } from "@/lib/slug-moves";
 import { TOOLS } from "@/lib/tools/registry";
 import { BRIEF_KEYS } from "@/lib/brief-pages";
+import { GEO_COOKIE, geoCookieValue } from "@/lib/consent-geo";
 
 // Built once at module scope, not per request. Both sources are pure data — the
 // TOOLS registry says so in its own header ("PURE DATA — no React, no client
@@ -141,7 +142,22 @@ export default auth((req) => {
   // at request time. That sniff was what forced the header behind a <Suspense>
   // boundary — a prerendered shell cannot read a request header, so it could not
   // know whether chrome applied to the route.
-  return NextResponse.next();
+  const res = NextResponse.next();
+
+  // The visitor's country, for the consent banner (@/lib/consent-geo). Set here
+  // because this is the only code that sees Vercel's geolocation headers on a
+  // prerendered page: the shell cannot read a request header, and c15t runs in
+  // the browser. Only written when it changes, so a steady visitor's responses
+  // carry no Set-Cookie. Not HttpOnly on purpose: c15t reads it client-side.
+  const geo = geoCookieValue(req.headers);
+  if (geo && req.cookies.get(GEO_COOKIE)?.value !== geo) {
+    res.cookies.set(GEO_COOKIE, geo, {
+      path: "/",
+      sameSite: "lax",
+      secure: req.nextUrl.protocol === "https:",
+    });
+  }
+  return res;
 });
 
 export const config = {

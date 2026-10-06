@@ -10,6 +10,7 @@
 // email" escape hatch. Anonymous visitors (no defaultEmail) get the input form.
 import { useState, useTransition } from "react";
 import { joinWaitlist } from "@/lib/actions/waitlist";
+import { trackLead } from "@/lib/analytics-client";
 
 export function WaitlistForm({
   projectId,
@@ -39,6 +40,7 @@ export function WaitlistForm({
       setError(null);
       try {
         await joinWaitlist({ email: value, projectId });
+        trackLead("waitlist");
         setDone(true);
       } catch (e) {
         setError(

@@ -165,4 +165,15 @@ lines, or revisions before then. New boards start from `docs/boards/_template/`
     L2.01 ships.
   - The restore is **exercised**, not assumed (drill recorded in the archive's README).
     Re-run that drill after any change to either script.
+- **Analytics = PostHog + Google Analytics 4, both behind ONE c15t consent gate (`measurement`).**
+  GA4 is Consent Mode "basic" (`src/lib/ga-client.ts`): gtag.js is never requested before a
+  grant, and a revoke sets `ga-disable-<id>` (a consent update alone leaves a loaded tag
+  pinging). The apex (`Otd-llc/otd-site`) runs the SAME GA property and a port of the same
+  consent stack; one privacy policy (`/privacy` here) covers both sites. Who sees the banner is
+  decided by **geo**: `src/proxy.ts` copies Vercel's `x-vercel-ip-country(-region)` into an
+  `otd-geo` cookie and c15t reads it as `overrides`. **The cookie alone does nothing** — offline
+  c15t only consults location through `offlinePolicy.policyPacks` (`src/lib/consent-geo.ts`);
+  without packs every visitor got the opt-in banner. No geo → GB → opt-in (fails closed). The
+  opt-in country list is mirrored in `/privacy` §2 and the apex copy of `consent-geo.ts`.
+  Set `NEXT_PUBLIC_GA_MEASUREMENT_ID` (public, `G-…`) on both Vercel projects; unset = no GA.
 - **Branch off `main`.** Don't merge without the maintainer's explicit go-ahead.

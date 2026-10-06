@@ -14,6 +14,7 @@ import Link from "next/link";
 
 import { db } from "@/lib/db";
 import { getStripe } from "@/lib/stripe";
+import { PurchasePing } from "@/components/learn/PurchasePing";
 
 // Depends on the request query + a runtime Stripe call — never prerender. Reading
 // searchParams forces request-time execution on its own; under cacheComponents dynamic
@@ -31,6 +32,9 @@ type Confirmation = {
   cta: { label: string; href: string };
   // A quiet secondary link (only when the primary CTA points at a specific course).
   boardsLink: boolean;
+  /** Set only for a session Stripe confirmed as paid: what GA4's `purchase`
+   *  key event reports (PurchasePing). Absent on the generic fallback. */
+  purchase?: { transactionId: string; value: number; currency: string; itemId: string };
 };
 
 function usd(cents: number): string {
@@ -67,6 +71,12 @@ async function resolve(sessionId: string | undefined): Promise<Confirmation> {
   const amountCents =
     typeof session.amount_total === "number" ? session.amount_total : null;
   const meta = session.metadata ?? {};
+  const purchaseFor = (itemId: string): Confirmation["purchase"] => ({
+    transactionId: session.id,
+    value: (amountCents ?? 0) / 100,
+    currency: (session.currency ?? "usd").toUpperCase(),
+    itemId,
+  });
 
   if (meta.kind === "subscription") {
     // A subscription session has no amount_total (billed via invoice) — the amount
@@ -76,6 +86,7 @@ async function resolve(sessionId: string | undefined): Promise<Confirmation> {
       body: "Your subscription is active. Every course is unlocked. Start any board whenever you're ready.",
       cta: { label: "Start learning", href: "/learn" },
       boardsLink: false,
+      purchase: purchaseFor("subscription"),
     };
   }
 
@@ -85,6 +96,7 @@ async function resolve(sessionId: string | undefined): Promise<Confirmation> {
       body: "Every course is unlocked. Start any board whenever you're ready.",
       cta: { label: "Start learning", href: "/learn" },
       boardsLink: false,
+      purchase: purchaseFor("bundle"),
     };
   }
 
@@ -99,11 +111,13 @@ async function resolve(sessionId: string | undefined): Promise<Confirmation> {
         body: `${project.name} is unlocked on your account. Open it whenever you're ready to build.`,
         cta: { label: "Start the course", href: `/learn/${project.slug}` },
         boardsLink: true,
+        purchase: purchaseFor(project.slug),
       };
     }
   }
 
-  return generic;
+  // Paid, but not a shape this page recognises: still a sale, so still counted.
+  return { ...generic, purchase: purchaseFor(typeof meta.kind === "string" ? meta.kind : "unknown") };
 }
 
 export default async function CheckoutSuccessPage({
@@ -116,6 +130,7 @@ export default async function CheckoutSuccessPage({
 
   return (
     <main className="mx-auto max-w-xl px-4 py-16 sm:px-6">
+      {c.purchase && <PurchasePing {...c.purchase} />}
       <div className="flex items-start justify-between gap-8">
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-status-green">

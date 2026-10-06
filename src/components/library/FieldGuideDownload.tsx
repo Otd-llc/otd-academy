@@ -27,6 +27,7 @@ import { sendGuideMagicLink, guideOAuthSignIn } from "@/lib/actions/magic-link";
 import { AbuseFields } from "@/components/auth/AbuseFields";
 import { TURNSTILE_FIELD, HONEYPOT_FIELD, DWELL_FIELD } from "@/lib/abuse-guard";
 import { PdfBuildButton } from "./PdfBuildButton";
+import { trackLead } from "@/lib/analytics-client";
 
 function DownloadGlyph() {
   return (
@@ -149,6 +150,7 @@ function LeadMagnetModal({
       dwell: val(DWELL_FIELD),
     });
     setState(res.error ? "error" : "sent");
+    if (!res.error) trackLead("field_guide");
   }
 
   return (

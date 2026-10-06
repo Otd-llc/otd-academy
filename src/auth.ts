@@ -14,6 +14,8 @@ import { magicLinkEmail } from "@/lib/auth-magic-link-email";
 import { fieldGuideMagicLinkEmail } from "@/lib/field-guide-email";
 import { guideFromWelcomeUrl } from "@/lib/library/field-guide-links";
 import { capture } from "@/lib/analytics";
+import { SIGNUP_FLAG_COOKIE, SIGNUP_FLAG_MAX_AGE } from "@/lib/signup-flag";
+import { MEASUREMENT_COOKIE } from "@/lib/consent-signal";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { isBotSubmission, TURNSTILE_FIELD } from "@/lib/abuse-guard";
 import { enforce } from "@/lib/abuse-limit";
@@ -279,6 +281,23 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         // distinct_id already ties the person, and the DB holds the address).
         capture("signed_up", undefined, user.id);
         if (user.email) capture("email_captured", { source: "signup" }, user.id);
+      } catch {
+        // never block account creation on telemetry
+      }
+      // GA4's half of the same signal: a short-lived, identity-free flag the
+      // browser turns into a `sign_up` event on the next page
+      // (src/lib/signup-flag.ts). Left ONLY for a browser that has already said
+      // yes to measurement: it is an analytics cookie, so it may not be stored
+      // for anyone else. Same dynamic-import reasoning as signIn below.
+      try {
+        const { cookies } = await import("next/headers");
+        const jar = await cookies();
+        if (jar.get(MEASUREMENT_COOKIE)?.value !== "1") return;
+        jar.set(SIGNUP_FLAG_COOKIE, "1", {
+          path: "/",
+          maxAge: SIGNUP_FLAG_MAX_AGE,
+          sameSite: "lax",
+        });
       } catch {
         // never block account creation on telemetry
       }
