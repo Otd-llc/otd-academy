@@ -13,6 +13,7 @@
 import { useState, useTransition } from "react";
 import { createCheckoutSession } from "@/lib/actions/checkout";
 import { formatUsd } from "@/lib/format-money";
+import { trackBeginCheckout } from "@/lib/analytics-client";
 
 export function BuyButton({
   projectId,
@@ -29,6 +30,7 @@ export function BuyButton({
       setError(null);
       try {
         const { url } = await createCheckoutSession({ projectId });
+        trackBeginCheckout("course", projectId);
         // Hand off to Stripe's hosted Checkout. Keep `pending` true through the
         // navigation so the button stays in its redirecting state.
         window.location.href = url;

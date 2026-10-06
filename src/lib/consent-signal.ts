@@ -43,4 +43,20 @@ export function setAnalyticsConsent(next: boolean): void {
       /* best-effort */
     }
   }
+  // The same decision as a cookie, for the one server-side reader: the auth
+  // `createUser` event, which may only leave the GA sign-up flag for a browser
+  // that has said yes to measurement (src/lib/signup-flag.ts). Written only on
+  // a grant, so it never exists for a visitor who has not given one.
+  if (typeof document !== "undefined") {
+    try {
+      document.cookie = next
+        ? `${MEASUREMENT_COOKIE}=1; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`
+        : `${MEASUREMENT_COOKIE}=; path=/; max-age=0`;
+    } catch {
+      /* best-effort */
+    }
+  }
 }
+
+/** Cookie mirror of a measurement grant (see setAnalyticsConsent). */
+export const MEASUREMENT_COOKIE = "otd-measure";

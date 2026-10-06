@@ -8,14 +8,16 @@
 // the RSC a single client child to render.
 //
 // Offline mode: consent state lives in localStorage, no backend. `measurement`
-// (analytics) is opt-in by default, so PostHog stays dark until consent — the
-// ConsentBridge mirrors that decision into getPosthog()'s gate.
+// (analytics) is opt-in wherever the visitor's jurisdiction requires it, so
+// PostHog and GA4 stay dark until consent there — the ConsentBridge mirrors
+// that decision into getPosthog()'s and loadGa()'s gate.
 import { ConsentManagerProvider, ConsentBanner, ConsentDialog } from "@c15t/nextjs";
 // The banner's stylesheet. Without it the ConsentBanner renders UNSTYLED: raw
 // text in document flow and the "Secured by c15t" logo SVG explodes to its
 // natural size at the page bottom (shipped that way in #344; fixed here).
 import "@c15t/nextjs/styles.css";
 import { ConsentBridge } from "@/components/chrome/ConsentBridge";
+import { CONSENT_POLICY_PACKS, parseGeoCookie } from "@/lib/consent-geo";
 
 // The categories this site actually uses, declared explicitly.
 //
@@ -37,8 +39,9 @@ import { ConsentBridge } from "@/components/chrome/ConsentBridge";
 // but the banner was telling people something untrue.
 //
 // Only `necessary` and `measurement` are listed because they are the only two
-// this site has: PostHog is the sole non-essential thing, and asking for
-// consent to categories we do not use would be its own kind of dishonest.
+// this site has: PostHog and Google Analytics are the only non-essential
+// things, both measurement, and asking for consent to categories we do not use
+// would be its own kind of dishonest.
 const CONSENT_CATEGORIES = ["necessary", "measurement"] as const;
 
 // The banner, in the house console language instead of the vendor default.
@@ -203,6 +206,11 @@ const CONSENT_I18N = {
 };
 
 export function ConsentProviders({ children }: { children: React.ReactNode }) {
+  // The visitor's country, set by src/proxy.ts from Vercel's geolocation, so
+  // c15t applies the regime that actually governs them instead of its offline
+  // default of GB for everyone. Absent (server render, local dev, a route the
+  // proxy skips) → no override → GB → the opt-in banner. See @/lib/consent-geo.
+  const geo = typeof document === "undefined" ? null : parseGeoCookie(document.cookie);
   return (
     <ConsentManagerProvider
       options={{
@@ -210,6 +218,8 @@ export function ConsentProviders({ children }: { children: React.ReactNode }) {
         consentCategories: [...CONSENT_CATEGORIES],
         theme: CONSENT_THEME,
         i18n: CONSENT_I18N,
+        offlinePolicy: { policyPacks: CONSENT_POLICY_PACKS },
+        ...(geo && { overrides: geo }),
       }}
     >
       <ConsentBridge />

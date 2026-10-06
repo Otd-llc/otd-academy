@@ -11,7 +11,10 @@
 //
 // Effective date, transfer mechanism (SCCs), and the sub-processor list are set;
 // the sub-processor DPAs were verified 2026-07-19 (all auto-incorporated via each
-// vendor's ToS except PostHog, which needs a generated + counter-signed DPA). The
+// vendor's ToS except PostHog, which needs a generated + counter-signed DPA).
+// Google Analytics joined 2026-10-06 (both sites, one property): its terms are
+// the Google Ads Data Processing Terms, accepted in GA Admin > Account settings,
+// not by ToS, so they are an owner click, not something this file can assert. The
 // one open counsel item is the GDPR Art. 27 EU/UK representative (appoint one, or
 // document the occasional-processing derogation). Every practice described is drawn
 // from the codebase; counsel sign-off is still owed before relying on it legally.
@@ -21,7 +24,7 @@ import { PageHeader } from "@/components/PageHeader";
 export const metadata: Metadata = {
   title: "Privacy · One Thousand Drones Academy",
   description:
-    "How One Thousand Drones Academy collects, uses, and protects your data, including the Cloudflare Turnstile and Upstash abuse-prevention controls.",
+    "How One Thousand Drones collects, uses, and protects your data on onethousanddrones.com and in the Academy, including analytics and the Cloudflare Turnstile and Upstash abuse-prevention controls.",
 };
 
 // Registered-entity identifiers, mirroring the site footer and the license page.
@@ -31,7 +34,7 @@ const REGISTRATION: { label: string; value: string }[] = [
   { label: "UEI", value: "WDQXD9L9UFH3" },
 ];
 
-const EFFECTIVE = "18 July 2026";
+const EFFECTIVE = "6 October 2026";
 
 // Registered-agent postal address (the mailable address of record).
 const CONTROLLER_ADDRESS =
@@ -107,7 +110,7 @@ export default function PrivacyPage() {
           backLabel="Home"
           eyebrow="LEGAL"
           title="PRIVACY"
-          lead="How One Thousand Drones Academy collects, uses, and protects your data."
+          lead="How One Thousand Drones collects, uses, and protects your data, on onethousanddrones.com and in the Academy."
         />
 
         <article className="glass-card p-6 sm:p-8">
@@ -134,8 +137,9 @@ export default function PrivacyPage() {
           <div className="mt-7 space-y-6">
             <Section n={1} title="Who we are">
               <p>
-                One Thousand Drones, LLC runs One Thousand Drones Academy at
-                academy.onethousanddrones.com. We are the controller for the
+                One Thousand Drones, LLC runs onethousanddrones.com and One
+                Thousand Drones Academy at academy.onethousanddrones.com. This
+                policy covers both sites. We are the controller for the
                 personal data described here. Our registered address is{" "}
                 {CONTROLLER_ADDRESS}. To reach us about privacy, email{" "}
                 <PrivacyEmail /> or use <ContactForm />.
@@ -168,9 +172,32 @@ export default function PrivacyPage() {
                 performance of our agreement with you.
               </p>
               <p>
-                <Cat>Product analytics.</Cat> We record how the site is used
-                (pages viewed, features used) to improve it. Basis: our
+                <Cat>Analytics.</Cat> We measure how the sites are used (pages
+                viewed, features used, and whether a visit ends in a sign-up, a
+                waitlist entry, or a purchase) so we can improve them. We use
+                Google Analytics on both sites and PostHog in the Academy. Where
+                the law in your country asks for consent first, which for us
+                means the EU, the EEA, the UK, Switzerland, Brazil, Japan, South
+                Korea, and Quebec, neither tool loads until you accept. We also
+                ask when we cannot tell where you are. Basis: your consent.
+                Everywhere else they run unless your browser sends a Global
+                Privacy Control signal, which we treat as a no. Basis: our
                 legitimate interest in understanding and improving the product.
+                You can change your choice at any time from Cookie settings at
+                the foot of the page.
+              </p>
+              <p>
+                Google Analytics runs with its advertising features off: Google
+                signals and ad personalization are disabled, and it is not linked
+                to any advertising account. Google uses your IP address to
+                estimate your location, down to the city, and Analytics does not
+                log or store the address itself.
+              </p>
+              <p>
+                <Cat>Contact form.</Cat> If you write to us through the briefing
+                form on onethousanddrones.com, we receive your name, email
+                address, organization, and message as an email and use them to
+                reply. Basis: our legitimate interest in answering you.
               </p>
               <p>
                 <Cat>Email you give us without an account.</Cat> Some pages take
@@ -247,7 +274,8 @@ export default function PrivacyPage() {
                   ["Neon", "our application database"],
                   ["Vercel", "hosting and delivery of the site"],
                   ["Stripe", "payment processing"],
-                  ["PostHog", "product analytics"],
+                  ["PostHog", "product analytics (Academy)"],
+                  ["Google", "website analytics (Google Analytics, both sites)"],
                   ["Google and GitHub", "sign-in, when you choose them"],
                 ].map(([name, role]) => (
                   <li
@@ -304,17 +332,29 @@ export default function PrivacyPage() {
 
             <Section n={8} title="Cookies">
               <p>
-                We use a small number of essential cookies: one to keep you
-                signed in, and one to remember your light or dark theme.
-                Turnstile, in the managed mode we use, sets no cookie. Our
-                analytics may set a cookie to measure usage. We do not use
-                advertising cookies.
+                We use a small number of essential cookies. In the Academy, one
+                keeps you signed in and one remembers your light or dark theme.
+                On both sites, one remembers your consent choice and one holds
+                your country (and your state or province, where we have it) so
+                the consent banner applies the right rules. That last one comes
+                from your IP address and is no more precise than that.
+                Turnstile, in the managed mode we use, sets no cookie.
+              </p>
+              <p>
+                When analytics is allowed, PostHog and Google Analytics set
+                cookies to tell visits apart. Google&apos;s are named{" "}
+                <code className="font-mono text-[0.9em]">_ga</code> and{" "}
+                <code className="font-mono text-[0.9em]">_ga_</code> followed by
+                an ID, and last up to two years. After you create an account we
+                also set a one-hour marker so the sign-up can be counted, and
+                only if you have allowed analytics. We do not use advertising
+                cookies.
               </p>
               <p>
                 We do not track you across other websites, and we do not sell
-                your data, so a browser Do Not Track or Global Privacy Control
-                signal has nothing to opt out of on our site. We treat it as
-                already honored.
+                your data. A Global Privacy Control signal from your browser
+                turns analytics off. Do Not Track has nothing further to switch
+                off, so we treat it as already honored.
               </p>
             </Section>
 

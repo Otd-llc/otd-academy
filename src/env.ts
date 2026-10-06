@@ -184,6 +184,15 @@ export const env = createEnv({
     // posthog-node (server). HOST defaults to PostHog US cloud.
     NEXT_PUBLIC_POSTHOG_KEY: z.string().min(1).optional(),
     NEXT_PUBLIC_POSTHOG_HOST: z.url().default("https://us.i.posthog.com"),
+    // Google Analytics 4 measurement ID. OPTIONAL, same contract as PostHog:
+    // unset → src/lib/ga-client.ts never requests gtag.js. It is the SAME id on
+    // the apex site (one property, one web stream): the subdomains share the
+    // `_ga` cookie, so an apex → academy visit is one journey with no
+    // cross-domain config. Public by nature (it ships in every page).
+    NEXT_PUBLIC_GA_MEASUREMENT_ID: z
+      .string()
+      .regex(/^G-[A-Z0-9]+$/, "a GA4 measurement ID looks like G-XXXXXXXXXX")
+      .optional(),
     // Cloudflare Turnstile site key (Layer 0 widget). Pairs with the server-side
     // TURNSTILE_SECRET_KEY (both-or-neither, enforced in createFinalSchema).
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(1).optional(),
@@ -220,6 +229,7 @@ export const env = createEnv({
     NEXT_PUBLIC_R2_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL,
     NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
     NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+    NEXT_PUBLIC_GA_MEASUREMENT_ID: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
     DATABASE_URL: process.env.DATABASE_URL,
     DIRECT_URL: process.env.DIRECT_URL,
     VERCEL_ENV: process.env.VERCEL_ENV,

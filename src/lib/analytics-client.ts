@@ -12,8 +12,16 @@
 //
 // These intentionally do NOT require any specific page (e.g. /pricing) to
 // exist — they're plain functions a component calls on mount or on click.
+//
+// Every event here also goes to GA4 under the same name (gaEvent, same consent
+// gate). The four GA-only helpers at the bottom use Google's RECOMMENDED event
+// names, which are the ones marked as key events in the GA property. PostHog
+// already receives those moments server-side (signed_up, email_captured,
+// checkout_started, purchase_completed), so they are not sent to it twice.
 
 import { getPosthog } from "@/lib/posthog-client";
+import { gaEvent } from "@/lib/ga-client";
+import { SIGNUP_FLAG_COOKIE } from "@/lib/signup-flag";
 
 function fire(event: string, properties?: Record<string, unknown>): void {
   void getPosthog()
@@ -21,6 +29,20 @@ function fire(event: string, properties?: Record<string, unknown>): void {
     .catch(() => {
       /* telemetry must never break the UI */
     });
+  try {
+    gaEvent(event, properties);
+  } catch {
+    /* telemetry must never break the UI */
+  }
+}
+
+/** GA-only, guarded the same way as fire(). */
+function ga(event: string, params?: Record<string, unknown>): void {
+  try {
+    gaEvent(event, params);
+  } catch {
+    /* telemetry must never break the UI */
+  }
 }
 
 /** Fire when the pricing / paywall surface is viewed (top of the buy funnel). */
@@ -80,4 +102,58 @@ export function fireHexSaveCompleted(properties: {
   rev: string;
 }): void {
   fire("hex_save_completed", properties);
+}
+
+// ---------------------------------------------------------------------------
+// GA4 key events (Google's recommended names). GA-only, see the header.
+// ---------------------------------------------------------------------------
+
+/** Key event: a visitor left an email to hear more (a waitlist, a field guide). */
+export function trackLead(source: "waitlist" | "pass_waitlist" | "field_guide"): void {
+  ga("generate_lead", { lead_source: source });
+}
+
+/** Key event: about to be sent to Stripe Checkout. */
+export function trackBeginCheckout(item: "course" | "pass" | "upgrade", itemId?: string): void {
+  ga("begin_checkout", {
+    items: [{ item_id: itemId ?? item, item_category: item }],
+  });
+}
+
+/** Key event: a paid Stripe session, reported from /checkout/success.
+ *
+ *  Once per session id per tab (sessionStorage), so a reload of the success
+ *  page does not count the sale again. GA also de-duplicates on transaction_id,
+ *  so this is the cheap first line, not the only one. */
+export function trackPurchase(p: {
+  transactionId: string;
+  value: number;
+  currency: string;
+  itemId: string;
+}): void {
+  const key = `otd:ga-purchase:${p.transactionId}`;
+  try {
+    if (window.sessionStorage.getItem(key)) return;
+    window.sessionStorage.setItem(key, "1");
+  } catch {
+    /* storage blocked: fall through, GA's own dedupe still applies */
+  }
+  ga("purchase", {
+    transaction_id: p.transactionId,
+    value: p.value,
+    currency: p.currency,
+    items: [{ item_id: p.itemId, price: p.value, quantity: 1 }],
+  });
+}
+
+/** Report a sign-up the auth flow flagged (see src/lib/signup-flag.ts), once.
+ *  Called by ConsentBridge after GA boots, so it only ever fires post-consent. */
+export function consumeSignupFlag(): void {
+  if (typeof document === "undefined") return;
+  const flagged = document.cookie
+    .split(";")
+    .some((c) => c.trim() === `${SIGNUP_FLAG_COOKIE}=1`);
+  if (!flagged) return;
+  document.cookie = `${SIGNUP_FLAG_COOKIE}=; Max-Age=0; path=/`;
+  ga("sign_up");
 }

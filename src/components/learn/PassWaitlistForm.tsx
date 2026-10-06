@@ -6,6 +6,7 @@
 // success it swaps to a confirmation line.
 import { useState, useTransition } from "react";
 import { joinPassWaitlist } from "@/lib/actions/pass-waitlist";
+import { trackLead } from "@/lib/analytics-client";
 
 export function PassWaitlistForm({ defaultEmail }: { defaultEmail?: string }) {
   const [email, setEmail] = useState(defaultEmail ?? "");
@@ -27,6 +28,7 @@ export function PassWaitlistForm({ defaultEmail }: { defaultEmail?: string }) {
       setError(null);
       try {
         await joinPassWaitlist({ email: value });
+        trackLead("pass_waitlist");
         setDone(true);
       } catch (e) {
         setError(
