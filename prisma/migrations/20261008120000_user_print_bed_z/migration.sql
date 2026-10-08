@@ -1,0 +1,12 @@
+-- The print bed's HEIGHT (Z) in millimetres, for hex-cluster downloads. Owner,
+-- 2026-10-08: a part taller than the bed WARNS -- it stays in the pack and the
+-- README names it -- so this column lays nothing out (the packer is X-Y only); it
+-- only decides which parts a download warns about. Null = not set, which reads as
+-- 250 mm (owner's pick: it clears every part shipped, the tallest being a
+-- three-storey base upright at 240).
+--
+-- Its own nullable INTEGER beside the two bed columns, for the reasons they are
+-- columns and not JSON. No CHECK on the range: BED_Z_MIN/BED_Z_MAX live in
+-- src/lib/hex-pack.ts, shared by the endpoint and the settings action. Additive,
+-- nullable, non-breaking.
+ALTER TABLE "User" ADD COLUMN "printBedZMm" INTEGER;

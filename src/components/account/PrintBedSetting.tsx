@@ -15,15 +15,21 @@
 // Save button can never be enabled for a value the server would refuse.
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { setPrintBed } from "@/lib/actions/print-bed";
+import { setPrintBed, setPrintBedZ } from "@/lib/actions/print-bed";
 import {
   BED_MAX,
   BED_FLOOR_MM,
   BED_PRESETS,
+  BED_Z_MAX,
+  BED_Z_MIN,
   FALLBACK_BED,
+  FALLBACK_BED_Z,
   formatBed,
+  formatBedZ,
   normalizeBed,
+  normalizeBedZ,
   type StoredBed,
+  type StoredBedZ,
 } from "@/lib/print-bed";
 
 const CHIP =
@@ -46,9 +52,18 @@ function presetOf(bed: StoredBed): number | null {
   return (BED_PRESETS as readonly number[]).includes(bed.x) ? bed.x : null;
 }
 
-export function PrintBedSetting({ initialBed }: { initialBed: StoredBed }) {
+export function PrintBedSetting({
+  initialBed,
+  initialBedZ,
+}: {
+  initialBed: StoredBed;
+  /** The bed's height, or null for "not set" (reads as `FALLBACK_BED_Z`). */
+  initialBedZ: StoredBedZ;
+}) {
   const router = useRouter();
   const [bed, setBed] = useState<StoredBed>(initialBed);
+  const [bedZ, setBedZ] = useState<StoredBedZ>(initialBedZ);
+  const [cz, setCz] = useState(String(initialBedZ ?? FALLBACK_BED_Z));
   const [custom, setCustom] = useState(presetOf(initialBed) === null && !!initialBed);
   const [cx, setCx] = useState(String(initialBed?.x ?? FALLBACK_BED.x));
   const [cy, setCy] = useState(String(initialBed?.y ?? FALLBACK_BED.y));
@@ -65,6 +80,8 @@ export function PrintBedSetting({ initialBed }: { initialBed: StoredBed }) {
       try {
         const res = await setPrintBed(next);
         setBed(res.bed);
+        // A clear takes the height with it (`setPrintBed`), so say so here too.
+        if (res.bed === null) setBedZ(null);
         router.refresh();
       } catch {
         setBed(previous); // revert
@@ -80,6 +97,24 @@ export function PrintBedSetting({ initialBed }: { initialBed: StoredBed }) {
     cx.trim() === "" ? NaN : Number(cx),
     cy.trim() === "" ? NaN : Number(cy),
   );
+  // The height, validated by the same rule the action uses.
+  const typedZ = normalizeBedZ(cz.trim() === "" ? NaN : Number(cz));
+
+  function saveZ(next: StoredBedZ) {
+    const previous = bedZ;
+    setError(null);
+    setBedZ(next); // optimistic
+    startTransition(async () => {
+      try {
+        const res = await setPrintBedZ(next);
+        setBedZ(res.bedZ);
+        router.refresh();
+      } catch {
+        setBedZ(previous); // revert
+        setError("Could not save that. Try again.");
+      }
+    });
+  }
 
   return (
     <div className="mt-4">
@@ -185,6 +220,63 @@ export function PrintBedSetting({ initialBed }: { initialBed: StoredBed }) {
         Sizes, not printer names: read the bed off your machine. A bigger bed only
         means fewer plates in a download, never a part that will not fit. Anything
         from {BED_FLOOR_MM} to {BED_MAX} mm.
+      </p>
+
+      <div className="mt-6 flex items-baseline justify-between gap-5 border-y border-panel-border/60 py-3.5">
+        <p className="font-serif text-sm text-text">Build height</p>
+        <p className="font-numeral text-lg tabular-nums text-command-gold">
+          {bedZ ? formatBedZ(bedZ) : "Not set"}
+        </p>
+      </div>
+      <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.08em] text-gray-3">
+        {bedZ
+          ? "Saved to your account · used on every device you sign in on"
+          : `Not set · downloads warn above ${formatBedZ(FALLBACK_BED_Z)}`}
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <label className="font-mono text-[10px] uppercase tracking-[0.16em] text-gray-3">
+          Z
+          <input
+            type="number"
+            inputMode="numeric"
+            min={BED_Z_MIN}
+            max={BED_Z_MAX}
+            step={1}
+            value={cz}
+            disabled={pending}
+            onChange={(e) => setCz(e.target.value)}
+            className={`ml-2 ${FIELD}`}
+          />
+        </label>
+        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-gray-3">
+          mm
+        </span>
+        <button
+          type="button"
+          disabled={pending || !typedZ || typedZ === bedZ}
+          onClick={() => typedZ && saveZ(typedZ)}
+          className={`${WORD_CHIP} border-command-gold text-command-gold hover:bg-command-gold hover:text-deep-space`}
+        >
+          Save
+        </button>
+        {bedZ ? (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              setCz(String(FALLBACK_BED_Z));
+              saveZ(null);
+            }}
+            className={`${WORD_CHIP} ${CHIP_OFF}`}
+          >
+            Clear
+          </button>
+        ) : null}
+      </div>
+      <p className="mt-3 font-serif text-xs leading-relaxed text-muted">
+        How tall a part your printer can build. A part taller than this still
+        downloads; the configurator and the download&apos;s README name it, so you
+        can check before you print.
       </p>
 
       {error ? (
