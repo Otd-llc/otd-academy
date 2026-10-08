@@ -3,7 +3,7 @@
 // module may only export the handler names, and this is the part with rules.
 
 import { HEX_PART_SLUGS, isHexPartSlug } from "@/lib/hex-parts";
-import { BED_FLOOR_MM } from "@/lib/hex-release-tables";
+import { BED_FLOOR_MM, HEX_PART_BOX } from "@/lib/hex-release-tables";
 import { PACK_NAME_FALLBACK, resolvePackName } from "@/lib/hex-pack-name";
 import { readHexSource, type HexSource } from "@/lib/hex-attribution";
 
@@ -100,6 +100,22 @@ export const DEFAULT_BED: Readonly<Bed> = Object.freeze({ x: 220, y: 220 });
 export const BED_MIN = 100;
 export const BED_MAX = 1000;
 
+/** The bed's HEIGHT, its Z, in millimetres: how tall a part the printer can
+ *  build. Owner, 2026-10-08: a part taller than the bed WARNS. It is still in
+ *  the pack, and the README names it, rather than being refused or left out.
+ *  So this changes no plate and no layout; the packer is X-Y only and stays so.
+ *
+ *  250 when nobody has said (owner's pick the same day): it clears every part we
+ *  ship -- the tallest is a three-storey base standing upright at 240 mm -- so
+ *  a visitor who never sets a height is never warned about a part that fits,
+ *  and one whose printer is shorter (a K2 SE builds 245) sets theirs and is.
+ *
+ *  `BED_Z_MIN..BED_Z_MAX` is the GRAMMAR and nothing more. There is no floor:
+ *  a short printer is a printer we warn for, not one we refuse. */
+export const DEFAULT_BED_Z = 250;
+export const BED_Z_MIN = 50;
+export const BED_Z_MAX = BED_MAX;
+
 /** The smallest bed the v2 parts are packed for: 220 x 220 mm (owner decision
  *  1.5, 2026-09-24; the A1 mini and the Prusa Mini are out).
  *
@@ -148,11 +164,17 @@ const PLATE_INDEX_RE = /^[1-9]\d{0,2}$/;
  *  `{1,4}` bounds the string before `Number` ever sees it. */
 const BED_RE = /^(\d{1,4})x(\d{1,4})$/;
 
+/** One integer, the same `{1,4}` bound as each side of the bed. */
+const BED_Z_RE = /^\d{1,4}$/;
+
 export type PackRequest = {
   release: string;
   format: PackFormat;
   parts: PackPart[];
   bed: Bed;
+  /** The bed's height (Z), mm: `DEFAULT_BED_Z` when the caller named none. It
+   *  decides only which parts the README warns are taller than the printer. */
+  bedZ: number;
   /** Where the bed came from, as the enum. Analytics and the canonical URL. */
   bedFrom?: BedSource;
   /** Where the download was sent from, as the `HexSource` enum (6.6).
@@ -204,6 +226,16 @@ function parseBed(raw: string | null | undefined): Bed | null {
   return { x, y };
 }
 
+/** Parse a bed height, or null if it is anything but one integer in the
+ *  grammar. ABSENT is the default, for the reason an absent bed is: every link
+ *  written before the height existed keeps working, unchanged. */
+function parseBedZ(raw: string | null | undefined): number | null {
+  if (raw == null || raw === "") return DEFAULT_BED_Z;
+  if (!BED_Z_RE.test(raw)) return null;
+  const z = Number(raw);
+  return z < BED_Z_MIN || z > BED_Z_MAX ? null : z;
+}
+
 /** Parse `slug,slug:3,slug:6` into one line per distinct slug, or null if any
  *  token is malformed. A bare slug means one, so every link written before
  *  quantities existed still resolves to what it used to mean. */
@@ -246,6 +278,8 @@ export function resolvePack(input: {
   format?: string | null;
   parts?: string | null;
   plate?: string | null;
+  /** The bed's height, `bedz=245`. */
+  bedz?: string | null;
   name?: string | null;
   bedFrom?: string | null;
   src?: string | null;
@@ -266,6 +300,9 @@ export function resolvePack(input: {
   if (bed.x < BED_FLOOR_MM || bed.y < BED_FLOOR_MM) {
     return { ok: false, problem: "below-bed-floor" };
   }
+  // Malformed is the flat 400, as a malformed bed is. Short is not an error.
+  const bedZ = parseBedZ(input.bedz);
+  if (bedZ === null) return { ok: false, problem: "bad-bed" };
 
   let plateIndex: number | undefined;
   if (input.plateIndex != null) {
@@ -319,6 +356,7 @@ export function resolvePack(input: {
       format,
       parts,
       bed,
+      bedZ,
       stem: name.stem,
       ...(bedFrom === undefined ? {} : { bedFrom }),
       ...(src === undefined ? {} : { src }),
@@ -326,6 +364,25 @@ export function resolvePack(input: {
       ...(build === undefined ? {} : { build }),
     },
   };
+}
+
+/**
+ * The parts of a pack that stand taller than the bed is high, tallest first,
+ * with their printed height in mm: what the README warns about.
+ *
+ * THE PRINTED HEIGHT, `HEX_PART_BOX.dz`: the part in the pose it ships in,
+ * measured off the printed solid. A part's authored height would be the wrong
+ * number for anything printed lying down. Ties keep the request's own (sorted)
+ * order, so one URL always yields one README.
+ */
+export function partsTallerThan(
+  parts: readonly PackPart[],
+  bedZ: number,
+): Array<{ slug: string; heightMm: number }> {
+  return parts
+    .map((p) => ({ slug: p.slug, heightMm: HEX_PART_BOX[p.slug]?.dz ?? 0 }))
+    .filter((p) => p.heightMm > bedZ)
+    .sort((a, b) => b.heightMm - a.heightMm);
 }
 
 /** The route this module describes requests for. */
@@ -354,7 +411,9 @@ function q(value: string): string {
  * key is the request's meaning, not whatever order a caller typed it in.
  *
  * Fixed order: `release`, `parts` (sorted, a quantity of one written bare),
- * `plate`, then only when they differ from the default: `format` (only `stl`),
+ * `plate`, then only when they differ from the default: `bedz` (the bed's
+ * height, so every link from before it existed keeps its one spelling),
+ * `format` (only `stl`),
  * `name` (the sanitised stem, omitted when it is the fallback), `bedFrom` (the
  * enum), `src` (the enum), `build` (a saved drawing's code), `plate_index`.
  */
@@ -367,6 +426,7 @@ export function canonicalPackQuery(req: PackRequest): string {
     `parts=${q(parts)}`,
     `plate=${req.bed.x}x${req.bed.y}`,
   ];
+  if (req.bedZ !== DEFAULT_BED_Z) out.push(`bedz=${req.bedZ}`);
   if (req.format !== "3mf") out.push(`format=${req.format}`);
   if (req.stem !== PACK_NAME_FALLBACK) out.push(`name=${q(req.stem)}`);
   if (req.bedFrom !== undefined) out.push(`bedFrom=${req.bedFrom}`);

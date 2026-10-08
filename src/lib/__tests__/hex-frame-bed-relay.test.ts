@@ -31,7 +31,8 @@ const src = readFileSync(SOURCE, "utf8");
 /** The `useEffect(...)` block that relays `set-bed`, from its `useEffect(` to
  *  the dependency array that closes it. */
 function relayEffect(): string {
-  const post = src.indexOf('post({ type: "set-bed"');
+  // (the bed's height rides on the same message, so the object may break lines)
+  const post = src.search(/post\(\{\s*type:\s*"set-bed"/);
   expect(
     post,
     "nothing posts set-bed in HexConfiguratorFrame — the relay is gone entirely",
@@ -83,8 +84,11 @@ describe("the bed relay to the embedded configurator", () => {
     // The whole point of the account copy: a bed picked on a laptop is true on a
     // phone. Without this the pick lives only in the configurator's
     // localStorage, which is the store that does not travel.
-    expect(src).toMatch(/case\s+"bed-changed":[\s\S]{0,400}persistBed\(message\.bed\)/);
-    expect(src).toMatch(/setPrintBed\(bed\)/);
+    // With the bed's height beside it (owner, 2026-10-08), when the pick has one.
+    expect(src).toMatch(
+      /case\s+"bed-changed":[\s\S]{0,400}persistBed\(message\.bed, message\.bedZ\)/,
+    );
+    expect(src).toMatch(/setPrintBed\(bed, bedZ\)/);
   });
 });
 
@@ -119,7 +123,7 @@ describe("the one-time promotion of this browser's bed", () => {
   it("handles promote-bed at all", () => {
     // Without a case here the message lands in `default` and the promotion the
     // design promises never happens for anyone.
-    expect(caseBody("promote-bed")).toMatch(/promoteBed\(message\.bed\)/);
+    expect(caseBody("promote-bed")).toMatch(/promoteBed\(message\.bed, message\.bedZ\)/);
   });
 
   it("does NOT route a promotion through the unconditional write", () => {
@@ -136,7 +140,7 @@ describe("the one-time promotion of this browser's bed", () => {
     // `promotePrintBed` is the only writer whose SQL carries the null
     // precondition. Swapping it for `setPrintBed` here compiles, passes a
     // "promotion happened" assertion, and silently clobbers.
-    expect(promoteHandler()).toMatch(/promotePrintBed\(bed\)/);
+    expect(promoteHandler()).toMatch(/promotePrintBed\(bed, bedZ\)/);
     expect(promoteHandler()).not.toMatch(/setPrintBed/);
   });
 
