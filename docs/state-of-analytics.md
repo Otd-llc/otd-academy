@@ -226,9 +226,16 @@ CI) means no GA at all.
     update. Now that happens only after a real revoke.
   - The same PRs added the learning, sharing, download, lead and engagement events.
 - **2026-10-09, settings and Search Console:**
-  - Turned off "page changes based on browser history events". As of this writing,
-    Google's served tag still carried `vtp_enableHistoryEvents: true`. Check that
-    it has propagated (see "Open").
+  - Turned off "page changes based on browser history events" (checked again after
+    reloading). On production, one soft navigation produces one `page_view`.
+  - Two traps that cost an afternoon, so nobody repeats them:
+    - **The served tag's `"vtp_enableHistoryEvents": true` is NOT this setting.** It
+      is GA's general history listener (`__ogt_auto_events`) and stays on. What the
+      setting removes is the page view sent on a history change.
+    - **An intercepted test can show the same hit twice.** GA re-sends its batch
+      when the page unloads. Two `page_view` hits with the same `_s` (hit sequence)
+      and `tfd` are one hit, not a double count. A genuine second page view has its
+      own `_s`.
   - Added the Search Console Domain property (DNS TXT) and swapped the GA link to it.
   - Submitted the apex sitemap.
 
@@ -236,10 +243,6 @@ CI) means no GA at all.
 
 ## Open
 
-- **Confirm the history setting has propagated.** This should print `false`, or
-  nothing at all:
-  `curl -s "https://www.googletagmanager.com/gtag/js?id=G-WKBTPE6YCN" | grep -o '"vtp_enableHistoryEvents":[a-z]*'`.
-  Until it does, client-side navigations count twice in GA. Our code is not the cause.
 - **Share one consent decision across subdomains** (c15t `storageConfig.crossSubdomain`).
   This only works if every site running c15t switches together, the hex configurator
   included. Otherwise host-only and domain cookies shadow each other.
