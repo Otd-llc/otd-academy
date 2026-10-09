@@ -176,6 +176,7 @@ lines, or revisions before then. New boards start from `docs/boards/_template/`
   without packs every visitor got the opt-in banner. No geo → GB → opt-in (fails closed). The
   opt-in country list is mirrored in `/privacy` §2 and the apex copy of `consent-geo.ts`.
   Set `NEXT_PUBLIC_GA_MEASUREMENT_ID` (public, `G-…`) on both Vercel projects; unset = no GA.
+  **The full record (events, GA settings that must stay, history): `docs/state-of-analytics.md`.**
   **Page views are MANUAL** (since 2026-10-09): `send_page_view: false`, the GA stream's
   "page changes based on browser history events" is OFF, and `PostHogProvider`'s route tracker
   calls `gaPageView`, which `gtag('set')`s the scrubbed page before the view (gtag stamps the live
