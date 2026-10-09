@@ -40,7 +40,8 @@ import { SIZE } from "@/lib/og/tokens";
 import { HEX_LICENSE } from "@/lib/hex-license";
 import { HEX_V2_PITCH_MM, HEX_V2_RELEASE } from "@/lib/hex-v2-page";
 
-export const runtime = "nodejs";
+// Node.js, which this card needs to read from disk, is the default runtime. Next 16.3
+// rejects an explicit `runtime` segment config under cacheComponents, so none is set.
 export const size = SIZE;
 export const contentType = "image/png";
 export const alt = `Hex Cluster: a printable bench mounting standard, ${HEX_LICENSE.name}. A stacked column of hex bases in a row that a PVC pipe runs through.`;

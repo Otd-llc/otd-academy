@@ -243,9 +243,12 @@ export const COPYLEFT_ALLOW: readonly { name: string; version: string; reason: s
       "in THIRD_PARTY_NOTICES. Confirmed by the owner 2026-09-28.",
   },
   // sharp's per-platform binaries: Linux x64 is what Vercel builds on; win32 is local dev.
-  { name: "@img/sharp-linux-x64", version: "0.34.5", reason: SHARP_SERVER_ONLY },
-  { name: "@img/sharp-libvips-linux-x64", version: "1.2.4", reason: SHARP_SERVER_ONLY },
-  { name: "@img/sharp-win32-x64", version: "0.34.5", reason: SHARP_SERVER_ONLY },
+  // Moved 0.34.5 / libvips 1.2.4 → 0.35.5 / 1.3.4 on 2026-10-09 with next 16.2.6 → 16.3.8
+  // (the security bump: next/og + image-optimisation RCEs, Server Actions DoS). Same
+  // packages, same licence, same server-only use, so the owner's 2026-09-28 reason stands.
+  { name: "@img/sharp-linux-x64", version: "0.35.5", reason: SHARP_SERVER_ONLY },
+  { name: "@img/sharp-libvips-linux-x64", version: "1.3.4", reason: SHARP_SERVER_ONLY },
+  { name: "@img/sharp-win32-x64", version: "0.35.5", reason: SHARP_SERVER_ONLY },
 ];
 
 /** Every entry declaring a copyleft licence that the allow-list does not cover. */
