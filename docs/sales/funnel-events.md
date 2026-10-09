@@ -1,5 +1,9 @@
 # Funnel instrumentation — event map
 
+> PostHog's server-side funnel events. For the whole analytics setup (GA4 on both
+> sites, consent, the page-view scrubber, every client event, the GA settings that
+> must not change) see [`docs/state-of-analytics.md`](../state-of-analytics.md).
+
 PostHog funnel events for One Thousand Drones Academy. This is the canonical map
 from each funnel-scorecard stage to its event name and the exact place it fires.
 
