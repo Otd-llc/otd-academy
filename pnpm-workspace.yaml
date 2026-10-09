@@ -18,8 +18,31 @@ allowBuilds:
   prisma: true
   sharp: true
   unrs-resolver: true
+# Security floors for transitive packages a parent pins below the fix. Each one
+# names ONLY the vulnerable range and stays inside the current major, so nothing
+# here is an upgrade by stealth. Refreshed 2026-10-09 against the open Dependabot
+# alerts (docs/state-of-analytics.md lists the analytics ones; the rest are the
+# general backlog). Deliberately NOT here:
+#   - katex <0.18.2 (low): 0.17 -> 0.18 is a breaking line for a 0.x package and
+#     changes math rendering; do it as its own change with a visual check.
+#   - deepmerge-ts <8.0.0: the fix is a new major, reached only through the
+#     Prisma CLI's config loader, which never runs in the serving path.
+#   - vite: a PEER of vitest, which overrides do not reach; it is pinned as a
+#     direct devDependency in package.json instead.
 overrides:
-  '@hono/node-server@<1.19.13': ^1.19.13
+  '@hono/node-server@<1.19.15': ^1.19.15
+  '@xmldom/xmldom@>=0.9.0 <0.9.12': ^0.9.12
+  baseline-browser-mapping@>=2.0.0 <2.11.0: ^2.11.0
+  brace-expansion@<1.1.21: ^1.1.21
+  brace-expansion@>=3.0.0 <5.0.12: ^5.0.12
+  browserslist@<4.28.7: ^4.28.7
+  dompurify@<3.4.16: ^3.4.16
   esbuild@>=0.27.3 <0.28.1: ^0.28.1
-  hono@<4.12.25: ^4.12.25
-  postcss@<8.5.10: ^8.5.10
+  fflate@>=0.4.5 <0.4.9: ^0.4.9
+  hono@<4.13.7: ^4.13.7
+  js-yaml@>=4.0.0 <4.3.2: ^4.3.2
+  mysql2@<3.23.1: ^3.23.1
+  nanoid@<3.3.18: ^3.3.18
+  postcss@<8.5.23: ^8.5.23
+  source-map-js@>=1.0.0 <1.2.2: ^1.2.2
+  valibot@<1.4.2: ^1.4.2
