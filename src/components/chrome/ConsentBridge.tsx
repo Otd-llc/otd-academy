@@ -15,7 +15,7 @@ import { useConsentManager } from "@c15t/nextjs";
 import { setAnalyticsConsent } from "@/lib/consent-signal";
 import { getPosthog, getLoadedPosthog } from "@/lib/posthog-client";
 import { loadGa, revokeGa } from "@/lib/ga-client";
-import { consumeSignupFlag } from "@/lib/analytics-client";
+import { consumeLoginFlag, consumeSignupFlag } from "@/lib/analytics-client";
 
 export function ConsentBridge() {
   const { consents, consentInfo } = useConsentManager();
@@ -33,7 +33,10 @@ export function ConsentBridge() {
     if (granted) {
       // getPosthog now passes the gate → inits (or returns the live instance).
       void getPosthog().then((ph) => ph?.opt_in_capturing());
-      if (loadGa()) consumeSignupFlag();
+      if (loadGa()) {
+        consumeSignupFlag();
+        consumeLoginFlag();
+      }
     } else {
       // getPosthog would return null post-revoke; reach the loaded instance
       // directly (no gate, no init) to opt out + drop the person.

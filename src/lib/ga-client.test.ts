@@ -12,7 +12,7 @@ vi.mock("@/lib/consent-signal", () => ({
   analyticsConsentGranted: () => consent.granted,
 }));
 
-import { gaEvent, loadGa, revokeGa, __resetGaForTests } from "@/lib/ga-client";
+import { gaEvent, gaPageView, loadGa, revokeGa, __resetGaForTests } from "@/lib/ga-client";
 
 type Win = { dataLayer?: unknown[]; gtag?: (...a: unknown[]) => void; location: { hostname: string } };
 let win: Win;
@@ -77,7 +77,7 @@ describe("ga-client", () => {
     expect(config).toEqual([
       "config",
       "G-TEST123",
-      { allow_google_signals: false, allow_ad_personalization_signals: false },
+      { allow_google_signals: false, allow_ad_personalization_signals: false, send_page_view: false },
     ]);
   });
 
@@ -110,6 +110,25 @@ describe("ga-client", () => {
     expect(calls().filter((c) => c[0] === "event")).toEqual([]);
   });
 
+  it("a page view SETS the scrubbed page first, so every later hit inherits it", () => {
+    gaPageView({ location: "https://a.example/learn/x/certificate/[token]", title: "Certificate", referrer: "https://a.example/learn" });
+    // queued pre-consent as whole commands, in order
+    expect(win.dataLayer).toBeUndefined();
+    consent.granted = true;
+    loadGa();
+    const tail = calls().slice(-2);
+    expect(tail).toEqual([
+      ["set", { page_location: "https://a.example/learn/x/certificate/[token]", page_title: "Certificate", page_referrer: "https://a.example/learn" }],
+      ["event", "page_view", undefined],
+    ]);
+  });
+
+  it("a first page view with no referrer sets an empty one, not the document's", () => {
+    consent.granted = true;
+    gaPageView({ location: "https://a.example/", title: "Home" });
+    expect(calls().at(-2)).toEqual(["set", { page_location: "https://a.example/", page_title: "Home", page_referrer: "" }]);
+  });
+
   it("a re-grant in the same page lifts the opt-out switch", () => {
     consent.granted = true;
     loadGa();
@@ -136,5 +155,15 @@ describe("ga-client", () => {
     }
     expect(cookieWrites.some((w) => w.includes("domain=.com"))).toBe(false);
     expect(cookieWrites.some((w) => w.startsWith("theme="))).toBe(false);
+  });
+});
+
+describe("ga-client consent updates", () => {
+  it("events after boot do NOT each re-send a consent update", () => {
+    consent.granted = true;
+    loadGa();
+    gaEvent("scroll");
+    gaEvent("sign_up");
+    expect(calls().filter((c) => c[0] === "consent" && c[1] === "update")).toEqual([]);
   });
 });

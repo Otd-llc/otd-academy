@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { advanceEnrollment } from "@/lib/actions/enrollment";
 import { advanceTargetHref } from "@/lib/learner-advance-nav";
 import { useFanfare } from "@/components/logbook/Fanfare";
+import { trackStageAdvanced } from "@/lib/analytics-client";
 
 export function AdvanceEnrollmentButton({
   projectId,
@@ -41,6 +42,7 @@ export function AdvanceEnrollmentButton({
             try {
               const res = await advanceEnrollment({ projectId });
               if (res.ok) {
+                trackStageAdvanced({ projectId, fromStage: res.fromStage, toStage: res.toStage });
                 // Banner on every clear (owner 2026-07-18). A clear that crosses a
                 // rank shows the richer level-up banner; otherwise the plain XP one.
                 // Fired before navigating — the FanfareProvider lives in the root

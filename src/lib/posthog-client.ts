@@ -20,6 +20,7 @@
 // captures flow.
 import { env } from "@/env";
 import { analyticsConsentGranted } from "@/lib/consent-signal";
+import { sanitizeUrl } from "@/lib/analytics-sanitize";
 import type { PostHog } from "posthog-js";
 
 let loader: Promise<PostHog | null> | null = null;
@@ -41,6 +42,20 @@ export function getPosthog(): Promise<PostHog | null> {
         // $pageleave is still useful for bounce/dwell.
         capture_pageleave: true,
         autocapture: false,
+        // posthog-js stamps EVERY event with the live URL, path and referrer, so
+        // a $pageleave on a certificate page would carry the name-bearing token
+        // even though our own $pageview is scrubbed. Same scrubber as GA.
+        before_send: (event) => {
+          const p = event?.properties;
+          if (!p) return event;
+          for (const k of ["$current_url", "$referrer", "$initial_referrer"]) {
+            if (typeof p[k] === "string" && /^https?:/.test(p[k])) p[k] = sanitizeUrl(p[k]);
+          }
+          if (typeof p.$pathname === "string") {
+            p.$pathname = new URL(sanitizeUrl(p.$pathname)).pathname;
+          }
+          return event;
+        },
       });
     }
     return ph;

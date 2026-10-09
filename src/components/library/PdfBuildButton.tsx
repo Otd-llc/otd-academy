@@ -8,6 +8,7 @@
 // blob. A toast explains the fresh-build + asks for a moment's patience.
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { trackFileDownload } from "@/lib/analytics-client";
 
 function Spinner({ className = "h-3.5 w-3.5" }: { className?: string }) {
   return (
@@ -93,6 +94,12 @@ export function PdfBuildButton({
         a.remove();
       }
       window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      // A blob, so GA's automatic download tracking never sees it.
+      trackFileDownload({
+        fileName: href.split("?")[0].split("/").filter(Boolean).slice(-2).join("/"),
+        fileExtension: "pdf",
+        linkUrl: href,
+      });
       setState("idle");
     } catch {
       tab?.close();

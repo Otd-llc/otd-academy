@@ -4,6 +4,7 @@
 // employer, who opens it and sees the certificate confirmed with no code to type
 // (the code is in the URL). The code is also shown for manual entry on /verify.
 import { useState } from "react";
+import { trackShare } from "@/lib/analytics-client";
 
 export function VerifyLinkShare({
   code,
@@ -17,6 +18,11 @@ export function VerifyLinkShare({
   async function copy(text: string, which: "link" | "code") {
     try {
       await navigator.clipboard.writeText(text);
+      // Never the code or link themselves: the code resolves to a name.
+      trackShare({
+        method: which === "code" ? "copy_code" : "copy_link",
+        contentType: "certificate_verify",
+      });
       setCopied(which);
       setTimeout(() => setCopied(null), 2000);
     } catch {
@@ -31,6 +37,7 @@ export function VerifyLinkShare({
           title: "Verify my One Thousand Drones Academy certificate",
           url: verifyUrl,
         });
+        trackShare({ method: "native", contentType: "certificate_verify" });
         return;
       } catch {
         // cancelled or unsupported → fall through to copy

@@ -9,6 +9,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveOnboardingGoal } from "@/lib/actions/onboarding";
 import { ONBOARDING_GOAL_OPTIONS } from "@/lib/onboarding-goals";
+import { trackOnboardingGoal } from "@/lib/analytics-client";
 
 export function GoalSurvey() {
   const [pending, start] = useTransition();
@@ -24,6 +25,7 @@ export function GoalSurvey() {
       setError(null);
       try {
         await saveOnboardingGoal({ goal });
+        trackOnboardingGoal(goal);
         router.refresh();
       } catch {
         setChosen(null);

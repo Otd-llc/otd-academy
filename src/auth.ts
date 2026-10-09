@@ -14,7 +14,11 @@ import { magicLinkEmail } from "@/lib/auth-magic-link-email";
 import { fieldGuideMagicLinkEmail } from "@/lib/field-guide-email";
 import { guideFromWelcomeUrl } from "@/lib/library/field-guide-links";
 import { capture } from "@/lib/analytics";
-import { SIGNUP_FLAG_COOKIE, SIGNUP_FLAG_MAX_AGE } from "@/lib/signup-flag";
+import {
+  LOGIN_FLAG_COOKIE,
+  SIGNUP_FLAG_COOKIE,
+  SIGNUP_FLAG_MAX_AGE,
+} from "@/lib/signup-flag";
 import { MEASUREMENT_COOKIE } from "@/lib/consent-signal";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { isBotSubmission, TURNSTILE_FIELD } from "@/lib/abuse-guard";
@@ -324,7 +328,28 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     // Dynamic import: src/proxy.ts (middleware) imports this module, and next/headers
     // has no business in a middleware bundle. Events only ever run inside the auth
     // route handler, where cookies() is writable.
-    async signIn({ user }) {
+    async signIn({ user, account, isNewUser }) {
+      // GA4 `login` for a RETURNING visitor (a new one is a sign_up, flagged in
+      // createUser). Only for a browser that has said yes to measurement; the
+      // value is the method, never the identity. src/lib/signup-flag.ts.
+      if (!isNewUser) {
+        try {
+          const { cookies } = await import("next/headers");
+          const jar = await cookies();
+          if (jar.get(MEASUREMENT_COOKIE)?.value === "1") {
+            const provider = account?.provider;
+            const method =
+              provider === "google" || provider === "github" ? provider : "email";
+            jar.set(LOGIN_FLAG_COOKIE, method, {
+              path: "/",
+              maxAge: SIGNUP_FLAG_MAX_AGE,
+              sameSite: "lax",
+            });
+          }
+        } catch {
+          // never block sign-in on telemetry
+        }
+      }
       try {
         const email = user.email?.toLowerCase();
         if (!email) return;

@@ -7,6 +7,7 @@
 // buried account toggle misses. Optimistic: reverts on error.
 import { useState, useTransition } from "react";
 import { setEmailConsent } from "@/lib/actions/email-consent";
+import { trackEmailOptIn } from "@/lib/analytics-client";
 
 export function StartConsent({ initialConsent }: { initialConsent: boolean }) {
   const [on, setOn] = useState(initialConsent);
@@ -18,6 +19,7 @@ export function StartConsent({ initialConsent }: { initialConsent: boolean }) {
       try {
         const res = await setEmailConsent(next);
         setOn(res.emailConsent);
+        trackEmailOptIn(res.emailConsent);
       } catch {
         setOn(!next); // revert
       }

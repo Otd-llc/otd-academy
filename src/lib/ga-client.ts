@@ -13,10 +13,19 @@
 // not use advertising cookies and do not track people across other sites; those
 // four flags are what keep that true for GA.
 //
-// Pageviews are NOT sent from here. GA4 enhanced measurement ("page changes
-// based on browser history events", on by default) records the first load and
-// every App Router navigation itself. A manual page_view as well would double
-// count.
+// PAGE VIEWS ARE MANUAL (2026-10-09). The config sends `send_page_view: false`,
+// and the stream's "page changes based on browser history events" is switched
+// off in GA, because an automatic page_view sends the raw URL and <title> and
+// two routes put a learner's name in one or the other (see
+// @/lib/analytics-sanitize). gaPageView() below is the only page_view sender. It
+// is called from PostHogProvider's route tracker with the scrubbed address.
+//
+// AND IT SETS THE PAGE, NOT JUST THE PAGE VIEW. gtag attaches the current
+// location, title and referrer to EVERY hit (scroll, user_engagement,
+// form_start…), read straight off the document at send time. A scrubbed
+// page_view alone would still leak the certificate name on the first scroll.
+// So each navigation runs `gtag('set', {page_location, page_title,
+// page_referrer})` first, and every hit after it carries the scrubbed values.
 //
 // Events fired before consent resolves (an effect on mount racing the bridge)
 // wait in a small in-memory queue and flush when GA boots. Nothing leaves the
@@ -35,8 +44,12 @@ declare global {
 }
 
 const QUEUE_LIMIT = 20;
-const pending: [string, Record<string, unknown> | undefined][] = [];
+// Whole gtag commands, so a queued page view keeps its `set` ahead of its event.
+const pending: unknown[][] = [];
 let booted = false;
+// Set by a revoke, cleared by the next grant. Without it, every loadGa() after
+// boot (every event goes through it) re-sent a consent update.
+let revoked = false;
 
 /** Boot GA if it is configured and consented. Idempotent; safe to call from
  *  anywhere client-side. Returns whether GA is live after the call. */
@@ -46,9 +59,12 @@ export function loadGa(): boolean {
   if (!analyticsConsentGranted()) return false;
 
   if (booted) {
-    // A re-grant after a revoke in the same page: lift the denial.
-    window[`ga-disable-${id}`] = false;
-    window.gtag?.("consent", "update", { analytics_storage: "granted" });
+    // A re-grant after a revoke in the same page: lift the denial, once.
+    if (revoked) {
+      revoked = false;
+      window[`ga-disable-${id}`] = false;
+      window.gtag?.("consent", "update", { analytics_storage: "granted" });
+    }
   } else {
     booted = true;
     window.dataLayer = window.dataLayer ?? [];
@@ -68,6 +84,7 @@ export function loadGa(): boolean {
     window.gtag("config", id, {
       allow_google_signals: false,
       allow_ad_personalization_signals: false,
+      send_page_view: false,
     });
     const script = document.createElement("script");
     script.async = true;
@@ -75,21 +92,36 @@ export function loadGa(): boolean {
     document.head.appendChild(script);
   }
 
-  for (const [name, params] of pending.splice(0)) {
-    window.gtag?.("event", name, params);
-  }
+  for (const cmd of pending.splice(0)) window.gtag?.(...cmd);
   return true;
 }
 
 /** Send a GA4 event. Queued (in memory, this page only) until consent
  *  resolves; dropped entirely when GA is unconfigured. */
 export function gaEvent(name: string, params?: Record<string, unknown>): void {
+  gaCommand("event", name, params);
+}
+
+function gaCommand(...cmd: unknown[]): void {
   if (!env.NEXT_PUBLIC_GA_MEASUREMENT_ID || typeof window === "undefined") return;
   if (loadGa()) {
-    window.gtag?.("event", name, params);
+    window.gtag?.(...cmd);
   } else if (pending.length < QUEUE_LIMIT) {
-    pending.push([name, params]);
+    pending.push(cmd);
   }
+}
+
+/** A page view, already scrubbed (@/lib/analytics-sanitize). Queued like any
+ *  event until consent resolves. `referrer` is the previous scrubbed location
+ *  for an in-app navigation, so GA does not fall back to document.referrer,
+ *  which still names the page the visitor first landed on. */
+export function gaPageView(page: { location: string; title: string; referrer?: string }): void {
+  gaCommand("set", {
+    page_location: page.location,
+    page_title: page.title,
+    page_referrer: page.referrer ?? "",
+  });
+  gaEvent("page_view");
 }
 
 /** The visitor DECIDED against measurement: stop GA and delete its cookies.
@@ -110,6 +142,7 @@ export function revokeGa(): void {
     const id = env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
     if (id) window[`ga-disable-${id}`] = true;
     window.gtag?.("consent", "update", { analytics_storage: "denied" });
+    revoked = true;
   }
   clearGaCookies();
 }
@@ -138,5 +171,6 @@ function clearGaCookies(): void {
 /** TEST-ONLY: reset module state between tests. */
 export function __resetGaForTests(): void {
   booted = false;
+  revoked = false;
   pending.length = 0;
 }

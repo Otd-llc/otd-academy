@@ -13,6 +13,7 @@
 import { useState, useSyncExternalStore } from "react";
 
 import { InlineBanner } from "@/components/InlineBanner";
+import { trackHexPartInterest, trackLead } from "@/lib/analytics-client";
 import {
   notifyOnHexPart,
   tapHexPartInterest,
@@ -73,6 +74,7 @@ export function WantButton({ stem, name }: { stem: string; name: string }) {
         void tapHexPartInterest({ stem }).then(
           (res) => {
             if (res.ok) {
+              trackHexPartInterest(stem);
               mark(stem);
               setPhase("counted");
             } else if (res.reason === "already") {
@@ -149,6 +151,7 @@ export function MoldedWaitlist({
         void notifyOnHexPart({ email, stems: chosen }).then(
           (res) => {
             if (res.ok) {
+              trackLead("molded_waitlist");
               setState(res.state);
               setPhase("done");
             } else {

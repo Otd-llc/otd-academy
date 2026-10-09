@@ -55,7 +55,7 @@ type StageClearAward = {
   stageLabel: string;
 };
 type AdvanceEnrollmentResult =
-  | { ok: true; toStage: StageName; stageClear: StageClearAward | null }
+  | { ok: true; fromStage: StageName; toStage: StageName; stageClear: StageClearAward | null }
   | { ok: false; reasons: string[] };
 
 const enrollSchema = z.object({ projectId: z.cuid() });
@@ -83,7 +83,7 @@ const recordProofSchema = z.object({
 
 export async function enroll(
   input: unknown,
-): Promise<{ id: string; status: EnrollmentStatus }> {
+): Promise<{ id: string; status: EnrollmentStatus; created: boolean }> {
   const { projectId } = enrollSchema.parse(input);
   const user = await requireUser();
 
@@ -183,7 +183,8 @@ export async function enroll(
   }
 
   revalidatePath(`/learn/${enrollmentRow.project.slug}`);
-  return { id: enrollmentRow.id, status: enrollmentRow.status };
+  // `created` lets the client report a first start once, not every re-open.
+  return { id: enrollmentRow.id, status: enrollmentRow.status, created };
 }
 
 // Advance the learner's OWN currentStage past `learnerExitGate`. Mirrors the
@@ -351,7 +352,8 @@ export async function advanceEnrollment(
     }
   }
 
-  if (outcome.ok) return { ok: true, toStage: outcome.toStage, stageClear };
+  if (outcome.ok)
+    return { ok: true, fromStage: outcome.fromStage, toStage: outcome.toStage, stageClear };
   return outcome;
 }
 
