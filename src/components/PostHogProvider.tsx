@@ -18,18 +18,54 @@
 // adds no DOM wrapper.
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { getPosthog } from "@/lib/posthog-client";
+import { gaPageView } from "@/lib/ga-client";
+import { sanitizePage, sanitizeUrl } from "@/lib/analytics-sanitize";
+
+// GA4's page views come from here too (2026-10-09): automatic page views sent
+// the raw URL and <title>, and the certificate route puts a learner's name in
+// both. Everything is scrubbed by @/lib/analytics-sanitize first.
+//
+// A PATH change is a page view as soon as the new <title> has landed (it can
+// stream in just after the commit, so it is read a beat later). A QUERY-ONLY
+// change waits until the address has been still for a while: /parts rewrites
+// `?q=` on every typing pause, which counted every half-typed term as a page
+// view. PostHog keeps its original behaviour, every change at once.
+const TITLE_SETTLE_MS = 150;
+const QUERY_SETTLE_MS = 1500;
 
 function PageviewTracker() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const lastPath = useRef<string | null>(null);
+  const lastLocation = useRef<string | null>(null);
 
   useEffect(() => {
     let url = window.origin + pathname;
     const qs = searchParams?.toString();
     if (qs) url += `?${qs}`;
-    void getPosthog().then((ph) => ph?.capture("$pageview", { $current_url: url }));
+    void getPosthog().then((ph) =>
+      ph?.capture("$pageview", { $current_url: sanitizeUrl(url) }),
+    );
+
+    const pathChanged = lastPath.current !== pathname;
+    lastPath.current = pathname;
+    const timer = window.setTimeout(
+      () => {
+        const page = sanitizePage(url, document.title);
+        // In-app: the previous scrubbed page. First load: the document's own
+        // referrer, scrubbed, since a same-origin referrer is a full URL and
+        // can be a certificate link.
+        const referrer =
+          lastLocation.current ??
+          (document.referrer ? sanitizeUrl(document.referrer) : undefined);
+        lastLocation.current = page.location;
+        gaPageView({ ...page, referrer });
+      },
+      pathChanged ? TITLE_SETTLE_MS : QUERY_SETTLE_MS,
+    );
+    return () => window.clearTimeout(timer);
   }, [pathname, searchParams]);
 
   return null;

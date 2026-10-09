@@ -13,3 +13,10 @@
 // The hour is slack for the redirect chain, not a consent window.
 export const SIGNUP_FLAG_COOKIE = "otd-signup";
 export const SIGNUP_FLAG_MAX_AGE = 60 * 60;
+
+// The returning-visitor twin: Auth.js's `signIn` event (not new users, who
+// get the sign-up flag instead) leaves the sign-in METHOD, and the browser
+// reports GA4's `login` once (consumeLoginFlag). Same consent rule: only for
+// a browser carrying the measurement grant. The value is google, github or
+// email, never an identity.
+export const LOGIN_FLAG_COOKIE = "otd-login";

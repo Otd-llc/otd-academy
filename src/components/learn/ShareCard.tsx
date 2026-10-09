@@ -5,6 +5,13 @@
 // copying the public share link. Used on the share page, the certificate reveal,
 // and the complete screen.
 import { useState } from "react";
+import { trackFileDownload, trackShare } from "@/lib/analytics-client";
+
+// The course slug, from a share path like /learn/<slug>/certificate/<token>.
+// Only the slug: the token is the learner's name.
+function slugOf(shareUrl: string): string | undefined {
+  return shareUrl.match(/\/learn\/([^/]+)\/certificate\//)?.[1];
+}
 
 export function ShareCard({
   downloadUrl,
@@ -28,6 +35,7 @@ export function ShareCard({
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         await navigator.share({ title, url: absolute });
+        trackShare({ method: "native", contentType: "certificate", itemId: slugOf(shareUrl) });
         return;
       } catch {
         // user cancelled or share failed → fall through to copy
@@ -35,6 +43,7 @@ export function ShareCard({
     }
     try {
       await navigator.clipboard.writeText(absolute);
+      trackShare({ method: "copy_link", contentType: "certificate", itemId: slugOf(shareUrl) });
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -50,6 +59,9 @@ export function ShareCard({
       <a
         href={downloadUrl}
         download="otd-certificate.pdf"
+        onClick={() =>
+          trackFileDownload({ fileName: "certificate", fileExtension: "pdf", linkUrl: downloadUrl })
+        }
         className={`${btn} glass-button-cta`}
       >
         ↓ Download PDF

@@ -6,6 +6,12 @@
 // large Saira display-numeral readout (the same numeral face as the honeycomb
 // hex-heroes). Inputs read like labelled bench fields, not form boxes.
 import { type ReactNode } from "react";
+import { trackToolUsed } from "@/lib/analytics-client";
+
+// The calculator's slug from /tools/<slug> or /embed/<slug>; one event per tool per page.
+function toolSlug(): string {
+  return window.location.pathname.split("/").filter(Boolean)[1] ?? "unknown";
+}
 
 export function NumberField({
   label,
@@ -34,7 +40,10 @@ export function NumberField({
           min={min}
           step={step}
           value={Number.isFinite(value) ? value : ""}
-          onChange={(e) => onChange(Number(e.target.value))}
+          onChange={(e) => {
+            trackToolUsed(toolSlug());
+            onChange(Number(e.target.value));
+          }}
           className="w-full border-0 border-b border-transparent bg-transparent px-0 py-1 font-numeral text-2xl tabular-nums text-text tracking-wide focus:border-command-gold focus:outline-none"
         />
         {suffix ? (

@@ -10,6 +10,7 @@ import Link from "next/link";
 import { submitLessonFeedback } from "@/lib/actions/feedback";
 import { XpTick } from "@/components/library/XpTick";
 import { useFanfare } from "@/components/logbook/Fanfare";
+import { trackFeedbackSent } from "@/lib/analytics-client";
 
 export function FeedbackBox({
   pageRef,
@@ -72,6 +73,7 @@ export function FeedbackBox({
     setStatus("sending");
     const res = await submitLessonFeedback({ pageRef, body: body.trim() });
     if (res && "ok" in res && res.ok) {
+      trackFeedbackSent(pageRef);
       setXp("xp" in res ? res.xp : 0);
       setStatus("done");
       if ("levelUp" in res && res.levelUp) {

@@ -8,6 +8,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setEmailConsent } from "@/lib/actions/email-consent";
+import { trackEmailOptIn } from "@/lib/analytics-client";
 
 export function EmailPreferences({ initialConsent }: { initialConsent: boolean }) {
   const router = useRouter();
@@ -23,6 +24,7 @@ export function EmailPreferences({ initialConsent }: { initialConsent: boolean }
       try {
         const res = await setEmailConsent(next);
         setOn(res.emailConsent);
+        trackEmailOptIn(res.emailConsent);
         router.refresh();
       } catch {
         setOn(!next); // revert

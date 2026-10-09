@@ -17,6 +17,7 @@ import { ConsentManagerProvider, ConsentBanner, ConsentDialog } from "@c15t/next
 // natural size at the page bottom (shipped that way in #344; fixed here).
 import "@c15t/nextjs/styles.css";
 import { ConsentBridge } from "@/components/chrome/ConsentBridge";
+import { AnalyticsListeners } from "@/components/chrome/AnalyticsListeners";
 import { CONSENT_POLICY_PACKS, parseGeoCookie } from "@/lib/consent-geo";
 
 // The categories this site actually uses, declared explicitly.
@@ -223,6 +224,8 @@ export function ConsentProviders({ children }: { children: React.ReactNode }) {
       }}
     >
       <ConsentBridge />
+      {/* Download + video listeners the server-rendered pages cannot attach. */}
+      <AnalyticsListeners />
       {/* The primary-action hint, moved off `customize` and onto `accept`.
           Without it the policy pack keeps pointing at Customize and the fill
           above lands on a control the pack does not treat as primary. */}

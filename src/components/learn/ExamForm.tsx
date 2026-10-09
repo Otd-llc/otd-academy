@@ -8,6 +8,7 @@
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitExam } from "@/lib/actions/exam";
+import { trackExamSubmitted } from "@/lib/analytics-client";
 import {
   CertificateReveal,
   type NextLessonLink,
@@ -172,6 +173,7 @@ export function ExamForm({
               setError(null);
               try {
                 const res = await submitExam({ projectId, answers });
+                trackExamSubmitted({ projectId, ...res });
                 setResult(res);
                 router.refresh();
               } catch (e) {

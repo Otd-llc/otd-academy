@@ -6,6 +6,7 @@
 // a purchase. Framed as a tip, never a "donation" (OTD is not a 501(c)(3)).
 import { useState, useTransition } from "react";
 import { createTipCheckout } from "@/lib/actions/tips";
+import { trackBeginCheckout } from "@/lib/analytics-client";
 import { TIP_PRESETS_CENTS, TIP_MIN_CENTS, TIP_MAX_CENTS } from "@/lib/tips";
 
 const presetLabel = (cents: number) => `$${cents / 100}`;
@@ -33,6 +34,7 @@ export function TipBlock({ slug }: { slug: string }) {
       setError(null);
       try {
         const { url } = await createTipCheckout({ amountCents: cents, slug });
+        trackBeginCheckout("tip", slug, cents);
         window.location.href = url;
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not start checkout.");

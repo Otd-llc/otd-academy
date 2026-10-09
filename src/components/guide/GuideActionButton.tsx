@@ -13,6 +13,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
+import { trackFileDownload } from "@/lib/analytics-client";
 import {
   getBringupMeasurementsUrl,
   getKicadStarterUrl,
@@ -89,6 +90,12 @@ export function GuideActionButton({
         const url = await config.resolve(projectId);
         if (url) {
           window.open(url, "_blank", "noopener,noreferrer");
+          // The action name only. The URL is a presigned R2 link with a
+          // signature in it, so it never goes to analytics.
+          trackFileDownload({
+            fileName: action,
+            fileExtension: action === "downloadBringupMeasurements" ? "csv" : "zip",
+          });
         } else {
           setError(config.notReady);
         }

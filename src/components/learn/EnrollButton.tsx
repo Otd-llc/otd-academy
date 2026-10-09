@@ -6,6 +6,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { enroll } from "@/lib/actions/enrollment";
+import { trackLessonStarted } from "@/lib/analytics-client";
 
 export function EnrollButton({
   projectId,
@@ -39,7 +40,8 @@ export function EnrollButton({
           start(async () => {
             setError(null);
             try {
-              await enroll({ projectId });
+              const r = await enroll({ projectId });
+              if (r.created) trackLessonStarted(projectId);
               router.push(continueHref);
               router.refresh();
             } catch (e) {

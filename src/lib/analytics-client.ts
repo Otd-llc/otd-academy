@@ -21,7 +21,8 @@
 
 import { getPosthog } from "@/lib/posthog-client";
 import { gaEvent } from "@/lib/ga-client";
-import { SIGNUP_FLAG_COOKIE } from "@/lib/signup-flag";
+import { LOGIN_FLAG_COOKIE, SIGNUP_FLAG_COOKIE } from "@/lib/signup-flag";
+import { sanitizeUrl } from "@/lib/analytics-sanitize";
 
 function fire(event: string, properties?: Record<string, unknown>): void {
   void getPosthog()
@@ -109,14 +110,22 @@ export function fireHexSaveCompleted(properties: {
 // ---------------------------------------------------------------------------
 
 /** Key event: a visitor left an email to hear more (a waitlist, a field guide). */
-export function trackLead(source: "waitlist" | "pass_waitlist" | "field_guide"): void {
+export function trackLead(
+  source: "waitlist" | "pass_waitlist" | "field_guide" | "molded_waitlist",
+): void {
   ga("generate_lead", { lead_source: source });
 }
 
-/** Key event: about to be sent to Stripe Checkout. */
-export function trackBeginCheckout(item: "course" | "pass" | "upgrade", itemId?: string): void {
+/** Key event: about to be sent to Stripe Checkout. `valueCents` when the
+ *  amount is known on the client (a tip is; a course price is server-side). */
+export function trackBeginCheckout(
+  item: "course" | "pass" | "upgrade" | "tip",
+  itemId?: string,
+  valueCents?: number,
+): void {
   ga("begin_checkout", {
     items: [{ item_id: itemId ?? item, item_category: item }],
+    ...(valueCents != null && { value: valueCents / 100, currency: "USD" }),
   });
 }
 
@@ -156,4 +165,141 @@ export function consumeSignupFlag(): void {
   if (!flagged) return;
   document.cookie = `${SIGNUP_FLAG_COOKIE}=; Max-Age=0; path=/`;
   ga("sign_up");
+}
+
+/** Report a returning sign-in the auth flow flagged, once, with its method
+ *  (google | github | email). Same hand-off and consent rule as sign-up: the
+ *  click itself is lost to the redirect, so the server leaves the flag. */
+export function consumeLoginFlag(): void {
+  if (typeof document === "undefined") return;
+  const m = document.cookie.match(
+    new RegExp(`(?:^|; )${LOGIN_FLAG_COOKIE}=(google|github|email)(?:;|$)`),
+  );
+  if (!m) return;
+  document.cookie = `${LOGIN_FLAG_COOKIE}=; Max-Age=0; path=/`;
+  ga("login", { method: m[1] });
+}
+
+// ---------------------------------------------------------------------------
+// Learning progress. PostHog already records each of these server-side
+// (lesson_started, stage_advanced, course_completed, exam_submitted), so they
+// go to GA only, under the same names.
+// ---------------------------------------------------------------------------
+
+/** First enrollment in a course (not a re-open; see enroll()'s `created`). */
+export function trackLessonStarted(projectId: string): void {
+  ga("lesson_started", { project_id: projectId });
+}
+
+/** A stage cleared. `toStage === "REVISION"` is the course finished, which is
+ *  also reported as its own event so it can be a key event on its own. */
+export function trackStageAdvanced(p: {
+  projectId: string;
+  fromStage: string;
+  toStage: string;
+}): void {
+  ga("stage_advanced", { project_id: p.projectId, from_stage: p.fromStage, to_stage: p.toStage });
+  if (p.toStage === "REVISION") ga("course_completed", { project_id: p.projectId });
+}
+
+/** A final exam scored. Numbers only. */
+export function trackExamSubmitted(p: {
+  projectId: string;
+  passed: boolean;
+  score: number;
+  total: number;
+}): void {
+  ga("exam_submitted", {
+    project_id: p.projectId,
+    passed: p.passed ? "yes" : "no",
+    score: p.score,
+    total: p.total,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Sharing and downloads. New to both tools.
+// ---------------------------------------------------------------------------
+
+/** GA's recommended `share`. Never the URL: a certificate link is the name. */
+export function trackShare(p: {
+  method: "native" | "copy_link" | "copy_code";
+  contentType: "certificate" | "certificate_verify";
+  itemId?: string;
+}): void {
+  fire("share", {
+    method: p.method,
+    content_type: p.contentType,
+    ...(p.itemId && { item_id: p.itemId }),
+  });
+}
+
+/** A download GA's automatic tracking cannot see: a blob, a presigned URL, or
+ *  a link with no (or an unlisted) file extension. Same event name and params
+ *  as GA's own, so the reports merge. The link is scrubbed. */
+export function trackFileDownload(p: {
+  fileName: string;
+  fileExtension: string;
+  linkUrl?: string;
+}): void {
+  fire("file_download", {
+    file_name: p.fileName,
+    file_extension: p.fileExtension,
+    ...(p.linkUrl && { link_url: sanitizeUrl(p.linkUrl) }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Leads, onboarding, interest.
+// ---------------------------------------------------------------------------
+
+/** /start's goal survey. The goal is one of a fixed set of keys. PostHog has
+ *  onboarding_goal_selected server-side, so GA only. */
+export function trackOnboardingGoal(goal: string): void {
+  ga("onboarding_goal_selected", { goal });
+}
+
+/** The marketing-email checkbox changed. A boolean only, never the address. */
+export function trackEmailOptIn(optedIn: boolean): void {
+  fire("email_opt_in", { opted_in: optedIn ? "yes" : "no" });
+}
+
+/** "I want this made" on a molded part. PostHog has hex_part_interest server-side. */
+export function trackHexPartInterest(stem: string): void {
+  ga("hex_part_interest", { stem });
+}
+
+// ---------------------------------------------------------------------------
+// Engagement extras.
+// ---------------------------------------------------------------------------
+
+/** Rank-up, from the one place every celebration passes through (Fanfare).
+ *  GA's recommended name; PostHog has level_up server-side. */
+export function trackLevelUp(levelName: string): void {
+  ga("level_up", { level_name: levelName });
+}
+
+/** A patch earned, same place. GA's recommended name; PostHog has patch_earned. */
+export function trackAchievement(achievementId: string): void {
+  ga("unlock_achievement", { achievement_id: achievementId });
+}
+
+const usedTools = new Set<string>();
+/** First input on a calculator, once per tool per page load. */
+export function trackToolUsed(tool: string): void {
+  if (usedTools.has(tool)) return;
+  usedTools.add(tool);
+  fire("tool_used", { tool });
+}
+
+/** Feedback sent. The page reference only; never the text. GA only, since
+ *  PostHog has feedback_submitted server-side. */
+export function trackFeedbackSent(pageRef: string): void {
+  ga("feedback_submitted", { page_ref: pageRef });
+}
+
+/** A lesson video started. GA's own name; its automatic video tracking cannot
+ *  see a youtube-nocookie iframe without the JS API, or a plain <video>. */
+export function trackVideoStart(p: { provider: "youtube" | "self"; videoId?: string }): void {
+  fire("video_start", { video_provider: p.provider, ...(p.videoId && { video_id: p.videoId }) });
 }

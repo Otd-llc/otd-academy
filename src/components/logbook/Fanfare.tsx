@@ -19,6 +19,7 @@ import { RankWing } from "./RankWing";
 import { PatchBadge } from "./Patch";
 import { LEVELS } from "@/lib/logbook/economy";
 import type { PatchArt } from "@/lib/logbook/patches";
+import { trackAchievement, trackLevelUp } from "@/lib/analytics-client";
 
 // `art` (patch) / the level derived from `label` (level) drive the emblem; both are
 // optional so existing callers keep working. "xp" is a plain XP-gain banner (used by
@@ -107,6 +108,9 @@ function Banner({ item, onDone }: { item: FanfareItem; onDone: () => void }) {
 export function FanfareProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<FanfareItem[]>([]);
   const fire = useCallback((f: FanfareInput) => {
+    // Every rank-up and patch passes through here, from any surface.
+    if (f.kind === "level") trackLevelUp(f.label);
+    else if (f.kind === "patch") trackAchievement(f.label);
     setItems((prev) => [
       ...prev.slice(-2), // cap the stack (banners are full width)
       { ...f, id: Date.now() + Math.random() },

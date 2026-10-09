@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { trackVideoStart } from "@/lib/analytics-client";
 
 // Privacy-enhanced, click-to-load YouTube facade. Until the learner clicks, we
 // render only the static thumbnail (one image request) — no youtube.com JS — so
@@ -34,7 +35,10 @@ export function YouTubeEmbed({
       ) : (
         <button
           type="button"
-          onClick={() => setActive(true)}
+          onClick={() => {
+            setActive(true);
+            trackVideoStart({ provider: "youtube", videoId });
+          }}
           className="group absolute inset-0 flex h-full w-full items-center justify-center"
           aria-label={`Play video: ${title}`}
         >
