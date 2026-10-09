@@ -38,7 +38,8 @@ import {
 } from "@/lib/og/card";
 import { OG, SIZE } from "@/lib/og/tokens";
 
-export const runtime = "nodejs";
+// Node.js, which this card needs to read from disk, is the default runtime. Next 16.3
+// rejects an explicit `runtime` segment config under cacheComponents, so none is set.
 export const size = SIZE;
 export const contentType = "image/png";
 export const alt =

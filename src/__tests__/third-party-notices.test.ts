@@ -75,9 +75,9 @@ describe("third-party notices", () => {
     expect(COPYLEFT_ALLOW.map((a) => `${a.name}@${a.version}`)).toEqual([
       "jszip@3.10.1",
       "occt-import-js@0.0.23",
-      "@img/sharp-linux-x64@0.34.5",
-      "@img/sharp-libvips-linux-x64@1.2.4",
-      "@img/sharp-win32-x64@0.34.5",
+      "@img/sharp-linux-x64@0.35.5",
+      "@img/sharp-libvips-linux-x64@1.3.4",
+      "@img/sharp-win32-x64@0.35.5",
     ]);
     for (const a of COPYLEFT_ALLOW) {
       expect(a.reason.length).toBeGreaterThan(60);
