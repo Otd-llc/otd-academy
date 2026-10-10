@@ -56,13 +56,25 @@ const SOMETIMES = [
   "bins",
   "ports",
   "binBolts",
+  "footprints",
+  "drawers",
+  "fused",
+  "capsTall",
 ];
+const SCALARS = ["legHeightMm", "footBoltMm"];
 
 function inGrammar(v: unknown): boolean {
   if (typeof v !== "object" || v === null || Array.isArray(v)) return false;
   const o = v as Record<string, unknown>;
   for (const k of Object.keys(o)) {
-    if (!ALWAYS.includes(k) && !SOMETIMES.includes(k)) return false;
+    if (!ALWAYS.includes(k) && !SOMETIMES.includes(k) && !SCALARS.includes(k))
+      return false;
+  }
+  for (const k of SCALARS) {
+    if (!(k in o)) continue;
+    const n = o[k];
+    if (typeof n !== "number" || !Number.isFinite(n)) return false;
+    if (Math.abs(n) > 1_000_000) return false;
   }
   for (const k of ALWAYS) if (!Array.isArray(o[k])) return false;
   for (const k of SOMETIMES) {
@@ -141,8 +153,8 @@ function assertSafe(input: unknown, where: string): ReturnType<typeof decodeV2St
 // ── The configurator's own links ────────────────────────────────────────────
 
 describe("decodeV2State opens every frozen configurator link", () => {
-  it("has the whole corpus (21 builds)", () => {
-    expect(FROZEN_V2_PAYLOADS.length).toBe(21);
+  it("has the whole corpus (25 builds)", () => {
+    expect(FROZEN_V2_PAYLOADS.length).toBe(25);
   });
   for (const b of FROZEN_V2_PAYLOADS) {
     it(b.name, () => {
@@ -218,6 +230,28 @@ describe("decodeV2State refuses", () => {
     ]) {
       expect(decodeV2State(env({ ...ONE_PIECE_STATE, covers: bad }))).toBeNull();
       expect(decodeV2State(env({ ...ONE_PIECE_STATE, bins: bad }))).toBeNull();
+    }
+  });
+
+  it("a build-wide number that is not a finite number inside the bound", () => {
+    for (const bad of ["230", true, [230], { mm: 230 }, 1_000_001, -1_000_001]) {
+      expect(decodeV2State(env({ ...ONE_PIECE_STATE, legHeightMm: bad }))).toBeNull();
+      expect(decodeV2State(env({ ...ONE_PIECE_STATE, footBoltMm: bad }))).toBeNull();
+    }
+    // JSON has no Infinity, but 1e999 parses to it.
+    const inf = JSON.stringify({ v: 1, s: ONE_PIECE_STATE }).replace(/}}$/, ',"footBoltMm":1e999}}');
+    expect(decodeV2State(v2sFromJson(inf))).toBeNull();
+    // CONTROL: the same build with a real bolt length decodes, and keeps it.
+    expect(decodeV2State(env({ ...ONE_PIECE_STATE, footBoltMm: 20 }))).toEqual({
+      ...ONE_PIECE_STATE,
+      footBoltMm: 20,
+    });
+  });
+
+  it("items in the later families, held to the same checks as every other", () => {
+    for (const k of ["footprints", "drawers", "fused", "capsTall"]) {
+      expect(decodeV2State(env({ ...ONE_PIECE_STATE, [k]: ["has space"] }))).toBeNull();
+      expect(decodeV2State(env({ ...ONE_PIECE_STATE, [k]: [1] }))).toBeNull();
     }
   });
 
@@ -385,6 +419,10 @@ function randomJson(rnd: () => number, depth: number): unknown {
 
 function randomState(rnd: () => number): Record<string, unknown> {
   const s: Record<string, unknown> = {};
+  for (const k of SCALARS) {
+    if (rnd() < 0.5) continue;
+    s[k] = rnd() < 0.7 ? Math.floor(rnd() * 400) : randomJson(rnd, 1);
+  }
   for (const k of [...ALWAYS, ...SOMETIMES, "extra"]) {
     if (rnd() < 0.3) continue;
     s[k] = rnd() < 0.8 ? Array.from({ length: Math.floor(rnd() * 3) }, () => randomJson(rnd, 2)) : randomJson(rnd, 2);
@@ -393,7 +431,7 @@ function randomState(rnd: () => number): Record<string, unknown> {
 }
 
 function mutateState(rnd: () => number, s: Record<string, unknown>): void {
-  const k = pick(rnd, [...ALWAYS, ...SOMETIMES]);
+  const k = pick(rnd, [...ALWAYS, ...SOMETIMES, ...SCALARS]);
   const list = s[k];
   const op = rnd();
   if (op < 0.2) {
