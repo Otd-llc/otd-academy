@@ -62,21 +62,103 @@ describe("the generated support data", () => {
     );
   });
 
-  it("carries the 2026-10-01 slice: 5 support, 3 brim, none both", () => {
+  it("carries the 2026-10-10 slice: 75 support, 13 brim, none both", () => {
     // Pinned by content, so a regenerated file that moves a part in or out of
     // either list shows up as this test failing, not as a quiet diff.
-    // The COUNTS are the slice's: 297 sliced, 3 flagged for a brim. The ROWS are
+    // The COUNTS are the slice's: 716 sliced, 13 flagged for a brim. The ROWS are
     // released parts only, and the two PVC stubs are withheld (cut pipe, owner
-    // 2026-09-28), so one brim row remains.
-    expect(HEX_SUPPORT_COUNTS).toEqual({ parts: 297, support: 5, brim: 3, both: 0 });
+    // 2026-09-28), so eleven brim rows remain. (2026-10-01: 297 sliced, 5
+    // support, 3 brim; the 2026-10-10 cut added the drawers, tall parts and
+    // socket caps, and every 2026-10-01 flag is still flagged.)
+    expect(HEX_SUPPORT_COUNTS).toEqual({ parts: 716, support: 75, brim: 13, both: 0 });
     expect(HEX_SUPPORT_ROWS.filter((r) => r.support).map((r) => r.slug)).toEqual([
       "25mm-ins-trinity-handle",
       "25mm-ins-zip",
+      "hex-cap-edge-socket-bolt-f",
+      "hex-cap-edge-socket-bolt-f-x2",
+      "hex-cap-edge-socket-bolt-m",
+      "hex-cap-edge-socket-bolt-m-x2",
+      "hex-drawer-body-n",
+      "hex-drawer-body-n-x2",
+      "hex-drawer-body-n-x3",
+      "hex-drawer-body-s",
+      "hex-drawer-body-s-x2",
+      "hex-drawer-body-s-x3",
+      "hex-drawer-long-plate-e",
+      "hex-drawer-long-plate-e-x2",
+      "hex-drawer-long-plate-e-x3",
+      "hex-drawer-long-plate-w",
+      "hex-drawer-long-plate-w-x2",
+      "hex-drawer-long-plate-w-x3",
+      "hex-drawer-long-tub-e-n",
+      "hex-drawer-long-tub-e-n-x2",
+      "hex-drawer-long-tub-e-n-x3",
+      "hex-drawer-long-tub-e-s",
+      "hex-drawer-long-tub-e-s-x2",
+      "hex-drawer-long-tub-e-s-x3",
+      "hex-drawer-long-tub-n-e",
+      "hex-drawer-long-tub-n-e-x2",
+      "hex-drawer-long-tub-n-e-x3",
+      "hex-drawer-long-tub-n-w",
+      "hex-drawer-long-tub-n-w-x2",
+      "hex-drawer-long-tub-n-w-x3",
+      "hex-drawer-long-tub-s-e",
+      "hex-drawer-long-tub-s-e-x2",
+      "hex-drawer-long-tub-s-e-x3",
+      "hex-drawer-long-tub-s-w",
+      "hex-drawer-long-tub-s-w-x2",
+      "hex-drawer-long-tub-s-w-x3",
+      "hex-drawer-long-tub-w-n",
+      "hex-drawer-long-tub-w-n-x2",
+      "hex-drawer-long-tub-w-n-x3",
+      "hex-drawer-long-tub-w-s",
+      "hex-drawer-long-tub-w-s-x2",
+      "hex-drawer-long-tub-w-s-x3",
+      "hex-drawer-slide-plate-e",
+      "hex-drawer-slide-plate-e-x2",
+      "hex-drawer-slide-plate-e-x3",
+      "hex-drawer-slide-plate-w",
+      "hex-drawer-slide-plate-w-x2",
+      "hex-drawer-slide-plate-w-x3",
+      "hex-drawer-slide-tub-e-n",
+      "hex-drawer-slide-tub-e-n-x2",
+      "hex-drawer-slide-tub-e-n-x3",
+      "hex-drawer-slide-tub-e-s",
+      "hex-drawer-slide-tub-e-s-x2",
+      "hex-drawer-slide-tub-e-s-x3",
+      "hex-drawer-slide-tub-n",
+      "hex-drawer-slide-tub-n-x2",
+      "hex-drawer-slide-tub-n-x3",
+      "hex-drawer-slide-tub-s",
+      "hex-drawer-slide-tub-s-x2",
+      "hex-drawer-slide-tub-s-x3",
+      "hex-drawer-slide-tub-w-n",
+      "hex-drawer-slide-tub-w-n-x2",
+      "hex-drawer-slide-tub-w-n-x3",
+      "hex-drawer-slide-tub-w-s",
+      "hex-drawer-slide-tub-w-s-x2",
+      "hex-drawer-slide-tub-w-s-x3",
       "hex-half-w",
+      "hex-half-w-x2",
+      "hex-half-w-x3",
       "hex-quarter-nw",
+      "hex-quarter-nw-x2",
+      "hex-quarter-nw-x3",
       "hex-quarter-sw",
+      "hex-quarter-sw-x2",
+      "hex-quarter-sw-x3",
     ]);
     expect(HEX_SUPPORT_ROWS.filter((r) => r.brim).map((r) => r.slug)).toEqual([
+      "hex-drawer-long-plate-s-x3",
+      "hex-drawer-runner-n",
+      "hex-drawer-runner-n-x2",
+      "hex-drawer-runner-n-x3",
+      "hex-drawer-runner-s",
+      "hex-drawer-runner-s-x2",
+      "hex-drawer-runner-s-x3",
+      "hex-drawer-slide-plate-n-x3",
+      "hex-drawer-slide-plate-s-x2",
+      "hex-drawer-slide-plate-s-x3",
       "hex-spike-stud",
     ]);
   });

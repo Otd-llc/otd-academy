@@ -66,11 +66,19 @@ describe("the bed height in a pack request", () => {
 });
 
 describe("the parts taller than the bed", () => {
+  // ONE PART PER DISTINCT PRINTED HEIGHT. Since release 2026-10-10 the
+  // three-storey parts share the top heights, so the six tallest PARTS can all
+  // stand equally tall and nothing is taller than the sixth. Distinct heights
+  // keep the bed between them (the configurator's bed-z.test.ts, the same fix).
+  const DISTINCT = BY_HEIGHT.filter(
+    (s, i) => i === 0 || HEX_PART_BOX[s].dz !== HEX_PART_BOX[BY_HEIGHT[i - 1]].dz,
+  );
+
   it("are exactly those whose PRINTED height exceeds it, tallest first", () => {
-    const parts = BY_HEIGHT.slice(0, 12).map((slug) => ({ slug, qty: 1 }));
-    const z = HEX_PART_BOX[BY_HEIGHT[5]].dz;
+    const parts = DISTINCT.slice(0, 12).map((slug) => ({ slug, qty: 1 }));
+    const z = HEX_PART_BOX[DISTINCT[5]].dz;
     const taller = partsTallerThan(parts, z);
-    expect(taller.length).toBeGreaterThan(0);
+    expect(taller.length).toBe(5);
     for (const t of taller) expect(t.heightMm).toBeGreaterThan(z);
     for (const p of parts) {
       const named = taller.some((t) => t.slug === p.slug);

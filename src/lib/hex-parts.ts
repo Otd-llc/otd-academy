@@ -102,6 +102,9 @@ export const HEX_DISPLAY_FAMILY_OF: Readonly<
   cap: "cap",
   collar: "insert",
   cover: "insert",
+  // A drawer bolts onto a cell's cut face (release 2026-10-10), so it reads as
+  // fitted to the cell, as the configurator's bill counts it.
+  drawer: "insert",
   insert: "insert",
   jig: "accessory",
   join: "insert",
