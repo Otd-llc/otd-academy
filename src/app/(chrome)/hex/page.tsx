@@ -34,20 +34,25 @@ import { HEX_CONFIGURATOR_URL } from "@/lib/hex-spec";
 import {
   HEX_V2_APOTHEM_MM,
   HEX_V2_BED_MIN_MM,
+  HEX_V2_BED_MIN_Z_MM,
+  HEX_V2_BED_TEXT,
   HEX_V2_FEMALE_BEARINGS,
   HEX_V2_FIRST_BUILD,
   HEX_V2_JIGS,
   HEX_V2_JOINT_DEPTH_MM,
-  HEX_V2_LARGEST_PART_MM,
+  HEX_V2_LARGEST_PART,
   HEX_V2_MAIN_BBOX_MM,
   HEX_V2_MALE_BEARINGS,
   HEX_V2_PITCH_MM,
   HEX_V2_PRINT_PROFILE,
   HEX_V2_REFERENCE_PRINTS,
   HEX_V2_RELEASE,
+  HEX_V2_RELEASE_CHANGES,
+  HEX_V2_RELEASE_NOTES,
   HEX_V2_SET,
   HEX_V2_SLICERS,
   HEX_V2_SPOOL_GRAMS,
+  HEX_V2_TALLEST_PART,
   HEX_V2_SUPPORT_EMAIL,
   HEX_V2_SUPPORT_REPLY_HOURS,
   HEX_V2_TOL_MM,
@@ -327,7 +332,7 @@ export default function HexPage() {
                   { label: "Material", value: "PETG" },
                   {
                     label: "Bed",
-                    value: `≥ ${HEX_V2_BED_MIN_MM} × ${HEX_V2_BED_MIN_MM} mm`,
+                    value: `≥ ${HEX_V2_BED_TEXT}`,
                   },
                 ].map((m) => (
                   <div
@@ -490,12 +495,16 @@ export default function HexPage() {
             <Section title="Print profile">
               <SpecRows rows={HEX_V2_PRINT_PROFILE} />
               <Note>
-                The largest part, a half base, is{" "}
-                {HEX_V2_LARGEST_PART_MM.x.toFixed(2)} ×{" "}
-                {HEX_V2_LARGEST_PART_MM.y.toFixed(2)} mm, and every part prints
-                one to a plate. It needs a bed of at least {HEX_V2_BED_MIN_MM} ×{" "}
-                {HEX_V2_BED_MIN_MM} mm; a 180 mm bed such as the Prusa Mini will
-                not take it.
+                The part that reaches furthest across the bed,{" "}
+                <Code>{HEX_V2_LARGEST_PART.slug}</Code>, is{" "}
+                {HEX_V2_LARGEST_PART.long.toFixed(2)} ×{" "}
+                {HEX_V2_LARGEST_PART.short.toFixed(2)} mm, and the tallest,{" "}
+                <Code>{HEX_V2_TALLEST_PART.slug}</Code> and the other
+                three-storey parts, stand {HEX_V2_TALLEST_PART.dz.toFixed(2)} mm.
+                So the release needs a bed of at least {HEX_V2_BED_MIN_MM} ×{" "}
+                {HEX_V2_BED_MIN_MM} mm that builds {HEX_V2_BED_MIN_Z_MM} mm tall;
+                a 180 mm bed such as the Prusa Mini will not take it. A pack
+                download shares a plate between parts that fit together.
               </Note>
 
               <h3 className="mt-9 font-mono text-[10px] uppercase tracking-[0.24em] text-command-gold">
@@ -630,22 +639,27 @@ export default function HexPage() {
             </Section>
 
             <Section id="release-notes" title="Release notes">
-              {/* The first public v2 release, so there is no earlier v2 print
-                  to mate with and nothing to diff against. The count is read
-                  from the release tables, never typed. */}
+              {/* The second v2 release. The rows and the changed parts are
+                  data (`HEX_V2_RELEASE_NOTES`), measured from hex-cluster's
+                  gate reports; the count is read from the release tables. */}
               <SpecRows
                 rows={[
-                  { label: "Release", value: HEX_V2_RELEASE },
+                  ...HEX_V2_RELEASE_NOTES.slice(0, 1),
                   { label: "Parts", value: String(HEX_PART_SLUGS.length) },
-                  {
-                    label: "Mates with earlier v2 prints",
-                    value: "First v2 release",
-                  },
+                  ...HEX_V2_RELEASE_NOTES.slice(1),
                 ]}
               />
               <p className="mt-4 max-w-xl font-serif text-base leading-relaxed text-text">
-                The first public release of Hex Cluster v2.
+                New since {HEX_V2_RELEASE_NOTES[1].value}: drawers at one to
+                three storeys, tall bases, bins and bolt-on bins, the socket
+                cover and socket edge caps, and more. Two parts you may already
+                have printed changed:
               </p>
+              <ul className="mt-3 ml-5 max-w-xl list-disc space-y-1.5 font-serif text-base leading-relaxed text-text marker:text-command-gold">
+                {HEX_V2_RELEASE_CHANGES.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
             </Section>
 
             <Section id="attribution" title="License and attribution">

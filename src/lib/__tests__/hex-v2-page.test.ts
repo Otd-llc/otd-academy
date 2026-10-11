@@ -12,13 +12,23 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { DEFAULT_BED_Z } from "@/lib/hex-pack";
+import { PLATE_GAP } from "@/lib/hex-plate";
+import { HEX_V2_EARLIER_RELEASES } from "@/lib/printable-releases";
+import { HEX_PART_BOX } from "@/lib/hex-release-tables";
 import {
+  HEX_V2_BED_MIN_MM,
+  HEX_V2_BED_MIN_Z_MM,
   HEX_V2_FEMALE_BEARINGS,
   HEX_V2_JIGS,
   HEX_V2_MALE_BEARINGS,
   HEX_V2_PITCH_MM,
+  HEX_V2_LARGEST_PART,
   HEX_V2_PRINT_PROFILE,
+  HEX_V2_RELEASE_CHANGES,
+  HEX_V2_RELEASE_NOTES,
   HEX_V2_SET,
+  HEX_V2_TALLEST_PART,
   HEX_V2_SLICERS,
   firstBuildTotals,
   hoursMinutes,
@@ -58,7 +68,7 @@ describe("v2 print profile (decision 1.4)", () => {
     expect(row("Layer height")).toBe("0.20 mm");
     expect(row("Walls")).toBe("4");
     expect(row("Infill")).toBe("30% adaptive cubic");
-    expect(row("Bed")).toBe("220 × 220 mm");
+    expect(row("Bed")).toBe("220 × 220 × 241 mm");
   });
 
   it("names the four slicers and nothing else", () => {
@@ -68,6 +78,64 @@ describe("v2 print profile (decision 1.4)", () => {
       "PrusaSlicer",
       "Cura",
     ]);
+  });
+});
+
+// Alpha walk, 2026-10-11: the page still described release 2026-10-01. It
+// named a half base as the largest part when the drawer's long plates and the
+// tolerance ladder are bigger, said every part prints one to a plate when a pack
+// shares plates between small parts, and gave the bed no height when the
+// three-storey parts stand 240 mm tall. These read the release tables, so the
+// next release cannot leave the page behind the same way.
+describe("the bed the release needs", () => {
+  const boxes = Object.entries(HEX_PART_BOX);
+  const long = (b: { dx: number; dy: number }) => Math.max(b.dx, b.dy);
+
+  it("names the part longest on the bed, from the release tables", () => {
+    const most = Math.max(...boxes.map(([, b]) => long(b)));
+    expect(HEX_V2_LARGEST_PART.long).toBe(most);
+    expect(long(HEX_PART_BOX[HEX_V2_LARGEST_PART.slug])).toBe(most);
+    // it is not the half base any more
+    expect(HEX_V2_LARGEST_PART.slug).not.toMatch(/^hex-half-/);
+  });
+
+  it("names the tallest part, and the bed height clears it", () => {
+    const most = Math.max(...boxes.map(([, b]) => b.dz));
+    expect(HEX_V2_TALLEST_PART.dz).toBe(most);
+    expect(HEX_PART_BOX[HEX_V2_TALLEST_PART.slug].dz).toBe(most);
+    expect(HEX_V2_BED_MIN_Z_MM).toBeGreaterThanOrEqual(most);
+    expect(HEX_V2_BED_MIN_Z_MM - most).toBeLessThan(1);
+    // a bed nobody set a height for is not warned about a part that fits
+    expect(HEX_V2_BED_MIN_Z_MM).toBeLessThanOrEqual(DEFAULT_BED_Z);
+  });
+
+  it("fits every part on the stated bed with the packer's gap", () => {
+    for (const [slug, b] of boxes) {
+      expect(b.dx + 2 * PLATE_GAP, slug).toBeLessThanOrEqual(HEX_V2_BED_MIN_MM);
+      expect(b.dy + 2 * PLATE_GAP, slug).toBeLessThanOrEqual(HEX_V2_BED_MIN_MM);
+    }
+  });
+
+  it("states the bed with its height wherever the page states the bed", () => {
+    expect(PAGE).not.toMatch(/one to a\s+plate/);
+    expect(PAGE).toMatch(/HEX_V2_BED_MIN_Z_MM/);
+  });
+});
+
+describe("the release notes", () => {
+  it("name the earlier v2 release instead of calling this one the first", () => {
+    expect(PAGE).not.toMatch(/First v2 release/);
+    expect(PAGE).not.toMatch(/The first public release of Hex Cluster v2/);
+    const earlier = HEX_V2_RELEASE_NOTES.find((r) => r.label === "Earlier v2 release");
+    expect(earlier?.value).toBe(HEX_V2_EARLIER_RELEASES.join(", "));
+  });
+
+  it("answer whether earlier prints mate, and name the parts that changed", () => {
+    const mates = HEX_V2_RELEASE_NOTES.find((r) => r.label === "Mates with earlier v2 prints");
+    expect(mates?.value).toBe("Yes");
+    expect(HEX_V2_RELEASE_CHANGES.join(" ")).toMatch(/hex-half-w/);
+    expect(HEX_V2_RELEASE_CHANGES.join(" ")).toMatch(/female edge caps/);
+    expect(PAGE).toMatch(/HEX_V2_RELEASE_CHANGES/);
   });
 });
 
