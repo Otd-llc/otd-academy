@@ -50,7 +50,7 @@
 // imports the same two constants from its own bed module, so across the repos
 // the bounds are shared by VALUE, not by module -- which is exactly why the
 // RECEIVER validates rather than trusting the sender's range.
-import { BED_FLOOR_MM, BED_MAX, type Bed } from "@/lib/hex-pack";
+import { BED_FLOOR_MM, BED_MAX, BED_Z_MAX, BED_Z_MIN, type Bed } from "@/lib/hex-pack";
 
 export type { Bed };
 
@@ -123,6 +123,16 @@ export type Ready = {
    *  condition is settled at the database where it is actually knowable. */
   bed?: Bed;
   /**
+   * The bed's HEIGHT (Z), mm, beside the bed rather than inside it: `Bed` is
+   * exactly two keys and `isBed` refuses a third, so an older peer that sees
+   * this field simply never reads it, while a bed carrying a `z` would have
+   * been refused whole. Optional everywhere it appears; present-and-malformed
+   * refuses the message, as a malformed bed does. It lays nothing out -- the
+   * packer is X-Y only -- it decides which parts a download warns are taller
+   * than the printer (owner, 2026-10-08: "Warn").
+   */
+  bedZ?: number;
+  /**
    * The visitor's c15t `measurement` decision ON THE PARENT, when the parent
    * knows it. Owner decision 1.14: an embedded configurator shows no banner of
    * its own -- the academy already asked -- so this is the only way an
@@ -179,6 +189,16 @@ export type SetBed = {
   protocolVersion: number;
   type: "set-bed";
   bed: Bed;
+  /**
+   * The bed's HEIGHT (Z), mm, beside the bed rather than inside it: `Bed` is
+   * exactly two keys and `isBed` refuses a third, so an older peer that sees
+   * this field simply never reads it, while a bed carrying a `z` would have
+   * been refused whole. Optional everywhere it appears; present-and-malformed
+   * refuses the message, as a malformed bed does. It lays nothing out -- the
+   * packer is X-Y only -- it decides which parts a download warns are taller
+   * than the printer (owner, 2026-10-08: "Warn").
+   */
+  bedZ?: number;
 };
 
 /**
@@ -198,6 +218,16 @@ export type BedChanged = {
   protocolVersion: number;
   type: "bed-changed";
   bed: Bed;
+  /**
+   * The bed's HEIGHT (Z), mm, beside the bed rather than inside it: `Bed` is
+   * exactly two keys and `isBed` refuses a third, so an older peer that sees
+   * this field simply never reads it, while a bed carrying a `z` would have
+   * been refused whole. Optional everywhere it appears; present-and-malformed
+   * refuses the message, as a malformed bed does. It lays nothing out -- the
+   * packer is X-Y only -- it decides which parts a download warns are taller
+   * than the printer (owner, 2026-10-08: "Warn").
+   */
+  bedZ?: number;
 };
 
 /**
@@ -238,6 +268,16 @@ export type PromoteBed = {
   protocolVersion: number;
   type: "promote-bed";
   bed: Bed;
+  /**
+   * The bed's HEIGHT (Z), mm, beside the bed rather than inside it: `Bed` is
+   * exactly two keys and `isBed` refuses a third, so an older peer that sees
+   * this field simply never reads it, while a bed carrying a `z` would have
+   * been refused whole. Optional everywhere it appears; present-and-malformed
+   * refuses the message, as a malformed bed does. It lays nothing out -- the
+   * packer is X-Y only -- it decides which parts a download warns are taller
+   * than the printer (owner, 2026-10-08: "Warn").
+   */
+  bedZ?: number;
 };
 
 export type SaveRequest = {
@@ -399,6 +439,13 @@ function isBed(v: unknown): v is Bed {
   return true;
 }
 
+/** A bed height on the wire: one integer inside the pack endpoint's `bedz=`
+ *  grammar, `BED_Z_MIN..BED_Z_MAX`. No floor, because a short printer is warned
+ *  for, not refused. */
+function isBedZ(v: unknown): v is number {
+  return typeof v === "number" && Number.isInteger(v) && v >= BED_Z_MIN && v <= BED_Z_MAX;
+}
+
 /**
  * Narrow an untrusted `event.data`, or return null.
  *
@@ -423,6 +470,7 @@ export function parseMessage(data: unknown): HexMessage | null {
       // other one -- an older child never looks at the field at all.
       if (!isStr(d.parentOrigin) || !isTheme(d.theme)) return null;
       if (d.bed !== undefined && !isBed(d.bed)) return null;
+      if (d.bedZ !== undefined && !isBedZ(d.bedZ)) return null;
       // Same rule as the bed: present-and-malformed refuses the handshake.
       if (d.analyticsConsent !== undefined && typeof d.analyticsConsent !== "boolean") {
         return null;
@@ -443,7 +491,8 @@ export function parseMessage(data: unknown): HexMessage | null {
       // than a `bed-changed` would be a second, weaker door into the same two
       // columns. What differs between them is what the RECEIVER does with the
       // parsed message, which is decided by `type` and stays decided by `type`.
-      return isBed(d.bed)
+      // The height is optional on all three; present-and-malformed refuses.
+      return isBed(d.bed) && (d.bedZ === undefined || isBedZ(d.bedZ))
         ? (d as unknown as SetBed | BedChanged | PromoteBed)
         : null;
     case "save-request": {

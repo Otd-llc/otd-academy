@@ -19,7 +19,28 @@
 import { revalidatePath } from "next/cache";
 import { currentUserId, requireUser } from "@/lib/auth-helpers";
 import { db } from "@/lib/db";
-import { bedFromColumns, normalizeBed, type Bed, type StoredBed } from "@/lib/print-bed";
+import {
+  bedFromColumns,
+  normalizeBed,
+  normalizeBedZ,
+  type Bed,
+  type StoredBed,
+  type StoredBedZ,
+} from "@/lib/print-bed";
+
+/**
+ * Read a height off the wire: `undefined` leaves the column alone, `null` clears
+ * it, and anything else must be a height or the call THROWS, for the reason an
+ * invalid bed throws. Three answers, so a caller that predates the height -- it
+ * sends a bed and nothing else -- changes nothing it does not know about.
+ */
+function readBedZ(raw: unknown): { write: false } | { write: true; z: StoredBedZ } {
+  if (raw === undefined) return { write: false };
+  if (raw === null) return { write: true, z: null };
+  const z = normalizeBedZ(raw);
+  if (z === null) throw new Error("That is not a bed height we can check against.");
+  return { write: true, z };
+}
 
 /**
  * Store a print bed, or clear it.
@@ -35,16 +56,23 @@ import { bedFromColumns, normalizeBed, type Bed, type StoredBed } from "@/lib/pr
  * silently clamping would write a number the user never chose, and silently
  * returning would report success for a value that was never stored.
  */
-export async function setPrintBed(bed: StoredBed): Promise<{ bed: StoredBed }> {
+export async function setPrintBed(
+  bed: StoredBed,
+  /** The bed's height: absent leaves it, null clears it (`readBedZ`). */
+  bedZ?: StoredBedZ,
+): Promise<{ bed: StoredBed }> {
   const user = await requireUser();
 
   // Explicit null check before validating: `normalizeBed(undefined, undefined)`
   // and a genuine clear both produce null, and conflating them would let a
   // malformed argument erase a stored bed instead of being refused.
+  //
+  // A CLEAR TAKES THE HEIGHT WITH IT. "No stored choice" is the whole bed, and
+  // a height left behind would be a printer the account no longer describes.
   if (bed === null) {
     await db.user.update({
       where: { id: user.id },
-      data: { printBedXMm: null, printBedYMm: null },
+      data: { printBedXMm: null, printBedYMm: null, printBedZMm: null },
     });
     revalidatePath("/account");
     return { bed: null };
@@ -55,13 +83,35 @@ export async function setPrintBed(bed: StoredBed): Promise<{ bed: StoredBed }> {
   const raw = bed as { x?: unknown; y?: unknown } | null | undefined;
   const next = normalizeBed(raw?.x, raw?.y);
   if (!next) throw new Error("That is not a bed size we can lay out for.");
+  const z = readBedZ(bedZ);
 
   await db.user.update({
     where: { id: user.id },
-    data: { printBedXMm: next.x, printBedYMm: next.y },
+    data: {
+      printBedXMm: next.x,
+      printBedYMm: next.y,
+      ...(z.write ? { printBedZMm: z.z } : {}),
+    },
   });
   revalidatePath("/account");
   return { bed: next };
+}
+
+/**
+ * Store the bed's height alone, or clear it (`null`).
+ *
+ * ITS OWN ACTION, because the height is its own setting: a visitor can know
+ * their printer builds 245 mm tall and have no reason to store a bed size, and
+ * forcing one would write a bed they never chose. Throws on anything else, for
+ * the reason `setPrintBed` throws.
+ */
+export async function setPrintBedZ(bedZ: StoredBedZ): Promise<{ bedZ: StoredBedZ }> {
+  const user = await requireUser();
+  const z = readBedZ(bedZ === undefined ? null : bedZ);
+  const next = z.write ? z.z : null;
+  await db.user.update({ where: { id: user.id }, data: { printBedZMm: next } });
+  revalidatePath("/account");
+  return { bedZ: next };
 }
 
 /**
@@ -104,6 +154,9 @@ export async function setPrintBed(bed: StoredBed): Promise<{ bed: StoredBed }> {
  */
 export async function promotePrintBed(
   bed: Bed,
+  /** The local height, promoted on the SAME condition as the bed: only into an
+   *  account that holds no bed. A null here is refused, as a null bed is. */
+  bedZ?: number,
 ): Promise<{ promoted: boolean; bed: StoredBed }> {
   const user = await requireUser();
 
@@ -112,10 +165,20 @@ export async function promotePrintBed(
   const raw = bed as { x?: unknown; y?: unknown } | null | undefined;
   const next = normalizeBed(raw?.x, raw?.y);
   if (!next) throw new Error("That is not a bed size we can lay out for.");
+  let z: number | undefined;
+  if (bedZ !== undefined) {
+    const nz = normalizeBedZ(bedZ);
+    if (nz === null) throw new Error("That is not a bed height we can check against.");
+    z = nz;
+  }
 
   const { count } = await db.user.updateMany({
     where: { id: user.id, printBedXMm: null, printBedYMm: null },
-    data: { printBedXMm: next.x, printBedYMm: next.y },
+    data: {
+      printBedXMm: next.x,
+      printBedYMm: next.y,
+      ...(z === undefined ? {} : { printBedZMm: z }),
+    },
   });
 
   if (count > 0) {
@@ -140,12 +203,15 @@ export async function promotePrintBed(
  *  null too, not a throw: /hex calls this on every load to DISCOVER whether an
  *  account is there, so anonymous is the ordinary case. A throw there logged a
  *  500 for every anonymous visitor (seen in the launch abort watch). */
-export async function getPrintBed(): Promise<{ bed: StoredBed }> {
-  if (!(await currentUserId())) return { bed: null };
+export async function getPrintBed(): Promise<{ bed: StoredBed; bedZ: StoredBedZ }> {
+  if (!(await currentUserId())) return { bed: null, bedZ: null };
   const user = await requireUser();
-  const { printBedXMm: x, printBedYMm: y } = user;
-  if (x == null || y == null) return { bed: null };
+  const { printBedXMm: x, printBedYMm: y, printBedZMm: z } = user;
+  // The height is ITS OWN answer: an account can hold one with no bed
+  // (`setPrintBedZ`), and hiding it behind a missing bed would drop it.
+  const bedZ = z == null ? null : normalizeBedZ(z);
+  if (x == null || y == null) return { bed: null, bedZ };
   // Normalised on the way OUT as well as in. A row predating this validator, or
   // written by a script, must not hand the packer a bed it would reject.
-  return { bed: normalizeBed(x, y) };
+  return { bed: normalizeBed(x, y), bedZ };
 }

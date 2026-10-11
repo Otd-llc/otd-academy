@@ -11,7 +11,15 @@
 // prevents is a bed the settings page happily saves and the endpoint then
 // refuses: the account would hold a value that silently produces a 400 on every
 // download, and nothing on either side would say why.
-import { BED_FLOOR_MM, BED_MAX, DEFAULT_BED, type Bed } from "@/lib/hex-pack";
+import {
+  BED_FLOOR_MM,
+  BED_MAX,
+  BED_Z_MAX,
+  BED_Z_MIN,
+  DEFAULT_BED,
+  DEFAULT_BED_Z,
+  type Bed,
+} from "@/lib/hex-pack";
 
 export type { Bed };
 
@@ -42,6 +50,33 @@ export const FALLBACK_BED: Bed = { ...DEFAULT_BED };
  *  grammar's `BED_MIN`. A stored bed under the floor would be a saved setting
  *  that 400s every download (owner decision 1.5: 220 x 220, 180 dropped). */
 export { BED_FLOOR_MM, BED_MAX };
+
+/** What the account holds for the bed's HEIGHT: millimetres, or null for "not
+ *  set", which reads as `DEFAULT_BED_Z`. Its own column and its own null, not a
+ *  third axis of `Bed`: the height lays nothing out (the packer is X-Y only), it
+ *  only decides which parts a download warns are taller than the printer
+ *  (owner, 2026-10-08: "Warn"). */
+export type StoredBedZ = number | null;
+
+/** The height used when nothing is stored: 250 mm, the owner's pick, which
+ *  clears every part we ship. */
+export const FALLBACK_BED_Z = DEFAULT_BED_Z;
+
+export { BED_Z_MIN, BED_Z_MAX };
+
+/** Coerce an untrusted height into one, or null. The same rules `normalizeBed`
+ *  keeps, for the same reasons: a number, an integer, inside the grammar the
+ *  pack endpoint reads `bedz=` with. No floor: a short printer is warned for,
+ *  not refused. */
+export function normalizeBedZ(z: unknown): number | null {
+  if (typeof z !== "number" || !Number.isInteger(z)) return null;
+  return z < BED_Z_MIN || z > BED_Z_MAX ? null : z;
+}
+
+/** How a height is spelled for a person: `250 mm`. */
+export function formatBedZ(z: number): string {
+  return `${z} mm`;
+}
 
 /**
  * Coerce an untrusted pair into a bed, or null if it is not one.

@@ -106,15 +106,33 @@ export const V2_OPTIONAL_STRING_FAMILIES = [
   "bins",
   "ports",
   "binBolts",
+  // The configurator's later families, each written in an array of its own
+  // after every family before it and absent while empty: footprints
+  // (2026-10-03), drawers (2026-10-05), and double bases and two-storey caps
+  // (2026-10-07). Until these were listed a save carrying one still decoded,
+  // because unknown keys are dropped, but its items skipped the item budget
+  // and the character check every other family is held to.
+  "footprints",
+  "drawers",
+  "fused",
+  "capsTall",
 ] as const;
+/** Build-wide numbers, present ONLY when the configurator wrote one: the
+ *  feet's bolt length (2026-10-09), and the leg height (2026-10-03), which a
+ *  link written before legs were retired still carries. A finite number inside
+ *  the coordinate bound, or the payload is refused. */
+export const V2_OPTIONAL_SCALARS = ["legHeightMm", "footBoltMm"] as const;
 
 type CoreFamily = (typeof V2_CORE_STRING_FAMILIES)[number];
 type OptionalFamily = (typeof V2_OPTIONAL_STRING_FAMILIES)[number];
+type OptionalScalar = (typeof V2_OPTIONAL_SCALARS)[number];
 
 export type V2ClusterState = {
   pieces: V2Piece[];
   snaps: V2Piece[];
-} & { [K in CoreFamily]: string[] } & { [K in OptionalFamily]?: string[] };
+} & { [K in CoreFamily]: string[] } & { [K in OptionalFamily]?: string[] } & {
+  [K in OptionalScalar]?: number;
+};
 
 const VARIANT_SET: ReadonlySet<string> = new Set(V2_VARIANTS);
 const BODY_RE = /^[A-Za-z0-9_-]+$/;
@@ -218,6 +236,13 @@ export function decodeV2State(payload: unknown): V2ClusterState | null {
       if (s[k] == null) continue;
       const list = readStrings(s[k], budget);
       if (list.length) out[k] = list;
+    }
+    for (const k of V2_OPTIONAL_SCALARS) {
+      const v = s[k];
+      if (v == null) continue;
+      if (typeof v !== "number" || !Number.isFinite(v)) throw new Refuse();
+      if (Math.abs(v) > MAX_V2_COORD) throw new Refuse();
+      out[k] = v;
     }
     return out;
   } catch {
