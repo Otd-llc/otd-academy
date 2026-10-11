@@ -11,7 +11,7 @@
 // nor a brim. 716 parts sliced: 75 support, 13 brim, 0 both.
 
 /** Content hash of this file. See the header. */
-export const HEX_SUPPORT_DATA_HASH = "51e16aa68bfaff3ec118a3ada424b7297ae238f48fa4d3e786f87b0d57ea8cb1";
+export const HEX_SUPPORT_DATA_HASH = "1fe6fcf53274726edff5f34160f335e57cb2aa5a0527863d6941f15e3d7559c0";
 
 /** Where the rows came from. */
 export const HEX_SUPPORT_SOURCE = {
@@ -19,7 +19,7 @@ export const HEX_SUPPORT_SOURCE = {
   release: "2026-10-10",
   file: "support-data-2026-10-10.json",
   /** sha256 of the input, LF line endings. */
-  sha256: "9ca687b2a3decb2fc8b424c0283e8897fc04b782829a69eb5b348897097cc473",
+  sha256: "abb4cc95bc2fff9d720404a54cbd5715236efbf2fb0ac672404e972291db0a6d",
   slicerWarnings: "build/slicer-warnings-2026-10-10.json",
   slicerWarningsSha256: "a1ed8cfde33530c451cab003fe991e5e657fbe726aea3b917a409f1f434a0f37",
   slicer: "Creality Print 7.2.1.5476",

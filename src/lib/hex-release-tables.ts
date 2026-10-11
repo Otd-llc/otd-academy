@@ -26,11 +26,11 @@ import type { PartBox } from "@/lib/hex-plate";
 export const HEX_TABLES_RELEASE = "2026-10-10";
 
 /** Content hash of this file. See the header. */
-export const HEX_RELEASE_TABLES_HASH = "9a8aad7e83698c8652e1e498b474de86c290f763f0c956dc9e53d131e7947dbf";
+export const HEX_RELEASE_TABLES_HASH = "98627503ff7a865ec67df85be0e1d75e607afade64f9126ffd96411d0176f959";
 
 /** sha256 of the two inputs this file was generated from. */
 export const HEX_TABLES_SOURCE = {
-  manifestSha256: "c01ecff3a404061e7daf893babc3ed626e35f1d362c7b9871e1e613fab82320c",
+  manifestSha256: "12fc14c9eadfd12f88df46777ef7da03774138fe90f2bc6c9f9412326c2b18a7",
   licenceSha256: "a6d5cc77b63fa72d1e5222faa795558391a8939292f51c95c7cb96d575b65320",
 } as const;
 
