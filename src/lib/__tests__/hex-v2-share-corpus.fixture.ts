@@ -882,5 +882,51 @@ export const FROZEN_V2_PAYLOADS: readonly FrozenV2Build[] = [
         "0,0,0;full"
       ]
     }
+  },
+  {
+    "name": "jointBolts",
+    "v2s": "v2s=jY5BDsIgEEXv8tliAnHH0msYFwSnKUqGCpRNU89u2pTqwkQ3kzfJmz9_QoXREhlmwuDJUYY5T3jAKIm0zkCVwkrVJm-5wKAbQ8AsP0T9Xext6A78v5qbqn-_v0hktsPSeMHB32ljFyulxrvhOVMq29Jbvoa3z0yuxHaTRm7k8550i57LKYY1AkooqYUbyzNDQgktlTjiMs8v",
+    "v2u": "v2u=%7B%22v%22%3A1%2C%22s%22%3A%7B%22pieces%22%3A%5B%7B%22q%22%3A0%2C%22r%22%3A0%2C%22level%22%3A0%2C%22variant%22%3A%22full%22%7D%2C%7B%22q%22%3A0%2C%22r%22%3A1%2C%22level%22%3A0%2C%22variant%22%3A%22half-n%22%7D%2C%7B%22q%22%3A0%2C%22r%22%3A1%2C%22level%22%3A0%2C%22variant%22%3A%22half-s%22%7D%2C%7B%22q%22%3A1%2C%22r%22%3A0%2C%22level%22%3A0%2C%22variant%22%3A%22full%22%7D%5D%2C%22snaps%22%3A%5B%5D%2C%22spikes%22%3A%5B%5D%2C%22covers%22%3A%5B%5D%2C%22caps%22%3A%5B%5D%2C%22inserts%22%3A%5B%5D%2C%22handles%22%3A%5B%5D%2C%22connectors%22%3A%5B%5D%2C%22runs%22%3A%5B%5D%2C%22risers%22%3A%5B%5D%2C%22jointBolts%22%3A%5B%220%230%2C1%23cut~s%22%2C%220%231%2C0%233%22%5D%7D%7D",
+    "state": {
+      "pieces": [
+        {
+          "q": 0,
+          "r": 0,
+          "level": 0,
+          "variant": "full"
+        },
+        {
+          "q": 0,
+          "r": 1,
+          "level": 0,
+          "variant": "half-n"
+        },
+        {
+          "q": 0,
+          "r": 1,
+          "level": 0,
+          "variant": "half-s"
+        },
+        {
+          "q": 1,
+          "r": 0,
+          "level": 0,
+          "variant": "full"
+        }
+      ],
+      "snaps": [],
+      "spikes": [],
+      "covers": [],
+      "caps": [],
+      "inserts": [],
+      "handles": [],
+      "connectors": [],
+      "runs": [],
+      "risers": [],
+      "jointBolts": [
+        "0#0,1#cut~s",
+        "0#1,0#3"
+      ]
+    }
   }
 ];
