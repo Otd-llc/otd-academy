@@ -333,6 +333,16 @@ describe("one URL per pack: anything else is a 307 to it", () => {
     expect(getBytes).not.toHaveBeenCalled();
   });
 
+  it("serves the canonical query with its separators percent-encoded", async () => {
+    // Production hands the route `,` and `:` as %2C and %3A (2026-10-11: every
+    // multi-part pack and every quantity over one 307'd to itself forever).
+    const res = await callRaw(
+      `release=${RELEASE}&parts=hex-cap-edge-1h-f%2Chex-main%3A2&plate=256x256` +
+        "&name=My%20Build&bedFrom=unknown",
+    );
+    expect(res.status).toBe(200);
+  });
+
   it("CONTROL: the canonical query itself is served, not redirected", async () => {
     const res = await callRaw(
       `release=${RELEASE}&parts=hex-cap-edge-1h-f,hex-main:2&plate=256x256` +

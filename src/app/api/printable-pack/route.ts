@@ -306,7 +306,17 @@ export async function GET(req: NextRequest) {
   // lifetime is safe. 307 for launch week (a 308 is cached by browsers for
   // good). The Location carries no host, so a Host header cannot steer it.
   const canon = canonicalPackQuery(request);
-  if (req.nextUrl.search !== `?${canon}`) {
+  // THE TWO SEPARATORS ARRIVE ENCODED IN PRODUCTION. The canonical query writes
+  // the parts list with a literal `,` between parts and `:` before a quantity,
+  // but on the deployed route a request spelled exactly that way was still
+  // answered with a 307 to itself, forever: measured 2026-10-11, every pack of
+  // two or more parts and every quantity over one, while a single part was
+  // served. Both the literal and the %2C / %3A spelling looped, so the search
+  // seen here carries them encoded. Fold just those two back before comparing.
+  // Nothing else is decoded: `+` against `%20` in a name is still a different
+  // spelling and still redirected, which keeps one CDN entry per pack.
+  const seen = req.nextUrl.search.replace(/%2C/gi, ",").replace(/%3A/gi, ":");
+  if (seen !== `?${canon}`) {
     return new Response(null, {
       status: 307,
       headers: {
