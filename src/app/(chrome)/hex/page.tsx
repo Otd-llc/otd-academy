@@ -286,7 +286,7 @@ export default function HexPage() {
           </div>
 
           <div>
-            <Heading>Licence</Heading>
+            <Heading>License</Heading>
             <p className="mt-4 font-serif text-base leading-relaxed text-text">
               {HEX_LICENSE.name}. Use it commercially, remix it, sell what you
               print. Just credit us,{" "}

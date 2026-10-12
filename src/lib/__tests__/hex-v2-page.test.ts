@@ -122,6 +122,13 @@ describe("the bed the release needs", () => {
   });
 });
 
+describe("the spelling (owner, 2026-10-11: US 'License' everywhere)", () => {
+  it("heads the license section the US way", () => {
+    expect(PAGE).not.toMatch(/<Heading>Licence<\/Heading>/);
+    expect(PAGE).toMatch(/<Heading>License<\/Heading>/);
+  });
+});
+
 describe("the release notes", () => {
   it("name the earlier v2 release instead of calling this one the first", () => {
     expect(PAGE).not.toMatch(/First v2 release/);
