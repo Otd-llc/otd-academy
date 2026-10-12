@@ -23,15 +23,15 @@
 import type { PartBox } from "@/lib/hex-plate";
 
 /** The release these tables describe. The generator's INPUT (4.2). */
-export const HEX_TABLES_RELEASE = "2026-10-10";
+export const HEX_TABLES_RELEASE = "2026-10-12";
 
 /** Content hash of this file. See the header. */
-export const HEX_RELEASE_TABLES_HASH = "98627503ff7a865ec67df85be0e1d75e607afade64f9126ffd96411d0176f959";
+export const HEX_RELEASE_TABLES_HASH = "0084999d30a0667c3a60cddcc7cf9aab140392f900f9e1fb4cc7bd773c929b0c";
 
 /** sha256 of the two inputs this file was generated from. */
 export const HEX_TABLES_SOURCE = {
-  manifestSha256: "12fc14c9eadfd12f88df46777ef7da03774138fe90f2bc6c9f9412326c2b18a7",
-  licenceSha256: "a6d5cc77b63fa72d1e5222faa795558391a8939292f51c95c7cb96d575b65320",
+  manifestSha256: "494b6147c71ba802c9921b5b500cf34fa40ac21834a4749a81182543421d0ce8",
+  licenceSha256: "2c4dfd5c8576455db2aaaddac9cfbc59e77bcc4447c920a4e6e1c1e8a4209d30",
 } as const;
 
 /** Decision 1.5: the smallest bed a pack is built for, in mm, both axes. */
@@ -1491,7 +1491,7 @@ export const HEX_PART_FAMILY: Readonly<Record<string, HexReleaseFamily>> = {
 export const HEX_RELEASE_FILES = {
   set: {
     members: 708,
-    contentBytes: 65802411,
+    contentBytes: 65818568,
     label: "65.8 MB",
   },
 } as const;

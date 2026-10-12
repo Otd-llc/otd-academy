@@ -47,7 +47,7 @@ import {
   HEX_V2_PRINT_PROFILE,
   HEX_V2_REFERENCE_PRINTS,
   HEX_V2_RELEASE,
-  HEX_V2_RELEASE_CHANGES,
+  HEX_V2_RELEASE_HISTORY,
   HEX_V2_RELEASE_NOTES,
   HEX_V2_SET,
   HEX_V2_SLICERS,
@@ -639,9 +639,10 @@ export default function HexPage() {
             </Section>
 
             <Section id="release-notes" title="Release notes">
-              {/* The second v2 release. The rows and the changed parts are
-                  data (`HEX_V2_RELEASE_NOTES`), measured from hex-cluster's
-                  gate reports; the count is read from the release tables. */}
+              {/* The rows and each release's changed parts are data
+                  (`HEX_V2_RELEASE_NOTES`, `HEX_V2_RELEASE_HISTORY`), measured
+                  from hex-cluster's gate reports; the count is read from the
+                  release tables. */}
               <SpecRows
                 rows={[
                   ...HEX_V2_RELEASE_NOTES.slice(0, 1),
@@ -649,17 +650,19 @@ export default function HexPage() {
                   ...HEX_V2_RELEASE_NOTES.slice(1),
                 ]}
               />
-              <p className="mt-4 max-w-xl font-serif text-base leading-relaxed text-text">
-                New since {HEX_V2_RELEASE_NOTES[1].value}: drawers at one to
-                three storeys, tall bases, bins and bolt-on bins, the socket
-                cover and socket edge caps, and more. Two parts you may already
-                have printed changed:
-              </p>
-              <ul className="mt-3 ml-5 max-w-xl list-disc space-y-1.5 font-serif text-base leading-relaxed text-text marker:text-command-gold">
-                {HEX_V2_RELEASE_CHANGES.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
+              {HEX_V2_RELEASE_HISTORY.map((r) => (
+                <div key={r.release}>
+                  <p className="mt-4 max-w-xl font-serif text-base leading-relaxed text-text">
+                    <strong>{r.release}:</strong> {r.news} Changed parts you
+                    may already have printed:
+                  </p>
+                  <ul className="mt-3 ml-5 max-w-xl list-disc space-y-1.5 font-serif text-base leading-relaxed text-text marker:text-command-gold">
+                    {r.changed.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </Section>
 
             <Section id="attribution" title="License and attribution">

@@ -20,15 +20,15 @@ import { slug } from "@/lib/r2";
 describe("the v2 support data", () => {
   it("is MEASURED, from the generated slice", () => {
     expect(HEX_SUPPORT_DATA.state).toBe("measured");
-    expect(HEX_SUPPORT_DATA.source).toBe("support-data-2026-10-10.json");
+    expect(HEX_SUPPORT_DATA.source).toBe("support-data-2026-10-12.json");
     expect(HEX_SUPPORT_DATA.rows.map((r) => r.slug)).toEqual(
       HEX_SUPPORT_ROWS.map((r) => r.slug),
     );
   });
 
   it("gives each listed part its own two flags and its own note", () => {
-    // The rows' CONTENT is pinned in hex-support-data.test.ts (86 since
-    // 2026-10-10); here, that every surface reads them unchanged.
+    // The rows' CONTENT is pinned in hex-support-data.test.ts (77 since
+    // 2026-10-12); here, that every surface reads them unchanged.
     expect(Object.keys(PART_REMEDY).sort()).toEqual(
       HEX_SUPPORT_ROWS.map((r) => r.slug).sort(),
     );
@@ -38,9 +38,12 @@ describe("the v2 support data", () => {
     // The six the first release flagged, unchanged, and one of each new kind.
     expect(PART_REMEDY["25mm-ins-trinity-handle"]).toEqual({ support: true, brim: false });
     expect(PART_REMEDY["25mm-ins-zip"]).toEqual({ support: true, brim: false });
-    expect(PART_REMEDY["hex-half-w"]).toEqual({ support: true, brim: false });
-    expect(PART_REMEDY["hex-quarter-nw"]).toEqual({ support: true, brim: false });
-    expect(PART_REMEDY["hex-quarter-sw"]).toEqual({ support: true, brim: false });
+    // The three the first release flagged for the cut wall's ledge, filled in
+    // 2026-10-12: no remedy at any height.
+    for (const s of ["hex-half-w", "hex-quarter-nw", "hex-quarter-sw"]) {
+      for (const h of ["", "-x2", "-x3"]) expect(PART_REMEDY[s + h], s + h).toBeUndefined();
+    }
+    expect(PART_REMEDY["hex-cap-edge-socket-bolt-f"]).toEqual({ support: true, brim: false });
     expect(PART_REMEDY["hex-spike-stud"]).toEqual({ support: false, brim: true });
     expect(PART_REMEDY["hex-drawer-body-n"]).toEqual({ support: true, brim: false });
     expect(PART_REMEDY["hex-drawer-runner-s"]).toEqual({ support: false, brim: true });
@@ -50,7 +53,8 @@ describe("the v2 support data", () => {
 
   it("answers needsSupport from the same set, brim-only parts included", () => {
     expect(needsSupport(["hex-main"])).toBe(false);
-    expect(needsSupport(["hex-main", "hex-half-w"])).toBe(true);
+    expect(needsSupport(["hex-main", "hex-cap-edge-socket-bolt-f"])).toBe(true);
+    expect(needsSupport(["hex-main", "hex-half-w"])).toBe(false);
     // A brim rides in the plate as a per-object setting; the README beside it
     // is what says so, so a brim-only part still pulls the plate into an archive.
     expect(needsSupport(["hex-spike-stud"])).toBe(true);
@@ -73,6 +77,6 @@ describe("the v2 support data", () => {
     // silently never fire.
     const live = new Set<string>(HEX_PART_SLUGS);
     for (const s of NEEDS_SUPPORT_SLUGS) expect(live.has(s), s).toBe(true);
-    expect(NEEDS_SUPPORT_NAMES).toHaveLength(86);
+    expect(NEEDS_SUPPORT_NAMES).toHaveLength(77);
   });
 });

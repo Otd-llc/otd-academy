@@ -20,7 +20,7 @@ import { HEX_TABLES_RELEASE } from "@/lib/hex-release-tables";
  *  list did not exist: the set named only the tables' own release, so cutting
  *  2026-10-10 would have quietly turned every 2026-10-01 link into a 404. Packs
  *  are different: the pack route plans with the current tables only. */
-export const HEX_V2_EARLIER_RELEASES = ["2026-10-01"] as const;
+export const HEX_V2_EARLIER_RELEASES = ["2026-10-01", "2026-10-10"] as const;
 
 export const PUBLISHED_RELEASES: ReadonlySet<string> = new Set<string>([
   ...HEX_PUBLISHED_RECORD_RELEASES,
@@ -28,8 +28,9 @@ export const PUBLISHED_RELEASES: ReadonlySet<string> = new Set<string>([
   // THE CURRENT v2 RELEASE. Named through the generated tables, so the route
   // serves exactly the release the tables, the plate plan and the byte budget
   // describe. 2026-10-01 was uploaded and SHA-verified (875 objects) before it
-  // was listed here (10.4, owner's go-ahead 2026-09-28); 2026-10-10 was
-  // uploaded and verified the same way before its tables landed.
+  // was listed here (10.4, owner's go-ahead 2026-09-28); 2026-10-10 and
+  // 2026-10-12 were uploaded and verified the same way before their tables
+  // landed.
   HEX_TABLES_RELEASE,
 ]);
 
