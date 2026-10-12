@@ -60,6 +60,7 @@ const SOMETIMES = [
   "drawers",
   "fused",
   "capsTall",
+  "jointBolts",
 ];
 const SCALARS = ["legHeightMm", "footBoltMm"];
 
@@ -153,8 +154,8 @@ function assertSafe(input: unknown, where: string): ReturnType<typeof decodeV2St
 // ── The configurator's own links ────────────────────────────────────────────
 
 describe("decodeV2State opens every frozen configurator link", () => {
-  it("has the whole corpus (25 builds)", () => {
-    expect(FROZEN_V2_PAYLOADS.length).toBe(25);
+  it("has the whole corpus (26 builds)", () => {
+    expect(FROZEN_V2_PAYLOADS.length).toBe(26);
   });
   for (const b of FROZEN_V2_PAYLOADS) {
     it(b.name, () => {
@@ -249,7 +250,7 @@ describe("decodeV2State refuses", () => {
   });
 
   it("items in the later families, held to the same checks as every other", () => {
-    for (const k of ["footprints", "drawers", "fused", "capsTall"]) {
+    for (const k of ["footprints", "drawers", "fused", "capsTall", "jointBolts"]) {
       expect(decodeV2State(env({ ...ONE_PIECE_STATE, [k]: ["has space"] }))).toBeNull();
       expect(decodeV2State(env({ ...ONE_PIECE_STATE, [k]: [1] }))).toBeNull();
     }
