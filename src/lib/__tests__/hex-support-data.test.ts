@@ -62,7 +62,7 @@ describe("the generated support data", () => {
     );
   });
 
-  it("carries the 2026-10-12 slice: 66 support, 13 brim, none both", () => {
+  it("carries the 2026-10-12 slice, as the owner cleared it: 4 support, 13 brim", () => {
     // Pinned by content, so a regenerated file that moves a part in or out of
     // either list shows up as this test failing, not as a quiet diff.
     // The COUNTS are the slice's: 716 sliced, 13 flagged for a brim. The ROWS are
@@ -72,75 +72,17 @@ describe("the generated support data", () => {
     // socket caps, and every 2026-10-01 flag was still flagged. 2026-10-12
     // filled the ledge under the thickened cut wall: hex-half-w, hex-quarter-nw
     // and hex-quarter-sw at one to three storeys left the list, and nothing
-    // joined it.)
-    expect(HEX_SUPPORT_COUNTS).toEqual({ parts: 716, support: 66, brim: 13, both: 0 });
+    // joined it.) Then the OWNER CLEARED 62 of the 66 the slicer still flags
+    // (2026-10-12, "Mark them anyway", not yet test-printed): every drawer body,
+    // tub and plate, the trinity handle and the zip insert -- bridges and
+    // channel roofs. Only the four socket bolt caps, printed face down by the
+    // owner's rule, keep support.
+    expect(HEX_SUPPORT_COUNTS).toEqual({ parts: 716, support: 4, brim: 13, both: 0 });
     expect(HEX_SUPPORT_ROWS.filter((r) => r.support).map((r) => r.slug)).toEqual([
-      "25mm-ins-trinity-handle",
-      "25mm-ins-zip",
       "hex-cap-edge-socket-bolt-f",
       "hex-cap-edge-socket-bolt-f-x2",
       "hex-cap-edge-socket-bolt-m",
       "hex-cap-edge-socket-bolt-m-x2",
-      "hex-drawer-body-n",
-      "hex-drawer-body-n-x2",
-      "hex-drawer-body-n-x3",
-      "hex-drawer-body-s",
-      "hex-drawer-body-s-x2",
-      "hex-drawer-body-s-x3",
-      "hex-drawer-long-plate-e",
-      "hex-drawer-long-plate-e-x2",
-      "hex-drawer-long-plate-e-x3",
-      "hex-drawer-long-plate-w",
-      "hex-drawer-long-plate-w-x2",
-      "hex-drawer-long-plate-w-x3",
-      "hex-drawer-long-tub-e-n",
-      "hex-drawer-long-tub-e-n-x2",
-      "hex-drawer-long-tub-e-n-x3",
-      "hex-drawer-long-tub-e-s",
-      "hex-drawer-long-tub-e-s-x2",
-      "hex-drawer-long-tub-e-s-x3",
-      "hex-drawer-long-tub-n-e",
-      "hex-drawer-long-tub-n-e-x2",
-      "hex-drawer-long-tub-n-e-x3",
-      "hex-drawer-long-tub-n-w",
-      "hex-drawer-long-tub-n-w-x2",
-      "hex-drawer-long-tub-n-w-x3",
-      "hex-drawer-long-tub-s-e",
-      "hex-drawer-long-tub-s-e-x2",
-      "hex-drawer-long-tub-s-e-x3",
-      "hex-drawer-long-tub-s-w",
-      "hex-drawer-long-tub-s-w-x2",
-      "hex-drawer-long-tub-s-w-x3",
-      "hex-drawer-long-tub-w-n",
-      "hex-drawer-long-tub-w-n-x2",
-      "hex-drawer-long-tub-w-n-x3",
-      "hex-drawer-long-tub-w-s",
-      "hex-drawer-long-tub-w-s-x2",
-      "hex-drawer-long-tub-w-s-x3",
-      "hex-drawer-slide-plate-e",
-      "hex-drawer-slide-plate-e-x2",
-      "hex-drawer-slide-plate-e-x3",
-      "hex-drawer-slide-plate-w",
-      "hex-drawer-slide-plate-w-x2",
-      "hex-drawer-slide-plate-w-x3",
-      "hex-drawer-slide-tub-e-n",
-      "hex-drawer-slide-tub-e-n-x2",
-      "hex-drawer-slide-tub-e-n-x3",
-      "hex-drawer-slide-tub-e-s",
-      "hex-drawer-slide-tub-e-s-x2",
-      "hex-drawer-slide-tub-e-s-x3",
-      "hex-drawer-slide-tub-n",
-      "hex-drawer-slide-tub-n-x2",
-      "hex-drawer-slide-tub-n-x3",
-      "hex-drawer-slide-tub-s",
-      "hex-drawer-slide-tub-s-x2",
-      "hex-drawer-slide-tub-s-x3",
-      "hex-drawer-slide-tub-w-n",
-      "hex-drawer-slide-tub-w-n-x2",
-      "hex-drawer-slide-tub-w-n-x3",
-      "hex-drawer-slide-tub-w-s",
-      "hex-drawer-slide-tub-w-s-x2",
-      "hex-drawer-slide-tub-w-s-x3",
     ]);
     expect(HEX_SUPPORT_ROWS.filter((r) => r.brim).map((r) => r.slug)).toEqual([
       "hex-drawer-long-plate-s-x3",
