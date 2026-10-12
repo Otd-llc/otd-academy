@@ -91,6 +91,15 @@ describe("packReadme -- the loose-file zip", () => {
     specUrl: SPEC_URL,
   };
 
+  it("never says the slicer passed a part the owner cleared", () => {
+    // hex-drawer-body-n: the slicer flags its 19 mm bridge; the owner cleared it
+    // for printing without support (2026-10-12). Its box says no remedy is
+    // needed, and does not claim a slicer verdict it did not get.
+    const out = packReadme({ ...base, parts: [{ slug: "hex-drawer-body-n", qty: 1 }] });
+    expect(out).toContain(NONE);
+    expect(flat(out)).not.toMatch(/checked in a slicer|none of them needs/i);
+  });
+
   it("carries the credit -- a pack is a redistribution of a CC BY work", () => {
     // The one condition of the licence is that the attribution travels with the
     // files. Shipping a subset without it would be us breaking the terms we ask
