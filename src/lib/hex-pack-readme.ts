@@ -187,13 +187,14 @@ function supportLines(
     ),
   ];
   if (present.length === 0) {
-    // MEASURED, not assumed: every released part went through the slicer's
-    // own checks for this release (`hex-support.ts`), and a part with no row
-    // raised nothing.
-    return [
-      "Supports and brim: none needed. Every part here was checked in a",
-      "slicer for this release and none of them needs either.",
-    ];
+    // NO ROW, NO REMEDY -- and nothing more is claimed. A part with no row
+    // either raised nothing in the slicer for this release or was cleared by
+    // the owner although it did (2026-10-12: the drawer bodies, tubs and
+    // plates, the trinity handle and the zip insert, whose flags are bridges
+    // and channel roofs; recorded in hex-cluster's support data). This used to
+    // say every part "was checked in a slicer ... and none of them needs
+    // either", which stopped being true for those the moment they were cleared.
+    return ["Supports and brim: none needed."];
   }
   const anySupport = present.some(([slug]) => PART_REMEDY[slug]?.support);
   return [
