@@ -27,17 +27,28 @@ describe("the v2 support data", () => {
   });
 
   it("gives each listed part its own two flags and its own note", () => {
-    // The rows' CONTENT is pinned in hex-support-data.test.ts (77 since
-    // 2026-10-12); here, that every surface reads them unchanged.
+    // The rows' CONTENT is pinned in hex-support-data.test.ts (15 since the
+    // owner cleared the bridges, 2026-10-12); here, that every surface reads
+    // them unchanged.
     expect(Object.keys(PART_REMEDY).sort()).toEqual(
       HEX_SUPPORT_ROWS.map((r) => r.slug).sort(),
     );
     for (const r of HEX_SUPPORT_ROWS) {
       expect(PART_REMEDY[r.slug], r.slug).toEqual({ support: r.support, brim: r.brim });
     }
-    // The six the first release flagged, unchanged, and one of each new kind.
-    expect(PART_REMEDY["25mm-ins-trinity-handle"]).toEqual({ support: true, brim: false });
-    expect(PART_REMEDY["25mm-ins-zip"]).toEqual({ support: true, brim: false });
+    // CLEARED BY THE OWNER (2026-10-12, not yet test-printed): the slicer still
+    // flags these, and they get no remedy -- one of each family.
+    for (const s of [
+      "25mm-ins-trinity-handle",
+      "25mm-ins-zip",
+      "hex-drawer-body-n",
+      "hex-drawer-long-tub-e-n",
+      "hex-drawer-long-plate-e",
+      "hex-drawer-slide-tub-w-s-x3",
+      "hex-drawer-slide-plate-e",
+    ]) {
+      expect(PART_REMEDY[s], s).toBeUndefined();
+    }
     // The three the first release flagged for the cut wall's ledge, filled in
     // 2026-10-12: no remedy at any height.
     for (const s of ["hex-half-w", "hex-quarter-nw", "hex-quarter-sw"]) {
@@ -45,7 +56,6 @@ describe("the v2 support data", () => {
     }
     expect(PART_REMEDY["hex-cap-edge-socket-bolt-f"]).toEqual({ support: true, brim: false });
     expect(PART_REMEDY["hex-spike-stud"]).toEqual({ support: false, brim: true });
-    expect(PART_REMEDY["hex-drawer-body-n"]).toEqual({ support: true, brim: false });
     expect(PART_REMEDY["hex-drawer-runner-s"]).toEqual({ support: false, brim: true });
     expect(PART_REMEDY["hex-main"]).toBeUndefined();
     for (const s of NEEDS_SUPPORT_SLUGS) expect(SUPPORT_NOTE[s], s).toBeTruthy();
@@ -77,6 +87,6 @@ describe("the v2 support data", () => {
     // silently never fire.
     const live = new Set<string>(HEX_PART_SLUGS);
     for (const s of NEEDS_SUPPORT_SLUGS) expect(live.has(s), s).toBe(true);
-    expect(NEEDS_SUPPORT_NAMES).toHaveLength(77);
+    expect(NEEDS_SUPPORT_NAMES).toHaveLength(15);
   });
 });
