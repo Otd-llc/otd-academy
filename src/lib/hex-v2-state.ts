@@ -116,6 +116,9 @@ export const V2_OPTIONAL_STRING_FAMILIES = [
   "drawers",
   "fused",
   "capsTall",
+  // Joint bolts (2026-10-11): four M6 through a wall two bases share, as
+  // `level#q,r#slot` keys on the head side. Same array rule.
+  "jointBolts",
 ] as const;
 /** Build-wide numbers, present ONLY when the configurator wrote one: the
  *  feet's bolt length (2026-10-09), and the leg height (2026-10-03), which a
