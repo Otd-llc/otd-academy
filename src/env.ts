@@ -109,13 +109,25 @@ export const env = createEnv({
     //     true; set to false to pause all lifecycle sends without un-scheduling the cron.
     LAUNCH_WINDOW_END: z.string().datetime().optional(),
     REACTIVATION_DAYS: z.coerce.number().int().positive().default(7),
-    LIFECYCLE_EMAIL_ENABLED: z.coerce.boolean().default(true),
+    // NOT `z.coerce.boolean()`. That is `Boolean(v)`, and `Boolean("false") === true`,
+    // so setting LIFECYCLE_EMAIL_ENABLED="false" ENABLED the cron — the documented
+    // emergency brake on marketing email to real users failed OPEN. `z.stringbool()`
+    // parses the STRING, so "false"/"0"/"no"/"off" all disable it.
+    //
+    // R2_ENABLED above still uses z.coerce.boolean() and has the same defect. It is
+    // deliberately NOT migrated here: 26 files read it and five CI env blocks set it to
+    // "false", so today CI runs with R2 effectively ON. Fixing the coercion flips that
+    // in one step across the whole suite — the change that previously killed 63 tests.
+    // It needs its own PR with the R2 job design re-verified. See ledger TD-020/TD-266.
+    LIFECYCLE_EMAIL_ENABLED: z.stringbool().default(true),
     //   WAITLIST_DOUBLE_OPT_IN — the three anonymous email captures start a new
     //     row unconfirmed and send one confirmation (plan P.5). Default true. Set
     //     false to fall back to single-step signup (rows confirm at creation, no
     //     mail). Read LIVE from process.env by waitlist-confirm.ts as well, so a
-    //     test can flip it; this entry validates the shape.
-    WAITLIST_DOUBLE_OPT_IN: z.coerce.boolean().default(true),
+    //     test can flip it; this entry validates the shape. `z.stringbool()` for the
+    //     same reason as LIFECYCLE_EMAIL_ENABLED: coerce would read "false" as true.
+    //     The live read (`doubleOptInEnabled`) already parses the string itself.
+    WAITLIST_DOUBLE_OPT_IN: z.stringbool().default(true),
     //   HEX_PART_WAITLIST_OPEN — "1" opens the molded-line waitlist form on
     //     /hex/molded (plan 1.2.2). Unset or anything else: the form is closed
     //     and the action refuses. Read LIVE from process.env by the action as
