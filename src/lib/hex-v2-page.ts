@@ -105,15 +105,23 @@ export const HEX_V2_PRINT_PROFILE: SpecRow[] = [
 ];
 
 /** RELEASE NOTES, against the earlier v2 release(s) the download route still
- *  serves. The mating answer is MEASURED, not assumed, from hex-cluster's two
- *  gate reports (docs/release-2026-10-01-gate-report.json and
- *  release-2026-10-10-gate-report.json, `sources`, SHA-256 of every input
- *  document): `hex-main.FCStd`, which carries the joint every base shares, is
- *  byte-identical across the two, and so are the halves and quarters but
+ *  serves. The mating answer is MEASURED, not assumed, from hex-cluster's
+ *  gate reports (docs/release-<id>-gate-report.json, `sources`, SHA-256 of
+ *  every input document): `hex-main.FCStd`, which carries the joint every base
+ *  shares, is byte-identical across all three.
+ *
+ *  2026-10-01 -> 2026-10-10: the halves and quarters are identical but
  *  hex-half-w. Of the parts both releases carry, two changed in a way a
  *  maker meets (hex-cluster ebc81bb, 407bd42): hex-half-w's nuts sink into its
  *  wall so a bolt-on still reaches one with a bin in it, and the female edge
- *  caps are bevelled at the foot to clear a bin rim in the cell below. */
+ *  caps are bevelled at the foot to clear a bin rim in the cell below.
+ *
+ *  2026-10-10 -> 2026-10-12: exactly nine of 716 sources differ, hex-half-w,
+ *  hex-quarter-nw, hex-quarter-sw and their x2/x3 (hex-cluster e5ff8be). Each
+ *  gains a 45-degree fill under the flat ledge the thickened cut wall left,
+ *  the slicer's "floating cantilever" on all nine, which now slice with none.
+ *  The fill sits inside the cut wall's rebate recess, clear of the seated
+ *  cover by 2.98 mm and the snaps by 1.38, so nothing that mates moved. */
 export const HEX_V2_RELEASE_NOTES: SpecRow[] = [
   { label: "Release", value: HEX_RELEASE },
   { label: "Earlier v2 release", value: HEX_V2_EARLIER_RELEASES.join(", ") },
@@ -124,11 +132,30 @@ export const HEX_V2_RELEASE_NOTES: SpecRow[] = [
   },
 ];
 
-/** The two changed parts, as the page tells a maker holding 2026-10-01 prints. */
-export const HEX_V2_RELEASE_CHANGES: string[] = [
-  "hex-half-w now sinks its nuts into its wall, so a bolt-on still reaches one with a bin in it. Reprint it if you bolt to a binned west half.",
-  "The female edge caps are bevelled at the foot to clear a bin rim in the cell below. Reprint them if a cap sits over a bin.",
+/** What each release brought, newest first, as the page tells a maker holding
+ *  earlier prints. `changed` is only parts an earlier release already carried. */
+export type HexV2ReleaseChange = { release: string; news: string; changed: string[] };
+
+export const HEX_V2_RELEASE_HISTORY: HexV2ReleaseChange[] = [
+  {
+    release: "2026-10-12",
+    news: "Nine parts no longer need supports.",
+    changed: [
+      "hex-half-w, hex-quarter-nw and hex-quarter-sw, at one to three storeys, have a 45° fill under the ledge inside the cut wall, so they print with no supports. They fit exactly as before: no need to reprint them.",
+    ],
+  },
+  {
+    release: "2026-10-10",
+    news: "Drawers at one to three storeys, tall bases, bins and bolt-on bins, the socket cover and socket edge caps, and more.",
+    changed: [
+      "hex-half-w now sinks its nuts into its wall, so a bolt-on still reaches one with a bin in it. Reprint it if you bolt to a binned west half.",
+      "The female edge caps are bevelled at the foot to clear a bin rim in the cell below. Reprint them if a cap sits over a bin.",
+    ],
+  },
 ];
+
+/** Every changed part, newest release first: what the page lists. */
+export const HEX_V2_RELEASE_CHANGES: string[] = HEX_V2_RELEASE_HISTORY.flatMap((r) => r.changed);
 
 /** The four slicers the page names (item 6.4). Order is the owner's. */
 export const HEX_V2_SLICERS = [

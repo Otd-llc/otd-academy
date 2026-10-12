@@ -62,15 +62,18 @@ describe("the generated support data", () => {
     );
   });
 
-  it("carries the 2026-10-10 slice: 75 support, 13 brim, none both", () => {
+  it("carries the 2026-10-12 slice: 66 support, 13 brim, none both", () => {
     // Pinned by content, so a regenerated file that moves a part in or out of
     // either list shows up as this test failing, not as a quiet diff.
     // The COUNTS are the slice's: 716 sliced, 13 flagged for a brim. The ROWS are
     // released parts only, and the two PVC stubs are withheld (cut pipe, owner
     // 2026-09-28), so eleven brim rows remain. (2026-10-01: 297 sliced, 5
     // support, 3 brim; the 2026-10-10 cut added the drawers, tall parts and
-    // socket caps, and every 2026-10-01 flag is still flagged.)
-    expect(HEX_SUPPORT_COUNTS).toEqual({ parts: 716, support: 75, brim: 13, both: 0 });
+    // socket caps, and every 2026-10-01 flag was still flagged. 2026-10-12
+    // filled the ledge under the thickened cut wall: hex-half-w, hex-quarter-nw
+    // and hex-quarter-sw at one to three storeys left the list, and nothing
+    // joined it.)
+    expect(HEX_SUPPORT_COUNTS).toEqual({ parts: 716, support: 66, brim: 13, both: 0 });
     expect(HEX_SUPPORT_ROWS.filter((r) => r.support).map((r) => r.slug)).toEqual([
       "25mm-ins-trinity-handle",
       "25mm-ins-zip",
@@ -138,15 +141,6 @@ describe("the generated support data", () => {
       "hex-drawer-slide-tub-w-s",
       "hex-drawer-slide-tub-w-s-x2",
       "hex-drawer-slide-tub-w-s-x3",
-      "hex-half-w",
-      "hex-half-w-x2",
-      "hex-half-w-x3",
-      "hex-quarter-nw",
-      "hex-quarter-nw-x2",
-      "hex-quarter-nw-x3",
-      "hex-quarter-sw",
-      "hex-quarter-sw-x2",
-      "hex-quarter-sw-x3",
     ]);
     expect(HEX_SUPPORT_ROWS.filter((r) => r.brim).map((r) => r.slug)).toEqual([
       "hex-drawer-long-plate-s-x3",

@@ -20,11 +20,11 @@ export type HexPartBytes = {
 export const HEX_PART_BYTES_PROVISIONAL: boolean = false;
 
 /** The release the sizes were measured from. */
-export const HEX_PART_BYTES_RELEASE: string | null = "2026-10-10";
+export const HEX_PART_BYTES_RELEASE: string | null = "2026-10-12";
 
 /** sha256 of the canonical text of `HEX_PART_BYTES` (see the header). */
 export const HEX_PART_BYTES_HASH =
-  "72df0a24fc21b35d04f62becb3da91dec09a369a197c1e275289aaa6db9f3f14";
+  "5609122c7ab6725ea8d6c62e27fb301f4bb70f2703b5c32f452217203cb0a057";
 
 export const HEX_PART_BYTES: Readonly<Record<string, HexPartBytes>> = {
   "25mm-ins": { "3mf": 58856, stl: 281884 },
@@ -660,7 +660,7 @@ export const HEX_PART_BYTES: Readonly<Record<string, HexPartBytes>> = {
   "hex-half-s-stack-collar": { "3mf": 22265, stl: 99984 },
   "hex-half-s-x2": { "3mf": 173843, stl: 933884 },
   "hex-half-s-x3": { "3mf": 234468, stl: 1294684 },
-  "hex-half-w": { "3mf": 107122, stl: 521384 },
+  "hex-half-w": { "3mf": 110833, stl: 522084 },
   "hex-half-w-cover": { "3mf": 188604, stl: 914484 },
   "hex-half-w-cover-cable": { "3mf": 252295, stl: 1227684 },
   "hex-half-w-cover-grate": { "3mf": 18938, stl: 96484 },
@@ -668,8 +668,8 @@ export const HEX_PART_BYTES: Readonly<Record<string, HexPartBytes>> = {
   "hex-half-w-cover-radial": { "3mf": 36086, stl: 169484 },
   "hex-half-w-cover-solid": { "3mf": 8764, stl: 36684 },
   "hex-half-w-stack-collar": { "3mf": 6745, stl: 28984 },
-  "hex-half-w-x2": { "3mf": 165007, stl: 856184 },
-  "hex-half-w-x3": { "3mf": 223524, stl: 1194784 },
+  "hex-half-w-x2": { "3mf": 165656, stl: 855584 },
+  "hex-half-w-x3": { "3mf": 224327, stl: 1194184 },
   "hex-jig-dovetail-gauge": { "3mf": 28234, stl: 146384 },
   "hex-jig-drill-guide": { "3mf": 14653, stl: 78384 },
   "hex-jig-grate-sample": { "3mf": 60394, stl: 312984 },
@@ -703,13 +703,13 @@ export const HEX_PART_BYTES: Readonly<Record<string, HexPartBytes>> = {
   "hex-quarter-ne-stack-collar": { "3mf": 36658, stl: 161884 },
   "hex-quarter-ne-x2": { "3mf": 103397, stl: 519684 },
   "hex-quarter-ne-x3": { "3mf": 132947, stl: 697584 },
-  "hex-quarter-nw": { "3mf": 66833, stl: 312284 },
+  "hex-quarter-nw": { "3mf": 69497, stl: 316084 },
   "hex-quarter-nw-cover": { "3mf": 70285, stl: 328084 },
   "hex-quarter-nw-cover-grate": { "3mf": 10305, stl: 40884 },
   "hex-quarter-nw-cover-solid": { "3mf": 9359, stl: 35684 },
   "hex-quarter-nw-stack-collar": { "3mf": 36850, stl: 161884 },
-  "hex-quarter-nw-x2": { "3mf": 101802, stl: 508484 },
-  "hex-quarter-nw-x3": { "3mf": 131849, stl: 688084 },
+  "hex-quarter-nw-x2": { "3mf": 103321, stl: 512184 },
+  "hex-quarter-nw-x3": { "3mf": 133109, stl: 691784 },
   "hex-quarter-se": { "3mf": 72662, stl: 342584 },
   "hex-quarter-se-cover": { "3mf": 70430, stl: 328084 },
   "hex-quarter-se-cover-grate": { "3mf": 10294, stl: 40884 },
@@ -718,13 +718,13 @@ export const HEX_PART_BYTES: Readonly<Record<string, HexPartBytes>> = {
   "hex-quarter-se-stack-collar": { "3mf": 35435, stl: 155284 },
   "hex-quarter-se-x2": { "3mf": 103520, stl: 519984 },
   "hex-quarter-se-x3": { "3mf": 133088, stl: 697884 },
-  "hex-quarter-sw": { "3mf": 66911, stl: 313084 },
+  "hex-quarter-sw": { "3mf": 69276, stl: 316984 },
   "hex-quarter-sw-cover": { "3mf": 70205, stl: 328084 },
   "hex-quarter-sw-cover-grate": { "3mf": 10404, stl: 40884 },
   "hex-quarter-sw-cover-solid": { "3mf": 9423, stl: 35684 },
   "hex-quarter-sw-stack-collar": { "3mf": 35314, stl: 155784 },
-  "hex-quarter-sw-x2": { "3mf": 101583, stl: 510384 },
-  "hex-quarter-sw-x3": { "3mf": 131792, stl: 691284 },
+  "hex-quarter-sw-x2": { "3mf": 103266, stl: 514184 },
+  "hex-quarter-sw-x3": { "3mf": 133295, stl: 695084 },
   "hex-spike-mount": { "3mf": 6447, stl: 23784 },
   "hex-spike-solid": { "3mf": 6135, stl: 21484 },
   "hex-spike-stud": { "3mf": 12033, stl: 54184 },

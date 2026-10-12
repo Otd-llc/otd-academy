@@ -15,6 +15,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_BED_Z } from "@/lib/hex-pack";
 import { PLATE_GAP } from "@/lib/hex-plate";
 import { HEX_V2_EARLIER_RELEASES } from "@/lib/printable-releases";
+import { HEX_RELEASE } from "@/lib/hex-spec";
 import { HEX_PART_BOX } from "@/lib/hex-release-tables";
 import {
   HEX_V2_BED_MIN_MM,
@@ -26,6 +27,7 @@ import {
   HEX_V2_LARGEST_PART,
   HEX_V2_PRINT_PROFILE,
   HEX_V2_RELEASE_CHANGES,
+  HEX_V2_RELEASE_HISTORY,
   HEX_V2_RELEASE_NOTES,
   HEX_V2_SET,
   HEX_V2_TALLEST_PART,
@@ -142,7 +144,15 @@ describe("the release notes", () => {
     expect(mates?.value).toBe("Yes");
     expect(HEX_V2_RELEASE_CHANGES.join(" ")).toMatch(/hex-half-w/);
     expect(HEX_V2_RELEASE_CHANGES.join(" ")).toMatch(/female edge caps/);
-    expect(PAGE).toMatch(/HEX_V2_RELEASE_CHANGES/);
+    expect(PAGE).toMatch(/HEX_V2_RELEASE_HISTORY/);
+  });
+
+  it("lead with the current release, and give every earlier one its own news", () => {
+    expect(HEX_V2_RELEASE_HISTORY[0].release).toBe(HEX_RELEASE);
+    expect(HEX_V2_RELEASE_HISTORY.slice(1).map((r) => r.release)).toEqual(
+      [...HEX_V2_EARLIER_RELEASES].slice(1).reverse(),
+    );
+    expect(HEX_V2_RELEASE_HISTORY[0].changed.join(" ")).toMatch(/no supports/);
   });
 });
 

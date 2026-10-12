@@ -65,8 +65,11 @@ const flat = (s: string) => s.replace(/\s+/g, " ");
 
 /** What a README says when nothing in the box needs a remedy. */
 const NONE = "Supports and brim: none needed.";
-/** Real v2 parts the 2026-10-01 slice flagged: one for support, one for a brim. */
-const SUP = "hex-half-w";
+/** Real v2 parts the slice flags: one for support, one for a brim. hex-half-w
+ *  held the support role until 2026-10-12, when a 45-degree fill under its
+ *  ledge took it off the list; the socket cap prints face down by the owner's
+ *  rule, so it keeps its floating cantilever. */
+const SUP = "hex-cap-edge-socket-bolt-f";
 // The released brim part. pvc-section-single held this role until it was
 // withheld as cut pipe (owner, 2026-09-28).
 const BRIM = "hex-spike-stud";
