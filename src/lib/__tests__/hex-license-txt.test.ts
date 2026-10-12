@@ -68,6 +68,32 @@ describe("v1 LICENSE.txt: the published releases stay byte-for-byte", () => {
   });
 });
 
+// THE TWO PUBLISHED v2 FILES, pinned to the bytes the live route serves
+// (fetched 2026-10-11: both 1131 B, the same text, one year). The US spelling
+// that came after them must not reach back into them.
+const V2_PUBLISHED_SHA256 = "cf2a3585159d4f49fb1ac4ec3631a5dbb1d02cd9f5da8633d39dd095903e3422";
+
+describe("US spelling from the release after 2026-10-10 (owner, 2026-10-11)", () => {
+  it("leaves the published v2 releases byte for byte as uploaded", () => {
+    for (const r of ["2026-10-01", "2026-10-10"]) {
+      const t = hexLicenseTxt(r);
+      expect(sha(t), r).toBe(V2_PUBLISHED_SHA256);
+      expect(Buffer.byteLength(t), r).toBe(1131);
+    }
+  });
+
+  it("spells license the US way in a later release, and changes nothing else", () => {
+    const later = hexLicenseTxt("2026-11-01");
+    expect(later).not.toMatch(/licence/i);
+    expect(later).toContain("Full license text:");
+    expect(later.split("\n").join(" ")).toContain("CC BY 4.0 license also applies.");
+    // the same year, so the only difference from the published text is the word
+    expect(later.replace(/license(\s+)also/, "licence$1also").replace("Full license text", "Full licence text")).toBe(
+      hexLicenseTxt("2026-10-10"),
+    );
+  });
+});
+
 describe("v2 LICENSE.txt", () => {
   const txt = hexLicenseTxt("2026-10-01");
 
