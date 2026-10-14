@@ -53,11 +53,11 @@ lines, or revisions before then. New boards start from `docs/boards/_template/`
 - **Tests run against an isolated Neon branch pool, NOT prod** (since 2026-06-21).
   `.env.test.local` (gitignored) supplies `TEST_DATABASE_POOL`; `pnpm test` parallelizes
   by leasing a branch per DB-test file (`vitest.env.ts`), so concurrent runs are safe and
-  the suite is ~80s (was ~13 min). **If `.env.test.local` is absent, tests fall back to
-  whatever `.env.local` sets — which is LOCAL `foundry_dev` since 2026-07-15, not prod.**
-  (This bullet used to warn that the fallback was PROD; that was true only while
-  `.env.local` pointed at prod. Keep `.env.test.local` present anyway — without it the DB
-  tests lose per-file branch isolation and serialize.) The pool branches are persistent clones and drift behind
+  the suite is ~80s (was ~13 min). **If `.env.test.local` is absent, the suite REFUSES TO RUN.**
+  It does not fall back to `.env.local` any more: `vitest.env.ts` throws when neither
+  `TEST_DATABASE_POOL` nor `TEST_DATABASE_URL` is set, with a message naming the missing
+  file and pointing here. (This bullet has been wrong twice — first claiming the fallback
+  was PROD, then claiming it was LOCAL. There is no fallback.) The pool branches are persistent clones and drift behind
   prod after a migration; `pnpm test:pool:refresh` re-applies migrations to each (and
   `pnpm db:migrate:prod` does it for you — **`pnpm db:migrate` no longer does**, since it
   now targets local, where a pool refresh would be meaningless). The pool stays on **Neon**
@@ -99,17 +99,23 @@ lines, or revisions before then. New boards start from `docs/boards/_template/`
 
   To force it sooner: touch the lesson once through `/admin/library` (fires the tags),
   or redeploy (the build id is part of every cache key, so a deploy drops the whole
-  cache). If this becomes a routine annoyance, the fix is a `CRON_SECRET`-guarded
-  `POST /api/revalidate` the seed scripts call after writing — considered and
-  deliberately deferred, not overlooked.
+  cache). **That endpoint now EXISTS** — `src/app/api/cron/revalidate/route.ts`, guarded
+  by `CRON_SECRET` via `src/lib/cron-auth.ts` — and the live content writers were wired
+  to it in #489 through the `scripts/lib/revalidate.ts` helper (the seed-*-cluster
+  scripts, `import-content.ts`, `backfill-lesson-derived.ts`, `scripts/authoring/lib.ts`).
+  A `scripts/*.ts` that calls that helper no longer waits out the hour. One that does
+  NOT call it still does — so check the script before assuming a seeded change is live.
 - **A local `next start` needs `AUTH_TRUST_HOST=1`, or the route auth gate is silently OFF.**
   Auth.js rejects an untrusted host in production mode, and on rejection `auth()` resolves to a
-  truthy **error object** rather than `null`. `src/proxy.ts` gates on `!req.auth`, so that error
-  reads as "signed in" and every non-public route serves to anonymous requests — `/account` and
-  `/admin/students` return 200 instead of `307 → /sign-in`. Real prod is trusted by Vercel
-  (`VERCEL=1`) and `next dev` trusts localhost, so this bites ONLY local prod-build measurement —
-  where it will quietly invalidate anything you conclude about signed-out behaviour. (The latent
-  fail-open itself is real but not live; gating on `req.auth?.user` is the fix.)
+  truthy **error object** rather than `null`. **The fail-open this used to describe is FIXED:**
+  `src/proxy.ts` now gates on `req.auth?.user` (not `!req.auth`), and carries a comment saying
+  why — an error object is truthy, so `!req.auth` would let it through. The gate is fail-CLOSED.
+
+  What remains is a *measurement* problem, not a security one: without `AUTH_TRUST_HOST=1` a
+  local `next start` rejects the host, `auth()` yields that error object, the gate correctly
+  treats it as signed-out, and every authed route redirects. So local prod-build measurement of
+  **signed-in** behaviour is what breaks. Real prod is trusted by Vercel (`VERCEL=1`) and
+  `next dev` trusts localhost, so neither is affected.
 - **Signup abuse defense (magic-link send) — the ONE locus + its throw contract.** Turnstile +
   honeypot/dwell + the per-email/global rate limiter all live in the Resend provider's
   `sendVerificationRequest` (`src/auth.ts`), which reads the forwarded fields via **`await

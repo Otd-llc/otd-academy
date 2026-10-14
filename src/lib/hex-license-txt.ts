@@ -41,6 +41,14 @@ export const HEX_LICENSE_DISCLAIMER =
   "own risk. One Thousand Drones LLC is not liable for damage or injury " +
   "arising from their use. Section 5 of the CC BY 4.0 licence also applies.";
 
+/**
+ * The v2 releases already PUBLISHED with the British spelling: their bytes sit
+ * under immutable keys, so they keep it. Every later release spells it the US
+ * way (owner, 2026-10-11: "US 'License' everywhere"), which is the one change
+ * the owner made to the approved wording above.
+ */
+export const HEX_V2_BRITISH_RELEASES = ["2026-10-01", "2026-10-10"] as const;
+
 /** Byte-for-byte the published v1 notice. DO NOT EDIT -- see the header. */
 export const HEX_V1_LICENSE_TXT = [
   "Hex Cluster modular tile system",
@@ -73,8 +81,13 @@ function isV1(release: string): boolean {
 }
 
 /** The v2 notice. The year is the RELEASE's year, not the build machine's
- *  clock, so the same release always produces the same bytes. */
-function v2LicenseTxt(year: string): string {
+ *  clock, so the same release always produces the same bytes. `british` keeps
+ *  a published release's spelling (`HEX_V2_BRITISH_RELEASES`). */
+function v2LicenseTxt(year: string, british: boolean): string {
+  const word = british ? "licence" : "license";
+  const disclaimer = british
+    ? HEX_LICENSE_DISCLAIMER
+    : HEX_LICENSE_DISCLAIMER.replace("licence also applies", "license also applies");
   return [
     "Hex Cluster modular tile system",
     `Copyright (c) ${year} ${HEX_LICENSE.holder}`,
@@ -93,9 +106,9 @@ function v2LicenseTxt(year: string): string {
     "  were made. You may do so in any reasonable manner, but not in any way",
     "  that suggests One Thousand Drones endorses you or your use.",
     "",
-    ...wrapWords(HEX_LICENSE_DISCLAIMER, 72),
+    ...wrapWords(disclaimer, 72),
     "",
-    `Full licence text: ${HEX_LICENSE.legalCode}`,
+    `Full ${word} text: ${HEX_LICENSE.legalCode}`,
     `Summary:           ${HEX_LICENSE.deed}`,
     "",
     "Source: https://academy.onethousanddrones.com/hex",
@@ -118,7 +131,10 @@ export function hexLicenseTxt(release: string): string {
       `hexLicenseTxt: release "${release}" is not an ISO date (YYYY-MM-DD)`,
     );
   }
-  return v2LicenseTxt(m[1]);
+  return v2LicenseTxt(
+    m[1],
+    (HEX_V2_BRITISH_RELEASES as readonly string[]).includes(release),
+  );
 }
 
 /** Owner placeholders (`[OWNER-WORDING: ...]`) still present in `text`. Empty

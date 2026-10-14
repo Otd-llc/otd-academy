@@ -10,7 +10,7 @@ import { PrintBedSetting } from "@/components/account/PrintBedSetting";
 import { DunningBanner } from "@/components/billing/DunningBanner";
 import { pastDueSubscription } from "@/lib/past-due-subscription";
 import { avatarSrc } from "@/lib/effective-avatar";
-import { bedFromColumns } from "@/lib/print-bed";
+import { bedFromColumns, normalizeBedZ } from "@/lib/print-bed";
 
 // Signed-in account settings: your avatar (seeded from the sign-in provider,
 // overridable with an upload), a read-only identity summary, your email opt-in,
@@ -38,6 +38,7 @@ export default async function AccountPage() {
       stripeCustomerId: true,
       printBedXMm: true,
       printBedYMm: true,
+      printBedZMm: true,
     },
   });
   if (!user) redirect("/sign-in");
@@ -90,6 +91,9 @@ export default async function AccountPage() {
         </p>
         <PrintBedSetting
           initialBed={bedFromColumns(user.printBedXMm, user.printBedYMm)}
+          initialBedZ={
+            user.printBedZMm == null ? null : normalizeBedZ(user.printBedZMm)
+          }
         />
       </section>
 

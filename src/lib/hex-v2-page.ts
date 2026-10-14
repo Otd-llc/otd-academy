@@ -20,7 +20,9 @@
 //   hex-cluster  tools/parts-copy.json        jig titles and uses
 //   launch readiness decisions 1.3, 1.4, 1.5, 1.12, 1.13, 1.21
 
+import { HEX_PART_BOX } from "@/lib/hex-release-tables";
 import { HEX_RELEASE } from "@/lib/hex-spec";
+import { HEX_V2_EARLIER_RELEASES } from "@/lib/printable-releases";
 
 /** Release segment of the v2 mesh set: the id the generated release tables
  *  were built for (launch item 4.6, decision 1 of 2026-09-28: `2026-10-01`).
@@ -51,9 +53,41 @@ export const HEX_V2_MAIN_BBOX_MM = { x: 190.762, y: 169.205, z: 80 } as const;
 export const HEX_V2_MALE_BEARINGS = [30, 150, 270] as const;
 export const HEX_V2_FEMALE_BEARINGS = [90, 210, 330] as const;
 
-/** Largest part on the bed (`hex-half-n`), and the bed floor from decision 1.5. */
-export const HEX_V2_LARGEST_PART_MM = { x: 190.77, y: 169.21 } as const;
+/** The bed floor from decision 1.5. */
 export const HEX_V2_BED_MIN_MM = 220;
+
+type BedPart = { slug: string; dx: number; dy: number; dz: number };
+
+/** The part that reaches furthest across the bed, and the tallest, READ FROM
+ *  THE RELEASE TABLES (`HEX_PART_BOX`, each part's printed box in its print
+ *  pose). Until 2026-10-11 the first was typed in as the half base, which was
+ *  true of 2026-10-01 and stopped being true when 2026-10-10 added the drawer's
+ *  long plates; the alpha walk found the page still saying it. Ties go to the
+ *  slug that sorts first, so the answer is stable. */
+function mostBy(score: (b: BedPart) => number): BedPart {
+  let best: BedPart | undefined;
+  for (const slug of Object.keys(HEX_PART_BOX).sort()) {
+    const b = { slug, ...HEX_PART_BOX[slug] };
+    if (!best || score(b) > score(best)) best = b;
+  }
+  if (!best) throw new Error("the release tables carry no parts");
+  return best;
+}
+const LARGEST = mostBy((b) => Math.max(b.dx, b.dy));
+export const HEX_V2_LARGEST_PART = {
+  slug: LARGEST.slug,
+  long: Math.max(LARGEST.dx, LARGEST.dy),
+  short: Math.min(LARGEST.dx, LARGEST.dy),
+} as const;
+const TALLEST = mostBy((b) => b.dz);
+export const HEX_V2_TALLEST_PART = { slug: TALLEST.slug, dz: TALLEST.dz } as const;
+
+/** How tall a printer the release needs: the tallest part, to the next whole
+ *  millimetre. The three-storey parts stand 240.117, so 241. */
+export const HEX_V2_BED_MIN_Z_MM = Math.ceil(TALLEST.dz);
+
+/** The bed as the page states it everywhere: width, depth and height. */
+export const HEX_V2_BED_TEXT = `${HEX_V2_BED_MIN_MM} × ${HEX_V2_BED_MIN_MM} × ${HEX_V2_BED_MIN_Z_MM} mm`;
 
 // -- print -------------------------------------------------------------------
 
@@ -67,8 +101,61 @@ export const HEX_V2_PRINT_PROFILE: SpecRow[] = [
   { label: "Layer height", value: "0.20 mm", aside: "0.30 on a 0.6 nozzle" },
   { label: "Walls", value: "4" },
   { label: "Infill", value: "30% adaptive cubic" },
-  { label: "Bed", value: `${HEX_V2_BED_MIN_MM} × ${HEX_V2_BED_MIN_MM} mm`, aside: "or larger" },
+  { label: "Bed", value: HEX_V2_BED_TEXT, aside: "or larger" },
 ];
+
+/** RELEASE NOTES, against the earlier v2 release(s) the download route still
+ *  serves. The mating answer is MEASURED, not assumed, from hex-cluster's
+ *  gate reports (docs/release-<id>-gate-report.json, `sources`, SHA-256 of
+ *  every input document): `hex-main.FCStd`, which carries the joint every base
+ *  shares, is byte-identical across all three.
+ *
+ *  2026-10-01 -> 2026-10-10: the halves and quarters are identical but
+ *  hex-half-w. Of the parts both releases carry, two changed in a way a
+ *  maker meets (hex-cluster ebc81bb, 407bd42): hex-half-w's nuts sink into its
+ *  wall so a bolt-on still reaches one with a bin in it, and the female edge
+ *  caps are bevelled at the foot to clear a bin rim in the cell below.
+ *
+ *  2026-10-10 -> 2026-10-12: exactly nine of 716 sources differ, hex-half-w,
+ *  hex-quarter-nw, hex-quarter-sw and their x2/x3 (hex-cluster e5ff8be). Each
+ *  gains a 45-degree fill under the flat ledge the thickened cut wall left,
+ *  the slicer's "floating cantilever" on all nine, which now slice with none.
+ *  The fill sits inside the cut wall's rebate recess, clear of the seated
+ *  cover by 2.98 mm and the snaps by 1.38, so nothing that mates moved. */
+export const HEX_V2_RELEASE_NOTES: SpecRow[] = [
+  { label: "Release", value: HEX_RELEASE },
+  { label: "Earlier v2 release", value: HEX_V2_EARLIER_RELEASES.join(", ") },
+  {
+    label: "Mates with earlier v2 prints",
+    value: "Yes",
+    aside: "same joint",
+  },
+];
+
+/** What each release brought, newest first, as the page tells a maker holding
+ *  earlier prints. `changed` is only parts an earlier release already carried. */
+export type HexV2ReleaseChange = { release: string; news: string; changed: string[] };
+
+export const HEX_V2_RELEASE_HISTORY: HexV2ReleaseChange[] = [
+  {
+    release: "2026-10-12",
+    news: "Nine parts no longer need supports.",
+    changed: [
+      "hex-half-w, hex-quarter-nw and hex-quarter-sw, at one to three storeys, have a 45° fill under the ledge inside the cut wall, so they print with no supports. They fit exactly as before: no need to reprint them.",
+    ],
+  },
+  {
+    release: "2026-10-10",
+    news: "Drawers at one to three storeys, tall bases, bins and bolt-on bins, the socket cover and socket edge caps, and more.",
+    changed: [
+      "hex-half-w now sinks its nuts into its wall, so a bolt-on still reaches one with a bin in it. Reprint it if you bolt to a binned west half.",
+      "The female edge caps are bevelled at the foot to clear a bin rim in the cell below. Reprint them if a cap sits over a bin.",
+    ],
+  },
+];
+
+/** Every changed part, newest release first: what the page lists. */
+export const HEX_V2_RELEASE_CHANGES: string[] = HEX_V2_RELEASE_HISTORY.flatMap((r) => r.changed);
 
 /** The four slicers the page names (item 6.4). Order is the owner's. */
 export const HEX_V2_SLICERS = [

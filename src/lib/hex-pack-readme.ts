@@ -187,13 +187,14 @@ function supportLines(
     ),
   ];
   if (present.length === 0) {
-    // MEASURED, not assumed: every released part went through the slicer's
-    // own checks for this release (`hex-support.ts`), and a part with no row
-    // raised nothing.
-    return [
-      "Supports and brim: none needed. Every part here was checked in a",
-      "slicer for this release and none of them needs either.",
-    ];
+    // NO ROW, NO REMEDY -- and nothing more is claimed. A part with no row
+    // either raised nothing in the slicer for this release or was cleared by
+    // the owner although it did (2026-10-12: the drawer bodies, tubs and
+    // plates, the trinity handle and the zip insert, whose flags are bridges
+    // and channel roofs; recorded in hex-cluster's support data). This used to
+    // say every part "was checked in a slicer ... and none of them needs
+    // either", which stopped being true for those the moment they were cleared.
+    return ["Supports and brim: none needed."];
   }
   const anySupport = present.some(([slug]) => PART_REMEDY[slug]?.support);
   return [
@@ -292,6 +293,37 @@ export function plateDescription(
   ].join("\n");
 }
 
+/** A part that stands taller than the bed is high, as `partsTallerThan` finds
+ *  it: its slug and its height as printed, mm. */
+export type TallerPart = { slug: string; heightMm: number };
+
+/**
+ * The warning a part taller than the bed earns (owner, 2026-10-08: "Warn").
+ *
+ * IT IS IN THE PACK ANYWAY, and the text says so first: the height is the
+ * visitor's own setting, so it can be wrong, and a pack that silently dropped a
+ * part on a mistyped number would be the worse failure. Nothing at all when no
+ * part is taller, so every README from before the height existed is unchanged.
+ */
+function tallerLines(
+  rows: readonly { label: string; heightMm: number }[],
+  bedZ: number,
+): string[] {
+  if (!rows.length) return [];
+  const which = rows.length === 1 ? "One part here stands" : `${rows.length} parts here stand`;
+  return [
+    ...wrap(
+      `TALLER THAN YOUR PRINTER. ${which} taller than the ${bedZ} mm build ` +
+        "height your bed is set to. They are included anyway. Check your " +
+        "printer's build height before you print them, and if it is not " +
+        `${bedZ} mm, set the real height in the configurator.`,
+      "",
+    ),
+    ...rows.map((r) => `  - ${ascii(r.label)}: ${r.heightMm} mm tall as printed`),
+    "",
+  ];
+}
+
 /**
  * The README that travels inside a LOOSE pack -- one file per named part.
  *
@@ -307,6 +339,9 @@ export function packReadme(opts: {
   parts: readonly PackPart[];
   credit: string;
   specUrl: string;
+  /** The bed's height and the parts taller than it (`partsTallerThan`). */
+  bedZ?: number;
+  taller?: readonly TallerPart[];
 }): string {
   return [
     "Hex Cluster: selected parts",
@@ -318,6 +353,11 @@ export function packReadme(opts: {
     `chosen in the configurator. Release ${ascii(opts.release)}. The complete set,`,
     "every format, and every part individually are at the address above.",
     "",
+    // Named by slug, as the part list below names them.
+    ...tallerLines(
+      (opts.taller ?? []).map((t) => ({ label: t.slug, heightMm: t.heightMm })),
+      opts.bedZ ?? 0,
+    ),
     "Print settings:",
     ...PRINT_LINES.map((l) => `  ${l}`),
     "",
@@ -390,6 +430,9 @@ export function plateReadme(opts: {
   /** Where this build reopens: a saved drawing's /c/ page (7.6 README pick A).
    *  Absent for an unsaved build, which then gets no line at all. */
   buildUrl?: string;
+  /** The bed's height and the parts taller than it (`partsTallerThan`). */
+  bedZ?: number;
+  taller?: readonly TallerPart[];
 }): string {
   const plateCount = opts.plates.length;
   const held =
@@ -400,6 +443,13 @@ export function plateReadme(opts: {
     throw new Error(`plate ${opts.only} is not in a plan of ${plateCount}`);
   }
   const instances = held.reduce((n, h) => n + h.plate.length, 0);
+  // ONLY WHAT THIS ARCHIVE HOLDS, by the published name the plate manifest uses:
+  // a one-plate download warns about the tall parts on that plate, not the plan.
+  const names = new Map(held.flatMap((h) => h.plate).map((p) => [p.slug, p.name]));
+  const taller = (opts.taller ?? []).flatMap((t) => {
+    const label = names.get(t.slug);
+    return label === undefined ? [] : [{ label, heightMm: t.heightMm }];
+  });
   const bed = `${opts.bed.x} x ${opts.bed.y} mm`;
   const scope =
     opts.only === undefined
@@ -425,6 +475,7 @@ export function plateReadme(opts: {
       "",
     ),
     "",
+    ...tallerLines(taller, opts.bedZ ?? 0),
     // The manifest names the file it describes, using the SAME helper the route
     // names the zip entry with. A README that lists `plate-1-of-3.3mf` beside a
     // folder holding `plate-1.3mf` is the defect class this feature has already

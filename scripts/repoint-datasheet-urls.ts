@@ -6,7 +6,10 @@
 // Prisma 7.8 + Neon adapter, so import the shared client AFTER loadEnv populates
 // DATABASE_URL ([[prisma-migrate-prod]]).
 //
-// ⚠️ `.env.local` DATABASE_URL is PROD. This script rewrites production part data.
+// ⚠️ `.env.local` DATABASE_URL is LOCAL (`foundry_dev`) since 2026-07-15, so a bare
+// run rewrites LOCAL part data, not production. Prod requires
+// `pnpm db:prod scripts/repoint-datasheet-urls.ts`, which prints the target host and
+// makes you type `prod`. A green bare run is NOT evidence prod was repointed.
 // Dry-run by default; pass --confirm to execute.
 //
 //   Dry run:  pnpm exec tsx scripts/repoint-datasheet-urls.ts

@@ -58,6 +58,7 @@ import {
   packFilename,
   packInstances,
   packPlateLinks,
+  partsTallerThan,
   platePath,
   resolvePack,
   type Bed,
@@ -79,6 +80,7 @@ import {
   packReadme,
   plateDescription,
   plateReadme,
+  type TallerPart,
 } from "@/lib/hex-pack-readme";
 import { buildPlate3mf, ZIP_EPOCH } from "@/lib/hex-3mf";
 import {
@@ -245,6 +247,9 @@ export async function GET(req: NextRequest) {
     format: q.get("format"),
     parts: q.get("parts"),
     plate: q.get("plate"),
+    // The bed's height. It changes no plate, only which parts the README warns
+    // stand taller than the printer (owner, 2026-10-08: "Warn").
+    bedz: q.get("bedz"),
     // The build's own name, from the configurator. HOSTILE TEXT until
     // `resolvePack` says otherwise -- it is about to become a filename and an
     // HTTP header parameter. Everything that decides which is in
@@ -275,6 +280,9 @@ export async function GET(req: NextRequest) {
 
   const request = resolved.request;
   const { release, format, parts, bed, stem, bedFrom, plateIndex } = request;
+  // The parts taller than the bed, for the README. Empty at the default height,
+  // which clears every part this release ships.
+  const tall = { bedZ: request.bedZ, taller: partsTallerThan(parts, request.bedZ) };
 
   // ONLY THE RELEASE THE TABLES WERE MEASURED FROM. The plan needs the geometry
   // table and the budget needs the byte table, and neither describes any other
@@ -298,7 +306,17 @@ export async function GET(req: NextRequest) {
   // lifetime is safe. 307 for launch week (a 308 is cached by browsers for
   // good). The Location carries no host, so a Host header cannot steer it.
   const canon = canonicalPackQuery(request);
-  if (req.nextUrl.search !== `?${canon}`) {
+  // THE TWO SEPARATORS ARRIVE ENCODED IN PRODUCTION. The canonical query writes
+  // the parts list with a literal `,` between parts and `:` before a quantity,
+  // but on the deployed route a request spelled exactly that way was still
+  // answered with a 307 to itself, forever: measured 2026-10-11, every pack of
+  // two or more parts and every quantity over one, while a single part was
+  // served. Both the literal and the %2C / %3A spelling looped, so the search
+  // seen here carries them encoded. Fold just those two back before comparing.
+  // Nothing else is decoded: `+` against `%20` in a name is still a different
+  // spelling and still redirected, which keeps one CDN entry per pack.
+  const seen = req.nextUrl.search.replace(/%2C/gi, ",").replace(/%3A/gi, ":");
+  if (seen !== `?${canon}`) {
     return new Response(null, {
       status: 307,
       headers: {
@@ -333,6 +351,7 @@ export async function GET(req: NextRequest) {
       bed,
       bedSource: bedFrom,
       stem,
+      ...tall,
     });
   }
 
@@ -365,6 +384,7 @@ export async function GET(req: NextRequest) {
       plates,
       only: plateIndex,
       build: request.build,
+      ...tall,
     });
   }
 
@@ -389,6 +409,7 @@ export async function GET(req: NextRequest) {
     stem,
     plates,
     build: request.build,
+    ...tall,
   });
 }
 
@@ -491,6 +512,9 @@ async function platedPack(
     only?: number;
     /** A saved drawing's share code, for the README's reopen line. */
     build?: string;
+    /** The bed's height and the parts taller than it, for the README. */
+    bedZ: number;
+    taller: TallerPart[];
   },
 ): Promise<Response> {
   const { release, parts, bed, bedSource, stem, plates, only, build } = ctx;
@@ -689,6 +713,8 @@ async function platedPack(
       // A SAVED drawing's page, never an unsaved build's payload (see
       // `PackRequest.build`). Absent, the README carries no link at all.
       buildUrl: build ? new URL(`/c/${build}`, SITE).href : undefined,
+      bedZ: ctx.bedZ,
+      taller: ctx.taller,
     }),
     { date: ZIP_EPOCH },
   );
@@ -781,6 +807,9 @@ async function looseZip(
     bed: Bed;
     bedSource: BedSource | undefined;
     stem: string;
+    /** The bed's height and the parts taller than it, for the README. */
+    bedZ: number;
+    taller: TallerPart[];
   },
 ): Promise<Response> {
   const { release, format, parts, bed, bedSource, stem } = ctx;
@@ -824,6 +853,8 @@ async function looseZip(
       parts,
       credit: HEX_LICENSE.credit,
       specUrl: SITE,
+      bedZ: ctx.bedZ,
+      taller: ctx.taller,
     }),
     { date: ZIP_EPOCH },
   );

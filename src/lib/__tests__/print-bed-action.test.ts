@@ -35,6 +35,7 @@ import {
   getPrintBed,
   promotePrintBed,
   setPrintBed,
+  setPrintBedZ,
 } from "@/lib/actions/print-bed";
 import { BED_FLOOR_MM, BED_MAX } from "@/lib/print-bed";
 import { BED_MIN } from "@/lib/hex-pack";
@@ -391,5 +392,71 @@ describe("what is stored is what the endpoint accepts", () => {
       ).toBe(false);
       await expect(setPrintBed(bed)).rejects.toThrow();
     }
+  });
+});
+
+// THE BED'S HEIGHT (owner, 2026-10-08: a part taller than the bed WARNS; a bed
+// nobody set is 250 mm tall). Its own column, so it is held to its own rules:
+// it rides with a bed, can stand alone, goes with a clear, and is promoted only
+// on the bed's condition.
+describe("the bed's height", () => {
+  async function z() {
+    return (
+      await db.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { printBedZMm: true },
+      })
+    ).printBedZMm;
+  }
+
+  test("rides with a bed; absent leaves it, null clears it", async () => {
+    await setPrintBed(null);
+    await setPrintBed({ x: 250, y: 250 }, 245);
+    expect(await z()).toBe(245);
+    expect(await getPrintBed()).toEqual({ bed: { x: 250, y: 250 }, bedZ: 245 });
+    await setPrintBed({ x: 300, y: 300 });
+    expect(await z()).toBe(245);
+    await setPrintBed({ x: 300, y: 300 }, null);
+    expect(await z()).toBeNull();
+  });
+
+  test("goes with a clear of the bed", async () => {
+    await setPrintBed({ x: 250, y: 250 }, 245);
+    await setPrintBed(null);
+    expect(await z()).toBeNull();
+    expect(await getPrintBed()).toEqual({ bed: null, bedZ: null });
+  });
+
+  test("can be stored alone, without writing a bed nobody chose", async () => {
+    await setPrintBed(null);
+    expect(await setPrintBedZ(245)).toEqual({ bedZ: 245 });
+    expect(
+      await db.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { printBedXMm: true, printBedYMm: true, printBedZMm: true },
+      }),
+    ).toEqual({ printBedXMm: null, printBedYMm: null, printBedZMm: 245 });
+    // and read back without a bed beside it
+    expect(await getPrintBed()).toEqual({ bed: null, bedZ: 245 });
+    await setPrintBedZ(null);
+    expect(await z()).toBeNull();
+  });
+
+  test("refuses a height outside the grammar, and writes nothing", async () => {
+    await setPrintBed({ x: 250, y: 250 }, 245);
+    for (const bad of [49, 1001, 24.5, "245"]) {
+      await expect(setPrintBed({ x: 250, y: 250 }, bad as never)).rejects.toThrow();
+      await expect(setPrintBedZ(bad as never)).rejects.toThrow();
+    }
+    expect(await z()).toBe(245);
+  });
+
+  test("is promoted on the bed's condition, and only then", async () => {
+    await setPrintBed(null);
+    expect((await promotePrintBed({ x: 250, y: 250 }, 245)).promoted).toBe(true);
+    expect(await z()).toBe(245);
+    expect((await promotePrintBed({ x: 350, y: 350 }, 300)).promoted).toBe(false);
+    expect(await z()).toBe(245);
+    await setPrintBed(null);
   });
 });

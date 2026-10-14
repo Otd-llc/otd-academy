@@ -14,12 +14,23 @@
 import { HEX_PUBLISHED_RECORD_RELEASES } from "@/lib/hex-published-record";
 import { HEX_TABLES_RELEASE } from "@/lib/hex-release-tables";
 
+/** EARLIER v2 RELEASES, still served after the tables moved on. Each is an
+ *  immutable R2 segment published under CC BY 4.0, which cannot be taken back,
+ *  so a link to one of its files keeps working. Until the second release this
+ *  list did not exist: the set named only the tables' own release, so cutting
+ *  2026-10-10 would have quietly turned every 2026-10-01 link into a 404. Packs
+ *  are different: the pack route plans with the current tables only. */
+export const HEX_V2_EARLIER_RELEASES = ["2026-10-01", "2026-10-10"] as const;
+
 export const PUBLISHED_RELEASES: ReadonlySet<string> = new Set<string>([
   ...HEX_PUBLISHED_RECORD_RELEASES,
-  // THE v2 RELEASE, published at launch (10.4, owner's go-ahead 2026-09-28).
-  // Named through the generated tables, so the route serves exactly the
-  // release the tables, the plate plan and the byte budget describe. It was
-  // uploaded and SHA-verified (875 objects) before this line was added.
+  ...HEX_V2_EARLIER_RELEASES,
+  // THE CURRENT v2 RELEASE. Named through the generated tables, so the route
+  // serves exactly the release the tables, the plate plan and the byte budget
+  // describe. 2026-10-01 was uploaded and SHA-verified (875 objects) before it
+  // was listed here (10.4, owner's go-ahead 2026-09-28); 2026-10-10 and
+  // 2026-10-12 were uploaded and verified the same way before their tables
+  // landed.
   HEX_TABLES_RELEASE,
 ]);
 

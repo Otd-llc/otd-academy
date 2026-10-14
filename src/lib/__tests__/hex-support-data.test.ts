@@ -62,21 +62,39 @@ describe("the generated support data", () => {
     );
   });
 
-  it("carries the 2026-10-01 slice: 5 support, 3 brim, none both", () => {
+  it("carries the 2026-10-12 slice, as the owner cleared it: 4 support, 13 brim", () => {
     // Pinned by content, so a regenerated file that moves a part in or out of
     // either list shows up as this test failing, not as a quiet diff.
-    // The COUNTS are the slice's: 297 sliced, 3 flagged for a brim. The ROWS are
+    // The COUNTS are the slice's: 716 sliced, 13 flagged for a brim. The ROWS are
     // released parts only, and the two PVC stubs are withheld (cut pipe, owner
-    // 2026-09-28), so one brim row remains.
-    expect(HEX_SUPPORT_COUNTS).toEqual({ parts: 297, support: 5, brim: 3, both: 0 });
+    // 2026-09-28), so eleven brim rows remain. (2026-10-01: 297 sliced, 5
+    // support, 3 brim; the 2026-10-10 cut added the drawers, tall parts and
+    // socket caps, and every 2026-10-01 flag was still flagged. 2026-10-12
+    // filled the ledge under the thickened cut wall: hex-half-w, hex-quarter-nw
+    // and hex-quarter-sw at one to three storeys left the list, and nothing
+    // joined it.) Then the OWNER CLEARED 62 of the 66 the slicer still flags
+    // (2026-10-12, "Mark them anyway", not yet test-printed): every drawer body,
+    // tub and plate, the trinity handle and the zip insert -- bridges and
+    // channel roofs. Only the four socket bolt caps, printed face down by the
+    // owner's rule, keep support.
+    expect(HEX_SUPPORT_COUNTS).toEqual({ parts: 716, support: 4, brim: 13, both: 0 });
     expect(HEX_SUPPORT_ROWS.filter((r) => r.support).map((r) => r.slug)).toEqual([
-      "25mm-ins-trinity-handle",
-      "25mm-ins-zip",
-      "hex-half-w",
-      "hex-quarter-nw",
-      "hex-quarter-sw",
+      "hex-cap-edge-socket-bolt-f",
+      "hex-cap-edge-socket-bolt-f-x2",
+      "hex-cap-edge-socket-bolt-m",
+      "hex-cap-edge-socket-bolt-m-x2",
     ]);
     expect(HEX_SUPPORT_ROWS.filter((r) => r.brim).map((r) => r.slug)).toEqual([
+      "hex-drawer-long-plate-s-x3",
+      "hex-drawer-runner-n",
+      "hex-drawer-runner-n-x2",
+      "hex-drawer-runner-n-x3",
+      "hex-drawer-runner-s",
+      "hex-drawer-runner-s-x2",
+      "hex-drawer-runner-s-x3",
+      "hex-drawer-slide-plate-n-x3",
+      "hex-drawer-slide-plate-s-x2",
+      "hex-drawer-slide-plate-s-x3",
       "hex-spike-stud",
     ]);
   });

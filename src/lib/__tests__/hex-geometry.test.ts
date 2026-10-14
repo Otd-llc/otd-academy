@@ -49,7 +49,7 @@ import { slug } from "@/lib/r2";
 // Moved deliberately to the v2 release with 4.6 ("CONFIGURATOR_PINNED_RELEASE
 // is updated deliberately"). The configurator's own copy is regenerated on its
 // branch (launch readiness phase 7), not here.
-const CONFIGURATOR_PINNED_RELEASE = "2026-10-01";
+const CONFIGURATOR_PINNED_RELEASE = "2026-10-12";
 
 describe("the geometry table", () => {
   it("is still the release the configurator pinned its copy to", () => {
@@ -174,7 +174,10 @@ describe("the geometry table", () => {
       x0: -95.381, y0: -86.603, z0: 0, dx: 190.762, dy: 169.205, dz: 80,
     });
     expect(HEX_PART_BOX["hex-cap-edge-1h-f"].y0).toBe(-80);
-    expect(HEX_PART_BOX["hex-cap-edge-1h-f"].dy).toBe(80);
+    // 70.49, not 80, since release 2026-10-10: the female edge caps are
+    // bevelled at the foot to clear a bin rim in the cell below, and the cap
+    // now spans source z 9.51..80. y0 still -80: the top edge did not move.
+    expect(HEX_PART_BOX["hex-cap-edge-1h-f"].dy).toBe(70.49);
   });
 
   it("estimates a corner only where the pose forces it, and by less than the gap", () => {

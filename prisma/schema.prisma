@@ -89,6 +89,11 @@ model User {
   // build-height field could never change an answer.
   printBedXMm           Int?
   printBedYMm           Int?
+  // The bed's HEIGHT (Z), mm, or null for "not set" (reads as 250). Its own
+  // column: it lays nothing out, it only decides which parts a download warns
+  // are taller than the printer (owner, 2026-10-08). Bounded by BED_Z_MIN/MAX in
+  // src/lib/hex-pack.ts, like the two above.
+  printBedZMm           Int?
 
   // Logbook (XP progression) cached mirrors — recomputable from the XpEvent
   // ledger; updated transactionally with each award. currentThrough = the

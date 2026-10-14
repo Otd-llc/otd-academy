@@ -104,6 +104,11 @@ const CLOSE_MS = 220;
  *  not leave a mouse user stuck. */
 const CLOSE_FALLBACK_MS = 1500;
 
+/** What `persistedRef` holds: the bed as written, and its height when one was. */
+function bedKey(bed: Bed, bedZ: number | null): string {
+  return bedZ === null ? `${bed.x}x${bed.y}` : `${bed.x}x${bed.y}x${bedZ}`;
+}
+
 /** The academy's own theme event, dispatched by ThemeToggle. Subscribed to
  *  rather than polled: the attribute on <html> is the source of truth and this
  *  is how the toggle announces a change to everything else on the page. */
@@ -150,6 +155,11 @@ export function HexConfiguratorFrame({
    *  straight back at it is a message it did not ask for, and a loop if a future
    *  child build treats an inbound bed as a change worth announcing. */
   const [accountBed, setAccountBed] = useState<Bed | null>(null);
+  /** The account's bed HEIGHT, under the same single-writer rule as
+   *  `accountBed`: only the account read writes it. It rides with the bed on
+   *  `set-bed`, so an account holding a height and no bed relays nothing late;
+   *  the handshake carries it whenever the read has landed by then. */
+  const [accountBedZ, setAccountBedZ] = useState<number | null>(null);
 
   const panelRef = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -163,6 +173,8 @@ export function HexConfiguratorFrame({
    *  callback was built would hand a reloaded frame a stale bed. Exactly why the
    *  theme is read with `currentTheme()` at send time rather than closed over. */
   const bedRef = useRef<Bed | null>(null);
+  /** The best bed HEIGHT known to this page, read at send time like `bedRef`. */
+  const bedZRef = useRef<number | null>(null);
   /** The bed already stored on the account, as `WxH`, so an identical pick is
    *  not re-written. A repeat is the cheapest way for a compromised child to
    *  turn one slider into a stream of database writes with the visitor's
@@ -238,10 +250,14 @@ export function HexConfiguratorFrame({
         // discovery pattern EmbeddedSavePanel documents, one layer down.
         void (async () => {
           try {
-            const { bed } = await getPrintBed();
+            const { bed, bedZ } = await getPrintBed();
+            if (bedZ !== null) {
+              bedZRef.current = bedZ;
+              setAccountBedZ(bedZ);
+            }
             if (!bed) return;
             bedRef.current = bed;
-            persistedRef.current = `${bed.x}x${bed.y}`;
+            persistedRef.current = bedKey(bed, bedZ);
             setAccountBed(bed);
           } catch {
             // Signed out, or the read failed. Neither is an error state here:
@@ -487,8 +503,12 @@ export function HexConfiguratorFrame({
   // at it.
   useEffect(() => {
     if (!src || !accountBed) return;
-    post({ type: "set-bed", bed: accountBed });
-  }, [src, accountBed, post]);
+    post({
+      type: "set-bed",
+      bed: accountBed,
+      ...(accountBedZ === null ? {} : { bedZ: accountBedZ }),
+    });
+  }, [src, accountBed, accountBedZ, post]);
 
   // -- consent -----------------------------------------------------------
   //
@@ -520,12 +540,15 @@ export function HexConfiguratorFrame({
    * a write that never landed -- someone can sign in through the save panel
    * moments later, inside this same frame.
    */
-  const persistBed = useCallback((bed: Bed) => {
+  const persistBed = useCallback((bed: Bed, bedZ?: number) => {
     bedRef.current = bed;
-    const key = `${bed.x}x${bed.y}`;
+    if (bedZ !== undefined) bedZRef.current = bedZ;
+    // The height is part of the key, so a new height on the same bed is written
+    // and a repeat of both is not. Absent leaves the stored height alone.
+    const key = bedKey(bed, bedZ ?? null);
     if (persistedRef.current === key) return;
     persistedRef.current = key;
-    void setPrintBed(bed).catch(() => {
+    void setPrintBed(bed, bedZ).catch(() => {
       if (persistedRef.current === key) persistedRef.current = null;
     });
   }, []);
@@ -554,17 +577,18 @@ export function HexConfiguratorFrame({
    * common case is "signed out", which is exactly the state the child's own
    * local store is for.
    */
-  const promoteBed = useCallback((bed: Bed) => {
+  const promoteBed = useCallback((bed: Bed, bedZ?: number) => {
     if (promotedRef.current) return;
     promotedRef.current = true;
-    void promotePrintBed(bed)
+    void promotePrintBed(bed, bedZ)
       .then(({ promoted }) => {
         // Only when it TOOK. On a decline the account holds something else, and
         // recording the child's bed here would hand a stale value to the next
         // handshake and suppress a later identical pick from being written.
         if (!promoted) return;
         bedRef.current = bed;
-        persistedRef.current = `${bed.x}x${bed.y}`;
+        if (bedZ !== undefined) bedZRef.current = bedZ;
+        persistedRef.current = bedKey(bed, bedZ ?? null);
       })
       .catch(() => {
         promotedRef.current = false;
@@ -611,12 +635,12 @@ export function HexConfiguratorFrame({
           // through here is what makes a bed picked on a laptop true on a phone.
           // UNCONDITIONAL, and it stays that way: the visitor's newest choice
           // wins, which is the one thing `promote-bed` must never do.
-          persistBed(message.bed);
+          persistBed(message.bed, message.bedZ);
           break;
         case "promote-bed":
           // Deliberately NOT `persistBed`. Same two columns, same bounds, but
           // this one writes only into a null pair -- see `promoteBed`.
-          promoteBed(message.bed);
+          promoteBed(message.bed, message.bedZ);
           break;
         default:
           // `ready` / `set-theme` / `set-bed` / `set-consent` / `saved` /
@@ -662,6 +686,8 @@ export function HexConfiguratorFrame({
       // the protocol defines -- a null would be a third state the child would
       // have to guess at. See `Ready.bed`.
       ...(bedRef.current ? { bed: bedRef.current } : {}),
+      // The height on the same terms: omitted when there is no answer.
+      ...(bedZRef.current === null ? {} : { bedZ: bedZRef.current }),
       // ALWAYS present and always a boolean: `true` only for an explicit c15t
       // grant. Records that the child has now been told, which is what arms the
       // `set-consent` relay above.
