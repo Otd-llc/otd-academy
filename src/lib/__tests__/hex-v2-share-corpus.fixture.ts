@@ -2,7 +2,10 @@
 // (bioscale-viz, branch feat/explode-everything, src/hex/v2/share-corpus.fixture.ts,
 // literal links "exactly as the encoder wrote them on 2026-09-22"). The last
 // four (footprints, legs, drawers, fused) were frozen 2026-10-03..07 and copied
-// from branch preview/drawer-protos.
+// from branch preview/drawer-protos. jointBolts (2026-10-11) came from
+// bioscale-viz 64a077e; props (2026-10-12), notches and bays (2026-10-13) from
+// main e5fe008, each re-encoded there by the real `encodeV2State` and matched
+// byte for byte before it was copied.
 //
 // WHY A COPY: the academy's `decodeV2State` is a port of the configurator's, and
 // the only honest proof the two agree is the configurator's OWN frozen output --
@@ -926,6 +929,126 @@ export const FROZEN_V2_PAYLOADS: readonly FrozenV2Build[] = [
       "jointBolts": [
         "0#0,1#cut~s",
         "0#1,0#3"
+      ]
+    }
+  },
+  {
+    "name": "props",
+    "v2s": "v2s=RYxBDsIgFETvMuuvgUZTw6r3MF2Q-o1EShEom6Z3N8VSN5M3yZtZkKEkIUIt8IYHjlD3BR8oQQglLWe2hbIORrsEhedsLdaeEJ3222RDb9688zBlDpUPw7jIIe3lpd3D_n3neEhT3YTZVTLxePJhKlcYZ5vMyIlDd5KNoIu80k10gsS5Fa2kCiB4azjETv6kpkgkSKJf1y8",
+    "v2u": "v2u=%7B%22v%22%3A1%2C%22s%22%3A%7B%22pieces%22%3A%5B%7B%22q%22%3A0%2C%22r%22%3A0%2C%22level%22%3A0%2C%22variant%22%3A%22full%22%7D%5D%2C%22snaps%22%3A%5B%5D%2C%22spikes%22%3A%5B%5D%2C%22covers%22%3A%5B%5D%2C%22caps%22%3A%5B%5D%2C%22inserts%22%3A%5B%5D%2C%22handles%22%3A%5B%5D%2C%22connectors%22%3A%5B%5D%2C%22runs%22%3A%5B%5D%2C%22risers%22%3A%5B%5D%2C%22props%22%3A%5B%22multimeter%40-120%2C415%2C80%400%2C0.7071%2C0%2C0.7071%22%2C%22pliers%4010%2C415%2C20%400%2C0%2C0%2C1%22%5D%7D%7D",
+    "state": {
+      "pieces": [
+        {
+          "q": 0,
+          "r": 0,
+          "level": 0,
+          "variant": "full"
+        }
+      ],
+      "snaps": [],
+      "spikes": [],
+      "covers": [],
+      "caps": [],
+      "inserts": [],
+      "handles": [],
+      "connectors": [],
+      "runs": [],
+      "risers": [],
+      "props": [
+        "multimeter@-120,415,80@0,0.7071,0,0.7071",
+        "pliers@10,415,20@0,0,0,1"
+      ]
+    }
+  },
+  {
+    "name": "notches",
+    "v2s": "v2s=dczBDoIwEATQfxmubVJMvPTkfxgOFZbQWJbaQjUh-O2GCnjyNjt5szMSdCkQoWd4SzVF6OuMB7QsBQK0EnCUyOWUTLCGR2i0k3NYRJYqw9X_l5VAZOPX72v09k5brodEYc-HsBwpjNvRGW7czzNTPQ77Jky8JxuPTzyMdZcnUIUshSyLXJ3fHb1kE8yTgmyD6UnmXrb9ZfDEEFCFEuqrT1nfLG-ob9epZemtc6iW5QM",
+    "v2u": "v2u=%7B%22v%22%3A1%2C%22s%22%3A%7B%22pieces%22%3A%5B%7B%22q%22%3A-1%2C%22r%22%3A0%2C%22level%22%3A0%2C%22variant%22%3A%22full%22%7D%2C%7B%22q%22%3A0%2C%22r%22%3A-1%2C%22level%22%3A0%2C%22variant%22%3A%22full%22%7D%5D%2C%22snaps%22%3A%5B%5D%2C%22spikes%22%3A%5B%5D%2C%22covers%22%3A%5B%5D%2C%22caps%22%3A%5B%5D%2C%22inserts%22%3A%5B%5D%2C%22handles%22%3A%5B%5D%2C%22connectors%22%3A%5B%5D%2C%22runs%22%3A%5B%5D%2C%22risers%22%3A%5B%5D%2C%22notches%22%3A%5B%220%23-1%2C-1%23notch5~hex-drawer-frame-notch-fm%40open%22%2C%220%230%2C0%23notch2~hex-bin-notch-mf-drain-pill%22%5D%7D%7D",
+    "state": {
+      "pieces": [
+        {
+          "q": -1,
+          "r": 0,
+          "level": 0,
+          "variant": "full"
+        },
+        {
+          "q": 0,
+          "r": -1,
+          "level": 0,
+          "variant": "full"
+        }
+      ],
+      "snaps": [],
+      "spikes": [],
+      "covers": [],
+      "caps": [],
+      "inserts": [],
+      "handles": [],
+      "connectors": [],
+      "runs": [],
+      "risers": [],
+      "notches": [
+        "0#-1,-1#notch5~hex-drawer-frame-notch-fm@open",
+        "0#0,0#notch2~hex-bin-notch-mf-drain-pill"
+      ]
+    }
+  },
+  {
+    "name": "bays",
+    "v2s": "v2s=jdBBCsIwEIXhuzy3CSTiKlcRF9N2pMEwrUkNllLPLtW26sru_sCXgZkBGc4qJLgBreeSE9xxwBVOW4UIZxQCZw6vyhQ9SQeH8y0EjOpb2v_SvKDeLDdAu3nkhn1OCkmonW4wZesvPHfZZI5Lr8JL4tjNj5qkCh8vwmXXLH_iTZbyaZ1UUD8VzM4osyuot4-a77rwogvqteiawlm3Tex0FckL1Icefmh608rnPU7j-AQ",
+    "v2u": "v2u=%7B%22v%22%3A1%2C%22s%22%3A%7B%22pieces%22%3A%5B%7B%22q%22%3A-1%2C%22r%22%3A0%2C%22level%22%3A0%2C%22variant%22%3A%22full%22%7D%2C%7B%22q%22%3A-1%2C%22r%22%3A1%2C%22level%22%3A0%2C%22variant%22%3A%22full%22%7D%2C%7B%22q%22%3A0%2C%22r%22%3A-1%2C%22level%22%3A0%2C%22variant%22%3A%22full%22%7D%2C%7B%22q%22%3A0%2C%22r%22%3A1%2C%22level%22%3A0%2C%22variant%22%3A%22full%22%7D%2C%7B%22q%22%3A1%2C%22r%22%3A-1%2C%22level%22%3A0%2C%22variant%22%3A%22full%22%7D%2C%7B%22q%22%3A1%2C%22r%22%3A0%2C%22level%22%3A0%2C%22variant%22%3A%22full%22%7D%5D%2C%22snaps%22%3A%5B%5D%2C%22spikes%22%3A%5B%5D%2C%22covers%22%3A%5B%5D%2C%22caps%22%3A%5B%5D%2C%22inserts%22%3A%5B%5D%2C%22handles%22%3A%5B%5D%2C%22connectors%22%3A%5B%5D%2C%22runs%22%3A%5B%5D%2C%22risers%22%3A%5B%5D%2C%22bays%22%3A%5B%220%230%2C0%23bay1~hex-bin-bay-n-half-port-drain%22%2C%220%230%2C0%23bay4~hex-bin-bay-s-half-div2%22%5D%7D%7D",
+    "state": {
+      "pieces": [
+        {
+          "q": -1,
+          "r": 0,
+          "level": 0,
+          "variant": "full"
+        },
+        {
+          "q": -1,
+          "r": 1,
+          "level": 0,
+          "variant": "full"
+        },
+        {
+          "q": 0,
+          "r": -1,
+          "level": 0,
+          "variant": "full"
+        },
+        {
+          "q": 0,
+          "r": 1,
+          "level": 0,
+          "variant": "full"
+        },
+        {
+          "q": 1,
+          "r": -1,
+          "level": 0,
+          "variant": "full"
+        },
+        {
+          "q": 1,
+          "r": 0,
+          "level": 0,
+          "variant": "full"
+        }
+      ],
+      "snaps": [],
+      "spikes": [],
+      "covers": [],
+      "caps": [],
+      "inserts": [],
+      "handles": [],
+      "connectors": [],
+      "runs": [],
+      "risers": [],
+      "bays": [
+        "0#0,0#bay1~hex-bin-bay-n-half-port-drain",
+        "0#0,0#bay4~hex-bin-bay-s-half-div2"
       ]
     }
   }
