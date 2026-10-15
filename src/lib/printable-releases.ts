@@ -20,7 +20,7 @@ import { HEX_TABLES_RELEASE } from "@/lib/hex-release-tables";
  *  list did not exist: the set named only the tables' own release, so cutting
  *  2026-10-10 would have quietly turned every 2026-10-01 link into a 404. Packs
  *  are different: the pack route plans with the current tables only. */
-export const HEX_V2_EARLIER_RELEASES = ["2026-10-01", "2026-10-10"] as const;
+export const HEX_V2_EARLIER_RELEASES = ["2026-10-01", "2026-10-10", "2026-10-12"] as const;
 
 export const PUBLISHED_RELEASES: ReadonlySet<string> = new Set<string>([
   ...HEX_PUBLISHED_RECORD_RELEASES,

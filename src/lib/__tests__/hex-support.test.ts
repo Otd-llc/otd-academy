@@ -20,7 +20,7 @@ import { slug } from "@/lib/r2";
 describe("the v2 support data", () => {
   it("is MEASURED, from the generated slice", () => {
     expect(HEX_SUPPORT_DATA.state).toBe("measured");
-    expect(HEX_SUPPORT_DATA.source).toBe("support-data-2026-10-12.json");
+    expect(HEX_SUPPORT_DATA.source).toBe("support-data-2026-10-14.json");
     expect(HEX_SUPPORT_DATA.rows.map((r) => r.slug)).toEqual(
       HEX_SUPPORT_ROWS.map((r) => r.slug),
     );
@@ -28,7 +28,8 @@ describe("the v2 support data", () => {
 
   it("gives each listed part its own two flags and its own note", () => {
     // The rows' CONTENT is pinned in hex-support-data.test.ts (15 since the
-    // owner cleared the bridges, 2026-10-12); here, that every surface reads
+    // owner cleared the bridges, 2026-10-12; 21 since the notch and bay
+    // runners, 2026-10-14); here, that every surface reads
     // them unchanged.
     expect(Object.keys(PART_REMEDY).sort()).toEqual(
       HEX_SUPPORT_ROWS.map((r) => r.slug).sort(),
@@ -87,6 +88,6 @@ describe("the v2 support data", () => {
     // silently never fire.
     const live = new Set<string>(HEX_PART_SLUGS);
     for (const s of NEEDS_SUPPORT_SLUGS) expect(live.has(s), s).toBe(true);
-    expect(NEEDS_SUPPORT_NAMES).toHaveLength(15);
+    expect(NEEDS_SUPPORT_NAMES).toHaveLength(21);
   });
 });
