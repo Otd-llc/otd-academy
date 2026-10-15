@@ -8,8 +8,9 @@
 // A PORT OF THE CONFIGURATOR'S `decodeV2State` (bioscale-viz
 // `src/hex/v2/share.ts`, with the codec in `src/hex/url-codec.ts`), with the
 // same envelope, the same version rule (an unknown `v` refuses) and the same
-// field defaults (`?? []` for the ten core families; the five later families
-// are kept only when they are a non-empty array). It is STRICTER in three
+// field defaults (`?? []` for the ten core families; every later family is
+// kept only when it is a non-empty array) and the same refusal of a `props`
+// item that is not a pose. It is STRICTER in three
 // places, each on the configurator's own stated principle that "a
 // half-understood build is worse than no build":
 //
@@ -119,6 +120,16 @@ export const V2_OPTIONAL_STRING_FAMILIES = [
   // Joint bolts (2026-10-11): four M6 through a wall two bases share, as
   // `level#q,r#slot` keys on the head side. Same array rule.
   "jointBolts",
+  // Props (2026-10-12): staged objects, not parts (a meter in a bin), each a
+  // world pose `id@x,y,z@qx,qy,qz,qw`. Same array rule, and each item must
+  // also parse as a pose (`isPropPose` below), because the configurator
+  // refuses a whole link carrying one that does not.
+  "props",
+  // Notch parts (2026-10-13), `level#q,r#notch<k>~stem[@open]`, and bay parts
+  // (2026-10-13), `level#q,r#bay<k>~stem[@open]`: parts standing in an empty
+  // site against the cells around it. Same array rule.
+  "notches",
+  "bays",
 ] as const;
 /** Build-wide numbers, present ONLY when the configurator wrote one: the
  *  feet's bolt length (2026-10-09), and the leg height (2026-10-03), which a
@@ -172,6 +183,35 @@ function readPieces(raw: unknown, budget: { left: number }): V2Piece[] {
     out.push({ q, r, level, variant: variant as V2Variant });
   }
   return out;
+}
+
+// A PROP'S POSE, checked as the configurator checks it: a port of `parseProp`
+// (bioscale-viz `src/hex/v2/props/state.ts`). There, a `props` item that does
+// not parse refuses the whole link (`decodeV2State` in `share.ts`), so a save
+// carrying one would be stored here and never open there. An UNKNOWN id is not
+// refused, on either side: the library can lose a prop and the build still
+// opens without it.
+const PROP_ID_RE = /^[a-z0-9][a-z0-9_-]*$/i;
+const PROP_INT_RE = /^-?\d+$/;
+const PROP_DEC_RE = /^-?\d+(\.\d+)?$/;
+/** Ten metres from the origin, in mm: the configurator's `MAX_MM`. */
+const PROP_MAX_MM = 10_000;
+
+function isPropPose(s: string): boolean {
+  const parts = s.split("@");
+  if (parts.length !== 3) return false;
+  const [id, p, q] = parts;
+  if (!PROP_ID_RE.test(id)) return false;
+  const ps = p.split(",");
+  const qs = q.split(",");
+  if (ps.length !== 3 || qs.length !== 4) return false;
+  if (!ps.every((x) => PROP_INT_RE.test(x))) return false;
+  if (!qs.every((x) => PROP_DEC_RE.test(x))) return false;
+  // Position is mm x 10, as integers.
+  if (ps.some((x) => Math.abs(Number(x) / 10) > PROP_MAX_MM)) return false;
+  // A unit quaternion, to the configurator's tolerance.
+  const n = Math.hypot(...qs.map(Number));
+  return Math.abs(n - 1) <= 0.01;
 }
 
 function readStrings(raw: unknown, budget: { left: number }): string[] {
@@ -238,6 +278,7 @@ export function decodeV2State(payload: unknown): V2ClusterState | null {
     for (const k of V2_OPTIONAL_STRING_FAMILIES) {
       if (s[k] == null) continue;
       const list = readStrings(s[k], budget);
+      if (k === "props" && !list.every(isPropPose)) throw new Refuse();
       if (list.length) out[k] = list;
     }
     for (const k of V2_OPTIONAL_SCALARS) {

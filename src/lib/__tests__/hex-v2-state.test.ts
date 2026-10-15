@@ -61,6 +61,9 @@ const SOMETIMES = [
   "fused",
   "capsTall",
   "jointBolts",
+  "props",
+  "notches",
+  "bays",
 ];
 const SCALARS = ["legHeightMm", "footBoltMm"];
 
@@ -154,8 +157,8 @@ function assertSafe(input: unknown, where: string): ReturnType<typeof decodeV2St
 // ── The configurator's own links ────────────────────────────────────────────
 
 describe("decodeV2State opens every frozen configurator link", () => {
-  it("has the whole corpus (26 builds)", () => {
-    expect(FROZEN_V2_PAYLOADS.length).toBe(26);
+  it("has the whole corpus (29 builds)", () => {
+    expect(FROZEN_V2_PAYLOADS.length).toBe(29);
   });
   for (const b of FROZEN_V2_PAYLOADS) {
     it(b.name, () => {
@@ -250,10 +253,45 @@ describe("decodeV2State refuses", () => {
   });
 
   it("items in the later families, held to the same checks as every other", () => {
-    for (const k of ["footprints", "drawers", "fused", "capsTall", "jointBolts"]) {
+    for (const k of [
+      "footprints",
+      "drawers",
+      "fused",
+      "capsTall",
+      "jointBolts",
+      "props",
+      "notches",
+      "bays",
+    ]) {
       expect(decodeV2State(env({ ...ONE_PIECE_STATE, [k]: ["has space"] }))).toBeNull();
       expect(decodeV2State(env({ ...ONE_PIECE_STATE, [k]: [1] }))).toBeNull();
     }
+  });
+
+  it("a prop that is not a pose, as the configurator refuses it", () => {
+    const pose = "pliers@10,415,20@0,0,0,1";
+    for (const bad of [
+      "pliers",
+      "pliers@10,415,20",
+      "pliers@10,415,20@0,0,0,1@x",
+      "-pliers@10,415,20@0,0,0,1",
+      "pliers@10,415@0,0,0,1",
+      "pliers@10.5,415,20@0,0,0,1",
+      "pliers@10,415,20@0,0,1",
+      "pliers@10,415,20@0,0,0,1e0",
+      "pliers@100001,415,20@0,0,0,1",
+      "pliers@10,415,20@0,0,0,0.5",
+    ]) {
+      expect(decodeV2State(env({ ...ONE_PIECE_STATE, props: [pose, bad] })), bad).toBeNull();
+    }
+    // CONTROL: a pose decodes and keeps its absence rule; an id the library
+    // does not have is NOT refused (the configurator skips it when drawing).
+    const unknown = "retired-brand-prop@-120,415,80@0,0.7071,0,0.7071";
+    expect(decodeV2State(env({ ...ONE_PIECE_STATE, props: [pose, unknown] }))).toEqual({
+      ...ONE_PIECE_STATE,
+      props: [pose, unknown],
+    });
+    expect(decodeV2State(env({ ...ONE_PIECE_STATE, props: [] }))).toEqual(ONE_PIECE_STATE);
   });
 
   it("a payload past 16,384 characters, even a valid one", () => {
