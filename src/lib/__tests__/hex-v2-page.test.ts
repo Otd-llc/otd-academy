@@ -152,7 +152,9 @@ describe("the release notes", () => {
     expect(HEX_V2_RELEASE_HISTORY.slice(1).map((r) => r.release)).toEqual(
       [...HEX_V2_EARLIER_RELEASES].slice(1).reverse(),
     );
-    expect(HEX_V2_RELEASE_HISTORY[0].changed.join(" ")).toMatch(/no supports/);
+    // 2026-10-14 changed the classic drawer bodies, which run in the same frames
+    expect(HEX_V2_RELEASE_HISTORY[0].changed.join(" ")).toMatch(/same frames/);
+    expect(HEX_V2_RELEASE_HISTORY[1].changed.join(" ")).toMatch(/no supports/);
   });
 });
 

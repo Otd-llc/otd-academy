@@ -62,7 +62,7 @@ describe("the generated support data", () => {
     );
   });
 
-  it("carries the 2026-10-12 slice, as the owner cleared it: 4 support, 13 brim", () => {
+  it("carries the 2026-10-14 slice, as the owner cleared it: 6 support, 19 brim", () => {
     // Pinned by content, so a regenerated file that moves a part in or out of
     // either list shows up as this test failing, not as a quiet diff.
     // The COUNTS are the slice's: 716 sliced, 13 flagged for a brim. The ROWS are
@@ -76,19 +76,30 @@ describe("the generated support data", () => {
     // (2026-10-12, "Mark them anyway", not yet test-printed): every drawer body,
     // tub and plate, the trinity handle and the zip insert -- bridges and
     // channel roofs. Only the four socket bolt caps, printed face down by the
-    // owner's rule, keep support.
-    expect(HEX_SUPPORT_COUNTS).toEqual({ parts: 716, support: 4, brim: 13, both: 0 });
+    // owner's rule, keep support. 2026-10-14 added the notch and bay parts (942
+    // sliced, 74 flagged): their six drawer bodies fall under the same owner
+    // clearance as every drawer body; the notch runner (x1, x2) needs support
+    // and a brim, and the four bay runners a brim, as the classic runners.
+    expect(HEX_SUPPORT_COUNTS).toEqual({ parts: 942, support: 6, brim: 19, both: 2 });
     expect(HEX_SUPPORT_ROWS.filter((r) => r.support).map((r) => r.slug)).toEqual([
       "hex-cap-edge-socket-bolt-f",
       "hex-cap-edge-socket-bolt-f-x2",
       "hex-cap-edge-socket-bolt-m",
       "hex-cap-edge-socket-bolt-m-x2",
+      "hex-drawer-runner-notch",
+      "hex-drawer-runner-notch-x2",
     ]);
     expect(HEX_SUPPORT_ROWS.filter((r) => r.brim).map((r) => r.slug)).toEqual([
       "hex-drawer-long-plate-s-x3",
+      "hex-drawer-runner-bay-n",
+      "hex-drawer-runner-bay-n-x2",
+      "hex-drawer-runner-bay-s",
+      "hex-drawer-runner-bay-s-x2",
       "hex-drawer-runner-n",
       "hex-drawer-runner-n-x2",
       "hex-drawer-runner-n-x3",
+      "hex-drawer-runner-notch",
+      "hex-drawer-runner-notch-x2",
       "hex-drawer-runner-s",
       "hex-drawer-runner-s-x2",
       "hex-drawer-runner-s-x3",

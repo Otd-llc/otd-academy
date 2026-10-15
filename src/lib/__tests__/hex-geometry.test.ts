@@ -49,7 +49,7 @@ import { slug } from "@/lib/r2";
 // Moved deliberately to the v2 release with 4.6 ("CONFIGURATOR_PINNED_RELEASE
 // is updated deliberately"). The configurator's own copy is regenerated on its
 // branch (launch readiness phase 7), not here.
-const CONFIGURATOR_PINNED_RELEASE = "2026-10-12";
+const CONFIGURATOR_PINNED_RELEASE = "2026-10-14";
 
 describe("the geometry table", () => {
   it("is still the release the configurator pinned its copy to", () => {

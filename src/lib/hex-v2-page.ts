@@ -121,7 +121,15 @@ export const HEX_V2_PRINT_PROFILE: SpecRow[] = [
  *  gains a 45-degree fill under the flat ledge the thickened cut wall left,
  *  the slicer's "floating cantilever" on all nine, which now slice with none.
  *  The fill sits inside the cut wall's rebate recess, clear of the seated
- *  cover by 2.98 mm and the snaps by 1.38, so nothing that mates moved. */
+ *  cover by 2.98 mm and the snaps by 1.38, so nothing that mates moved.
+ *
+ *  2026-10-12 -> 2026-10-14: 226 sources added, the notch and bay bins and
+ *  drawers (hex-cluster #9), and exactly six of the 716 earlier sources differ:
+ *  the classic drawer bodies, hex-drawer-body-n and -s at one to three storeys
+ *  (hex-cluster 4f64714). Each body now comes down beside its runners to 1.0 mm
+ *  over the frame floor, crenellated, so it holds 30 ml (s) or 37 ml (n) more;
+ *  its frame, lid and runners are byte-identical and check_drawers passes all
+ *  six sets at a rail fit of 0.350 mm. hex-main.FCStd is byte-identical. */
 export const HEX_V2_RELEASE_NOTES: SpecRow[] = [
   { label: "Release", value: HEX_RELEASE },
   { label: "Earlier v2 release", value: HEX_V2_EARLIER_RELEASES.join(", ") },
@@ -137,6 +145,13 @@ export const HEX_V2_RELEASE_NOTES: SpecRow[] = [
 export type HexV2ReleaseChange = { release: string; news: string; changed: string[] };
 
 export const HEX_V2_RELEASE_HISTORY: HexV2ReleaseChange[] = [
+  {
+    release: "2026-10-14",
+    news: "Notch and bay parts: bins and drawers that stand in the open site between cells, 226 new parts.",
+    changed: [
+      "hex-drawer-body-n and hex-drawer-body-s, at one to three storeys, now come down beside the runners with a crenellated floor, so they hold 30 to 37 ml more. They run in the same frames on the same runners: reprint one only if you want the room.",
+    ],
+  },
   {
     release: "2026-10-12",
     news: "Nine parts no longer need supports.",

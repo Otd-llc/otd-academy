@@ -468,12 +468,13 @@ describe("PUBLISHED_RELEASES", () => {
   it("is the published record plus every v2 release, and nothing else", async () => {
     // The v1 ids are pinned, as literals, by the published record's own test
     // (`hex-release-tables.test.ts`); the first v2 release joined at launch
-    // (10.4) and stays served after the second, 2026-10-10, and the third, 2026-10-12.
+    // (10.4) and stays served after the second, 2026-10-10, the third, 2026-10-12,
+    // and the fourth, 2026-10-14.
     const { PUBLISHED_RELEASES } = await import("@/lib/printable-releases");
     expect([...PUBLISHED_RELEASES].sort()).toEqual(
-      [...HEX_PUBLISHED_RECORD_RELEASES, "2026-10-01", "2026-10-10", "2026-10-12"].sort(),
+      [...HEX_PUBLISHED_RECORD_RELEASES, "2026-10-01", "2026-10-10", "2026-10-12", "2026-10-14"].sort(),
     );
-    expect(PUBLISHED_RELEASES.size).toBe(6);
+    expect(PUBLISHED_RELEASES.size).toBe(7);
   });
 });
 
